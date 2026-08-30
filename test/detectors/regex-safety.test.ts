@@ -9,6 +9,7 @@ describe("regex safety", () => {
       `-----BEGIN PRIVATE KEY-----\n${"A".repeat(100_000)}`,
       `AKIA${"A".repeat(100_000)}`,
       `ghp_${"A".repeat(100_000)}`,
+      `ghs_${"A._-".repeat(25_000)}!`,
       `glpat-${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
       `eyJ${"A".repeat(100_000)}.missing`,
       `Bearer ${"!".repeat(100_000)}`,

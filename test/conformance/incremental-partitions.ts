@@ -19,6 +19,8 @@ const privateKey = [
 ].join("\n");
 const aws = `AKIA${"SYNTHETICEXAMPLE"}`;
 const gitlab = "glpat-SYNTHETIC_REVOKED_INCREMENTAL";
+const githubInstallation =
+  "ghs_SYNTHETIC_APP_ID.eyJTWU5USEVUSUNfUkVWT0tFRF9IRUFERVI.SYNTHETIC_REVOKED_SIGNATURE";
 const jwt = [
   "eyJTWU5USEVUSUNfSEVBREVS",
   "eyJTWU5USEVUSUNfUEFZTE9BRA",
@@ -43,6 +45,11 @@ const overlapInput = `Authorization: Bearer ${jwt}`;
 const contextualInput = `api_key=${contextual}`;
 const connectionInput =
   `postgres://fixture:${connectionPassword}@localhost:5432/db`;
+const mongoSeedInput =
+  `mongodb://fixture:${connectionPassword}@db0.example.test:27017,db1.example.test:27018/db`;
+const redisPasswordOnlyInput =
+  `redis://:${connectionPassword}@cache.example.test:6379/0`;
+const awsContextualInput = `AWS_SESSION_TOKEN=${contextual}`;
 const adjacentInput = `${aws} ${gitlab}`;
 
 /**
@@ -74,6 +81,18 @@ export const incrementalPartitionCorpus: readonly IncrementalPartitionCase[] = [
       })],
     },
     note: "A delimiter or finalization closes an open-ended provider suffix.",
+  },
+  {
+    id: "github-installation-stateless",
+    input: githubInstallation,
+    expected: {
+      text: "<SECRET_1>",
+      findings: [finding("finding-1", githubInstallation, githubInstallation, {
+        type: "github_token", detector: "github-token",
+        confidence: "high", action: "redact",
+      })],
+    },
+    note: "The variable-length GitHub installation shape remains whole across partitions.",
   },
   {
     id: "structural-overlap",
@@ -109,6 +128,42 @@ export const incrementalPartitionCorpus: readonly IncrementalPartitionCase[] = [
       })],
     },
     note: "Encoded userinfo and the complete authority may span chunks.",
+  },
+  {
+    id: "mongodb-seed-list-connection",
+    input: mongoSeedInput,
+    expected: {
+      text: `mongodb://fixture:<SECRET_1>@db0.example.test:27017,db1.example.test:27018/db`,
+      findings: [finding("finding-1", mongoSeedInput, connectionPassword, {
+        type: "connection_string_password", detector: "connection-string",
+        confidence: "high", action: "redact",
+      })],
+    },
+    note: "A comma-separated MongoDB authority may be divided at every boundary.",
+  },
+  {
+    id: "redis-password-only-connection",
+    input: redisPasswordOnlyInput,
+    expected: {
+      text: `redis://:<SECRET_1>@cache.example.test:6379/0`,
+      findings: [finding("finding-1", redisPasswordOnlyInput, connectionPassword, {
+        type: "connection_string_password", detector: "connection-string",
+        confidence: "high", action: "redact",
+      })],
+    },
+    note: "Password-only Redis userinfo remains unresolved until the authority closes.",
+  },
+  {
+    id: "aws-contextual-assignment",
+    input: awsContextualInput,
+    expected: {
+      text: "AWS_SESSION_TOKEN=<SECRET_1>",
+      findings: [finding("finding-1", awsContextualInput, contextual, {
+        type: "contextual_secret", detector: "generic-token",
+        confidence: "high", action: "redact",
+      })],
+    },
+    note: "An AWS-specific high-signal name remains open across assignment partitions.",
   },
   {
     id: "multiline-private-key",

@@ -212,6 +212,15 @@ api_key: ...
 postgres://user:password@host/db
 ```
 
+Connection authority parsing stays lexical and bounded. Standard `mongodb://`
+authorities may contain a comma-separated list of individually valid hosts and
+ports, while `mongodb+srv://` accepts one DNS host without an explicit port.
+`redis://` and `rediss://` additionally accept `:password@host` because Redis
+supports password authentication without a named ACL user. Empty passwords,
+placeholder values, malformed authorities, and the same empty-username form on
+other schemes remain excluded. The detector selects only the original encoded
+password span and does not resolve hosts, decode credentials, or validate them.
+
 ### Context detectors
 
 Contextual names can increase confidence:
@@ -225,7 +234,13 @@ PASSWORD
 PRIVATE_KEY
 CLIENT_SECRET
 WEBHOOK_SECRET
+AWS_SECRET_ACCESS_KEY
+AWS_SESSION_TOKEN
 ```
+
+The AWS names are contextual signals, not provider-format validation. Their
+values follow the same bounded length and entropy confidence rules as other
+assignments, and the policy independently decides whether to warn or redact.
 
 The word `token` alone should not imply a secret because it is common in AI and parser-related text.
 
@@ -421,12 +436,12 @@ than false-negative paths.
 
 | Detector family | Evidence that must remain open | Closing evidence | Bound |
 | --- | --- | --- | --- |
-| AWS and GitHub | Prefix, fixed body, and one boundary code unit on each side | Exact length plus a non-token right boundary or finalization | Fixed match plus lookaround reserve |
-| GitLab, OpenAI, Anthropic, Shopify, and Vault | Recognized prefix and the complete opaque suffix | Non-token delimiter or finalization | `maxTokenCodeUnits` |
+| AWS and fixed-width GitHub forms | Prefix, fixed body, and one boundary code unit on each side | Exact length plus a non-token right boundary or finalization | Fixed match plus lookaround reserve |
+| GitHub installation, GitLab, OpenAI, Anthropic, Shopify, and Vault | Recognized prefix and the complete opaque or rollout-safe suffix | Non-token delimiter or finalization | `maxTokenCodeUnits` |
 | JWT | All three potentially growing segments and left/right token boundaries | Non-token delimiter or finalization | `maxTokenCodeUnits` |
 | Bearer, Basic, and Token authorization | Current logical line from the structural scheme through its credential | Credential delimiter, line end, or finalization | `maxTokenCodeUnits` |
 | Contextual assignment | Current logical line from the possible name through the bounded value | Assignment delimiter, line end, or finalization | `maxTokenCodeUnits`; the detector still rejects values above 4,096 code units |
-| Connection URL | Possible scheme boundary and complete authority through host and optional port | Authority delimiter or finalization | Existing 8,192-code-unit authority bound within `maxTokenCodeUnits` |
+| Connection URL | Possible scheme boundary and complete authority through one host, a standard MongoDB seed list, or an optional Redis username | Authority delimiter or finalization | Existing 8,192-code-unit authority bound within `maxTokenCodeUnits` |
 | Private key | Possible delimiter suffix and the outermost open supported delimiter stack | The stack resolves, explicit finalization, or failure at the multiline limit | `maxMultilineCodeUnits` |
 
 The open-line rule is intentionally conservative. It covers unbounded whitespace

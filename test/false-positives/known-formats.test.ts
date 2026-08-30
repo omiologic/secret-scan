@@ -25,11 +25,14 @@ describe("known-format false positives", () => {
   it("requires token boundaries around fixed provider formats", () => {
     const embeddedAws = `XAKIA${"SYNTHETICEXAMPLE"}Y`;
     const embeddedGithub = `Xghp_${"SYNTHETICREVOKED".padEnd(36, "0")}Y`;
+    const embeddedGithubInstallation =
+      `Xghs_${"SYNTHETICREVOKED".padEnd(36, "0")}Y`;
     const embeddedGitlab = "Xglpat-SYNTHETIC_REVOKED_GITLAB_TOKENY";
     const embeddedShopify = "Xshpat_SYNTHETIC_REVOKED_SHOPIFY_TOKENY";
     const embeddedVault = "Xhvs.SYNTHETIC_REVOKED_VAULT_TOKENY";
     expect(runDetectorPipeline(embeddedAws, createDetectorRegistry())).toEqual([]);
     expect(runDetectorPipeline(embeddedGithub, createDetectorRegistry())).toEqual([]);
+    expect(runDetectorPipeline(embeddedGithubInstallation, createDetectorRegistry())).toEqual([]);
     expect(runDetectorPipeline(embeddedGitlab, createDetectorRegistry())).toEqual([]);
     expect(runDetectorPipeline(embeddedShopify, createDetectorRegistry())).toEqual([]);
     expect(runDetectorPipeline(embeddedVault, createDetectorRegistry())).toEqual([]);

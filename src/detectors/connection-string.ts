@@ -84,6 +84,26 @@ function hasValidHostAndPort(value: string): boolean {
   return REG_NAME.test(host) && (port === undefined || isValidPort(port));
 }
 
+function hasValidMongoHostList(value: string): boolean {
+  const hosts = value.split(",");
+  return hosts.length > 0 && hosts.every(hasValidHostAndPort);
+}
+
+function hasValidSrvHost(value: string): boolean {
+  return (
+    !value.includes(",") &&
+    !value.includes(":") &&
+    REG_NAME.test(value) &&
+    value.split(".").length >= 3
+  );
+}
+
+function hasValidHostForScheme(scheme: string, value: string): boolean {
+  if (scheme === "mongodb") return hasValidMongoHostList(value);
+  if (scheme === "mongodb+srv") return hasValidSrvHost(value);
+  return hasValidHostAndPort(value);
+}
+
 function authorityEnd(input: string, start: number): number | undefined {
   let end = start;
   while (end < input.length && !/[\s/?#"'<>\\]/.test(input[end] ?? "")) {
@@ -95,9 +115,10 @@ function authorityEnd(input: string, start: number): number | undefined {
 
 /**
  * Selects the original, undecoded password portion of credential-bearing URLs
- * for a bounded set of schemes. Requiring a valid `user:password@host`
- * authority avoids classifying host-only and malformed URLs; unsupported
- * schemes and placeholder passwords are false negatives by design.
+ * for a bounded set of schemes. Requiring a valid credential-bearing
+ * authority avoids classifying host-only and malformed URLs. Standard MongoDB
+ * seed lists and Redis password-only authorities are handled explicitly;
+ * unsupported schemes and placeholder passwords are false negatives by design.
  */
 export const connectionStringDetector: SecretDetector = Object.freeze({
   id: "connection-string",
@@ -113,6 +134,7 @@ export const connectionStringDetector: SecretDetector = Object.freeze({
         continue;
       }
 
+      const scheme = match[0].slice(0, -3).toLowerCase();
       const userInfoStart = matchStart + match[0].length;
       const end = authorityEnd(input, userInfoStart);
       if (end === undefined) continue;
@@ -122,14 +144,22 @@ export const connectionStringDetector: SecretDetector = Object.freeze({
 
       const userInfo = authority.slice(0, at);
       const separator = userInfo.indexOf(":");
-      if (separator <= 0 || separator === userInfo.length - 1) continue;
+      const passwordOnlyRedis =
+        separator === 0 && (scheme === "redis" || scheme === "rediss");
+      if (
+        separator < 0 ||
+        (!passwordOnlyRedis && separator === 0) ||
+        separator === userInfo.length - 1
+      ) {
+        continue;
+      }
       const password = userInfo.slice(separator + 1);
       if (password.length > MAX_PASSWORD_LENGTH || isPlaceholder(password)) {
         continue;
       }
       if (
         !hasValidUserInfoEncoding(userInfo) ||
-        !hasValidHostAndPort(authority.slice(at + 1))
+        !hasValidHostForScheme(scheme, authority.slice(at + 1))
       ) {
         continue;
       }
@@ -144,7 +174,14 @@ export const connectionStringDetector: SecretDetector = Object.freeze({
         detector: "connection-string",
         confidence,
         specificity: "structural",
-        signals: ["credential-bearing-authority", "supported-scheme"],
+        signals: [
+          "credential-bearing-authority",
+          "supported-scheme",
+          ...(passwordOnlyRedis ? ["redis-password-only"] : []),
+          ...(scheme === "mongodb" && authority.includes(",")
+            ? ["mongodb-seed-list"]
+            : []),
+        ],
         start,
         end: start + password.length,
       });

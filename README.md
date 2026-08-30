@@ -266,15 +266,19 @@ Built-in detection includes:
 
 - PEM-style private-key blocks;
 - AWS access-key IDs;
-- GitHub classic and fine-grained tokens;
-- GitLab tokens with documented standard prefixes;
+- GitHub classic, fine-grained, OAuth, App user/refresh, and both opaque and
+  stateless App installation-token shapes;
+- GitLab tokens with the documented `glpat`, `gloas`, `gldt`, `glrt`, `glrtr`,
+  `glcbt`, `glptt`, `glft`, `glimt`, `glagent`, and `glwt` prefixes;
 - JWT structure and bearer credentials;
 - OpenAI and Anthropic API-key shapes;
 - Shopify Admin and delegate access tokens;
 - modern HashiCorp Vault service, batch, and recovery tokens;
-- contextual credential assignments;
+- contextual credential assignments, including AWS secret-access-key and
+  session-token setting names;
 - Basic and Token authorization headers; and
-- credential-bearing PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and AMQP URLs.
+- credential-bearing PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and AMQP URLs,
+  including standard MongoDB seed lists and Redis password-only authorities.
 
 Entropy is only a supporting signal. Random-looking text is not classified
 without structural or contextual evidence, and the generic name `token` alone
@@ -283,6 +287,8 @@ is deliberately ignored.
 Strict prefixes, supported URI schemes, minimum lengths, bounded values, and
 placeholder exclusions favor precision. The tradeoff is that truncated,
 short, newly introduced, or unsupported credential formats can be missed.
+Provider formats are rechecked before each public release and when an upstream
+format announcement is identified; the core never performs runtime lookups.
 Server applications should combine this library with appropriate request
 limits and other security controls; it is not a complete DLP system.
 

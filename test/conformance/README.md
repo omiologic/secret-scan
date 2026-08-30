@@ -28,7 +28,7 @@ source input, matched substrings, candidate signals, or exception causes.
 | --- | --- | --- |
 | Private keys | Complete PEM-style private-key blocks plus fail-safe outer spans for nested, repeated, out-of-order, or mismatched supported delimiters | Public keys, unsupported labels, near-matches, and lone incomplete headers are ignored |
 | AWS | Fixed-length `AKIA` and `ASIA` access-key IDs | Other AWS identifiers, prefixes, lengths, and embedded values are ignored |
-| GitHub | Current classic shapes and fine-grained shape | Unknown prefixes, wrong lengths, and embedded values are ignored |
+| GitHub | Current classic and fine-grained shapes plus opaque and stateless App installation tokens | Unknown prefixes, short values, invalid rollout alphabets, and embedded values are ignored |
 | GitLab | Documented standard token prefixes with substantial opaque suffixes | Customized PAT prefixes, short values, and embedded values are ignored |
 | OpenAI | Current legacy, project, and service-account `sk-` shapes | Short or embedded values and the Anthropic `sk-ant-` namespace are ignored |
 | Anthropic | The versioned `api03` detector shape | Unknown versions, short values, and embedded values are ignored |
@@ -36,12 +36,13 @@ source input, matched substrings, candidate signals, or exception causes.
 | Vault | Modern service, batch, and recovery prefixes with at least 24 suffix characters | Collision-prone legacy one-letter prefixes, short values, and embedded values are ignored |
 | JWT | Three bounded base64url-looking segments with encoded-object header and payload prefixes | Short, malformed, and valid-but-differently-encoded JWTs are ignored |
 | Bearer | Explicit Bearer scheme with a bounded credential alphabet | Short credentials and scheme text embedded in identifiers are ignored |
-| Connection strings | Original encoded or unencoded password spans in the documented PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and AMQP schemes, including valid bracketed IPv6 hosts and numeric ports | Host-only, empty-password, placeholder, unsupported-scheme, malformed-escape/authority, and overlong authorities are ignored |
-| Contextual | Documented high-signal assignments plus Basic and Token authorization structures | Generic `token`, references, placeholders, short/overlong values, and entropy-only text are ignored |
+| Connection strings | Original encoded or unencoded password spans in the documented PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and AMQP schemes, including MongoDB seed lists, Redis password-only userinfo, valid bracketed IPv6 hosts, and numeric ports | Host-only, empty-password, placeholder, unsupported-scheme, malformed-escape/authority, invalid SRV multi-host/port forms, and overlong authorities are ignored |
+| Contextual | Documented high-signal assignments, including AWS secret/session names, plus Basic and Token authorization structures | Generic `token`, references, placeholders, short/overlong values, and entropy-only text are ignored |
 
 The corpus retains an unassigned pending fixture so future provider families
-must be qualified before behavior is asserted. The current qualification record
-is [secret-scan-00009](../../_notes/plans/archived/secret-scan-00009.qualify-provider-token-families.md).
+must be qualified before behavior is asserted. Qualification records are
+[secret-scan-00009](../../_notes/plans/archived/secret-scan-00009.qualify-provider-token-families.md)
+and [secret-scan-00017](../../_notes/plans/archived/secret-scan-00017.requalify-credential-coverage.md).
 
 ## Incremental boundary corpus
 

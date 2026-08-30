@@ -11,6 +11,8 @@ const values = {
   ].join("\n"),
   aws: `AKIA${"SYNTHETICEXAMPLE"}`,
   github: `ghp_${"SYNTHETICREVOKED".padEnd(36, "0")}`,
+  githubInstallation:
+    "ghs_SYNTHETIC_APP_ID.eyJTWU5USEVUSUNfUkVWT0tFRF9IRUFERVI.SYNTHETIC_REVOKED_SIGNATURE",
   gitlab: "glpat-SYNTHETIC_REVOKED_GITLAB_TOKEN",
   openai: "sk-proj-SYNTHETIC_REVOKED_CONFORMANCE_KEY",
   anthropic: "sk-ant-api03-SYNTHETIC_REVOKED_CONFORMANCE_KEY",
@@ -25,6 +27,7 @@ const values = {
   connectionPassword: "SYNTHETIC_REVOKED_DB_VALUE",
   encodedConnectionPassword: "SYNTHETIC%40REVOKED%3ADB%2FVALUE",
   contextual: "SYNTHETIC_REVOKED_CONTEXT_VALUE",
+  awsContextual: "SYNTHETIC_REVOKED_AWS_CONTEXT_VALUE",
 } as const;
 
 function one(
@@ -213,6 +216,18 @@ export const conformanceCorpus: readonly ConformanceCase[] = [
     input: "SYNTHETIC_TEST_IDENTIFIER_987654321",
     expected: [],
     note: "Generic test identifiers are not provider tokens.",
+  },
+  {
+    id: "github-positive-installation-stateless",
+    detector: "github-token",
+    kind: "positive",
+    support: "supported",
+    input: values.githubInstallation,
+    expected: one(values.githubInstallation, values.githubInstallation, {
+      detector: "github-token", type: "github_token", confidence: "high",
+      specificity: "provider",
+    }),
+    note: "The complete rollout-safe stateless installation-token shape is supported.",
   },
   {
     id: "github-boundary-short",
@@ -658,6 +673,47 @@ export const conformanceCorpus: readonly ConformanceCase[] = [
     note: "A numeric port on a valid host preserves the bounded password span.",
   },
   {
+    id: "connection-positive-mongodb-seed-list",
+    detector: "connection-string",
+    kind: "positive",
+    support: "supported",
+    input: `mongodb://fixture:${values.connectionPassword}@db0.example.test:27017,db1.example.test:27018/db`,
+    expected: one(
+      `mongodb://fixture:${values.connectionPassword}@db0.example.test:27017,db1.example.test:27018/db`,
+      values.connectionPassword,
+      {
+        detector: "connection-string", type: "connection_string_password",
+        confidence: "high", specificity: "structural",
+      },
+    ),
+    note: "A standard MongoDB comma-separated seed list retains one password span.",
+  },
+  {
+    id: "connection-positive-redis-password-only",
+    detector: "connection-string",
+    kind: "positive",
+    support: "supported",
+    input: `redis://:${values.connectionPassword}@cache.example.test:6379/0`,
+    expected: one(
+      `redis://:${values.connectionPassword}@cache.example.test:6379/0`,
+      values.connectionPassword,
+      {
+        detector: "connection-string", type: "connection_string_password",
+        confidence: "high", specificity: "structural",
+      },
+    ),
+    note: "Redis password-only authentication is selected without inventing a username.",
+  },
+  {
+    id: "connection-boundary-srv-multiple-hosts",
+    detector: "connection-string",
+    kind: "boundary",
+    support: "intentionally-unsupported",
+    input: `mongodb+srv://fixture:${values.connectionPassword}@db0.example.test,db1.example.test/db`,
+    expected: [],
+    note: "MongoDB SRV syntax permits one DNS host rather than an explicit seed list.",
+  },
+  {
     id: "connection-negative-host-only",
     detector: "connection-string",
     kind: "negative",
@@ -746,6 +802,38 @@ export const conformanceCorpus: readonly ConformanceCase[] = [
       specificity: "contextual",
     }),
     note: "An escaped quote remains inside one complete structured value span.",
+  },
+  {
+    id: "contextual-positive-aws-secret-access-key",
+    detector: "generic-token",
+    kind: "positive",
+    support: "supported",
+    input: `AWS_SECRET_ACCESS_KEY=${values.awsContextual}`,
+    expected: one(
+      `AWS_SECRET_ACCESS_KEY=${values.awsContextual}`,
+      values.awsContextual,
+      {
+        detector: "generic-token", type: "contextual_secret",
+        confidence: "high", specificity: "contextual",
+      },
+    ),
+    note: "The documented AWS secret-access-key environment name is high signal.",
+  },
+  {
+    id: "contextual-positive-aws-session-token",
+    detector: "generic-token",
+    kind: "positive",
+    support: "supported",
+    input: `aws_session_token=${values.awsContextual}`,
+    expected: one(
+      `aws_session_token=${values.awsContextual}`,
+      values.awsContextual,
+      {
+        detector: "generic-token", type: "contextual_secret",
+        confidence: "high", specificity: "contextual",
+      },
+    ),
+    note: "The documented AWS session-token setting name is high signal.",
   },
   {
     id: "contextual-negative-token-name",

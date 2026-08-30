@@ -24,6 +24,9 @@ const SYNTHETIC = {
   aws: `AKIA${"SYNTHETICEXAMPLE"}`,
   githubClassic: `ghp_${"SYNTHETICREVOKED".padEnd(36, "0")}`,
   githubFineGrained: `github_pat_${"SYNTHETICREVOKED".padEnd(22, "0")}_${"SYNTHETICREVOKED".padEnd(59, "0")}`,
+  githubInstallationStateful: `ghs_${"SYNTHETICREVOKED".padEnd(36, "0")}`,
+  githubInstallationStateless:
+    "ghs_SYNTHETIC_APP_ID.eyJTWU5USEVUSUNfUkVWT0tFRF9IRUFERVI.SYNTHETIC_REVOKED_SIGNATURE",
   gitlab: "glpat-SYNTHETIC_REVOKED_GITLAB_TOKEN",
   jwt: [
     "eyJTWU5USEVUSUNfSEVBREVS",
@@ -60,6 +63,8 @@ describe("known-format detectors", () => {
     [awsAccessKeyDetector, SYNTHETIC.aws, "aws_access_key_id", "provider"],
     [githubTokenDetector, SYNTHETIC.githubClassic, "github_token", "provider"],
     [githubTokenDetector, SYNTHETIC.githubFineGrained, "github_token", "provider"],
+    [githubTokenDetector, SYNTHETIC.githubInstallationStateful, "github_token", "provider"],
+    [githubTokenDetector, SYNTHETIC.githubInstallationStateless, "github_token", "provider"],
     [gitlabTokenDetector, SYNTHETIC.gitlab, "gitlab_token", "provider"],
     [jwtDetector, SYNTHETIC.jwt, "jwt", "structural"],
     [bearerTokenDetector, `Bearer ${SYNTHETIC.bearer}`, "bearer_token", "structural"],
@@ -89,6 +94,36 @@ describe("known-format detectors", () => {
     expect(first.map(({ type }) => type)).toEqual([
       "aws_access_key_id",
       "openai_api_key",
+    ]);
+  });
+
+  it("selects the complete stateless GitHub installation token", () => {
+    const token = SYNTHETIC.githubInstallationStateless;
+    const input = `before ${token} after`;
+    expect(githubTokenDetector.detect(input, { inputLength: input.length })).toEqual([
+      expect.objectContaining({
+        start: input.indexOf(token),
+        end: input.indexOf(token) + token.length,
+      }),
+    ]);
+  });
+
+  it.each([
+    "glpat",
+    "gloas",
+    "gldt",
+    "glrt",
+    "glrtr",
+    "glcbt",
+    "glptt",
+    "glft",
+    "glimt",
+    "glagent",
+    "glwt",
+  ])("detects the documented GitLab %s prefix", (prefix) => {
+    const input = `${prefix}-SYNTHETIC_REVOKED_PREFIX_FIXTURE`;
+    expect(gitlabTokenDetector.detect(input, { inputLength: input.length })).toEqual([
+      expect.objectContaining({ start: 0, end: input.length }),
     ]);
   });
 
@@ -248,6 +283,7 @@ describe("documented precision and recall boundaries", () => {
   it.each([
     [awsAccessKeyDetector, "AKIASYNTHETICSHORT"],
     [githubTokenDetector, "ghp_SYNTHETICSHORT"],
+    [githubTokenDetector, "ghs_SYNTHETICSHORT"],
     [gitlabTokenDetector, "glpat-SYNTHETIC_SHORT"],
     [jwtDetector, "header.payload.signature"],
     [bearerTokenDetector, "Bearer short-token"],

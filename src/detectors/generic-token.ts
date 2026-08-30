@@ -18,6 +18,8 @@ const HIGH_SIGNAL_NAMES = new Set([
   "access_token",
   "refresh_token",
   "session_token",
+  "aws_secret_access_key",
+  "aws_session_token",
   "password",
   "passwd",
   "private_key",

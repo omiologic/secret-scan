@@ -13,6 +13,7 @@ describe("contextual false positives", () => {
     ["generated ID", "build_id=SYNTHETIC_GENERATED_IDENTIFIER_42"],
     ["numeric ID", "account_id=12345678901234567890"],
     ["environment reference", "api_key=${API_KEY_FROM_ENV}"],
+    ["AWS environment reference", "AWS_SESSION_TOKEN=${SESSION_TOKEN_FROM_ENV}"],
     ["file reference", "private_key=./fixtures/revoked.pem"],
     ["placeholder URL", "postgres://fixture:password@localhost/example"],
     ["host-only URL", "postgres://localhost/example"],

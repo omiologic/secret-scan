@@ -5,7 +5,7 @@ import {
   genericTokenDetector,
 } from "../../src/detectors/index.js";
 import { createDetectorRegistry } from "../../src/registry.js";
-import { runDetectorPipeline } from "../../src/scan.js";
+import { runDetectorPipeline, scanAndRedact } from "../../src/scan.js";
 
 const HIGH_ENTROPY_VALUE = "SYNTHETIC_REVOKED_CONTEXT_42";
 const LOW_ENTROPY_VALUE = "aaaaaaaaaaaaaaaa";
@@ -134,6 +134,34 @@ describe("generic contextual detector", () => {
     ]);
   });
 
+  it.each(["AWS_SECRET_ACCESS_KEY", "aws_secret_access_key", "AWS_SESSION_TOKEN"])(
+    "detects the documented AWS credential name %s",
+    (name) => {
+      const input = `${name}=${HIGH_ENTROPY_VALUE}`;
+      expect(scanAndRedact(input)).toEqual({
+        text: `${name}=<SECRET_1>`,
+        findings: [
+          expect.objectContaining({
+            type: "contextual_secret",
+            detector: "generic-token",
+            confidence: "high",
+            action: "redact",
+            start: input.indexOf(HIGH_ENTROPY_VALUE),
+            end: input.length,
+          }),
+        ],
+      });
+    },
+  );
+
+  it("keeps a low-entropy AWS session token at the default warn action", () => {
+    const input = `AWS_SESSION_TOKEN=${LOW_ENTROPY_VALUE}`;
+    expect(scanAndRedact(input)).toEqual({
+      text: input,
+      findings: [expect.objectContaining({ confidence: "medium", action: "warn" })],
+    });
+  });
+
   it("enforces the contextual length and entropy upgrade boundaries", () => {
     const belowMinimum = "abcdefg";
     const minimumMedium = "aaaaaaaa";
@@ -212,7 +240,7 @@ describe("generic contextual detector", () => {
 });
 
 describe("connection string detector", () => {
-  it.each(["postgresql", "mysql", "mongodb+srv", "rediss", "amqps"])(
+  it.each(["postgresql", "mysql", "rediss", "amqps"])(
     "detects a credential-bearing %s URL and selects only its password",
     (scheme) => {
       const password = "SYNTHETIC_REVOKED_DB_PASSWORD";
@@ -225,6 +253,43 @@ describe("connection string detector", () => {
           type: "connection_string_password",
           confidence: "high",
           specificity: "structural",
+          start: input.indexOf(password),
+          end: input.indexOf(password) + password.length,
+        }),
+      ]);
+    },
+  );
+
+  it("detects a credential-bearing MongoDB SRV URL with one DNS host", () => {
+    const password = "SYNTHETIC_REVOKED_SRV_PASSWORD";
+    const input = `mongodb+srv://fixture-user:${password}@db.example.test/example`;
+    expect(connectionStringDetector.detect(input, { inputLength: input.length })).toEqual([
+      expect.objectContaining({
+        start: input.indexOf(password),
+        end: input.indexOf(password) + password.length,
+      }),
+    ]);
+  });
+
+  it("detects a standard MongoDB seed list and selects only its password", () => {
+    const password = "SYNTHETIC_REVOKED_SEED_PASSWORD";
+    const input =
+      `mongodb://fixture-user:${password}@db0.example.test:27017,db1.example.test:27018/example`;
+    expect(connectionStringDetector.detect(input, { inputLength: input.length })).toEqual([
+      expect.objectContaining({
+        start: input.indexOf(password),
+        end: input.indexOf(password) + password.length,
+      }),
+    ]);
+  });
+
+  it.each(["redis", "rediss"])(
+    "detects a password-only %s authority",
+    (scheme) => {
+      const password = "SYNTHETIC_REVOKED_REDIS_PASSWORD";
+      const input = `${scheme}://:${password}@cache.example.test:6379/0`;
+      expect(connectionStringDetector.detect(input, { inputLength: input.length })).toEqual([
+        expect.objectContaining({
           start: input.indexOf(password),
           end: input.indexOf(password) + password.length,
         }),
@@ -289,6 +354,10 @@ describe("connection string detector", () => {
     "postgres://fixture:SYNTHETIC_REVOKED@[2001:::1]/db",
     "postgres://fixture:SYNTHETIC_REVOKED@localhost:99999/db",
     "postgres://fixture:SYNTHETIC_REVOKED@-invalid.example/db",
+    "postgres://:SYNTHETIC_REVOKED@localhost/db",
+    "mongodb+srv://fixture:SYNTHETIC_REVOKED@db0.example.test,db1.example.test/db",
+    "mongodb+srv://fixture:SYNTHETIC_REVOKED@db.example.test:27017/db",
+    "mongodb+srv://fixture:SYNTHETIC_REVOKED@localhost/db",
   ])("ignores malformed or credential-free authority %s", (input) => {
     expect(connectionStringDetector.detect(input, { inputLength: input.length })).toEqual([]);
   });
