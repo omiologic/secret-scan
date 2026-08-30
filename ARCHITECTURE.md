@@ -152,6 +152,7 @@ export interface SecretCandidate {
   start: number;
   end: number;
   confidence: SecretConfidence;
+  specificity?: SecretCandidateSpecificity;
   signals?: string[];
 }
 ```
@@ -167,9 +168,12 @@ Examples include:
 - private-key blocks
 - AWS access keys
 - GitHub token families
+- GitLab token families
 - JWT structure
 - bearer tokens
 - provider-specific API key formats
+- Shopify access tokens
+- modern Vault tokens
 
 ### Structural detectors
 
@@ -207,13 +211,22 @@ Entropy helps classify unknown formats but should not be used as the sole aggres
 
 Multiple detectors may identify the same span. For example, a JWT bearer token may trigger bearer-token, JWT, and generic high-entropy detection.
 
-Overlaps should be resolved deterministically with precedence roughly as follows:
+Overlaps are resolved deterministically with this specificity precedence:
 
 1. private key / highly specific credential
 2. provider-specific detector
 3. structural detector
 4. contextual detector
 5. entropy-only candidate
+
+Within the same specificity tier, higher confidence wins, followed by the
+narrower span, detector registration order, and detector emission order.
+Candidates that omit specificity use the lowest `entropy` tier, so an
+unclassified custom detector cannot displace a detector that explicitly claims
+stronger structural evidence. This favors precision and bounded redaction; the
+tradeoff is that a detector which understates its specificity may lose a real
+overlap, while one which overstates specificity may suppress a more accurate
+candidate.
 
 ## Policy evaluation
 
@@ -222,7 +235,7 @@ Detection and enforcement are separate concerns.
 ```ts
 export interface SecretPolicy {
   evaluate(
-    finding: SecretFinding,
+    finding: DetectedSecretFinding,
     context: PolicyContext
   ): SecretAction;
 }
@@ -232,7 +245,9 @@ export interface SecretPolicy {
 type SecretAction = "redact" | "block" | "warn" | "allow";
 ```
 
-This allows a browser chat input to redact and warn, while a production API may choose to block the same private key entirely.
+The policy receives immutable classification and range metadata before an
+action exists; it never receives the matched value. This allows browser and
+server consumers to enforce different actions over identical detections.
 
 ## Redaction engine
 
@@ -244,7 +259,8 @@ The default placeholder strategy is semantic and non-recoverable:
 <SECRET_3>
 ```
 
-Typed placeholders may be supported:
+The exported typed placeholder formatter derives labels from safe finding
+types:
 
 ```text
 <API_KEY_1>
@@ -254,14 +270,139 @@ Typed placeholders may be supported:
 
 Partial masking such as `sk-proj-****abcd` may be useful in credential-management UI, but it is not the preferred strategy for conversational redaction.
 
+## Incremental scanning contract
+
+The package does not yet expose an incremental runtime API. The following
+contract is the implementation boundary for `secret-scan-00011`; defining it
+does not change synchronous behavior or make chunk-by-chunk scanning safe.
+
+### Logical input and lifecycle
+
+An incremental session consumes JavaScript strings. The logical original input
+is the exact UTF-16 code-unit concatenation of every appended chunk, including
+empty chunks and chunks that divide a surrogate pair. Runtime adapters that
+start from bytes must use one stateful, fatal UTF-8 decoder and pass only decoded
+strings to the core. Decoder errors belong to the adapter and must not release
+undecoded or buffered input.
+
+The state machine has four terminally distinct states:
+
+```text
+accepting --finalize--> finalized
+    |             |
+    +--abort------> aborted
+    |
+    +--failure----> failed
+```
+
+- `accepting` may receive chunks and return only output whose detection window
+  is closed;
+- `finalize` is required, supplies the end-of-input boundary, and may be called
+  exactly once;
+- `abort` discards retained plaintext and emits no further text or findings;
+- a limit, detector, policy, formatter, or state failure discards retained
+  plaintext, enters `failed`, and throws a fixed input-free error; and
+- append, finalize, or abort after a terminal transition fails safely and does
+  not expose retained state.
+
+Garbage collection is not a security erasure guarantee for JavaScript strings.
+Discarding means dropping library references and never returning, logging,
+storing, or attaching buffered text to an error.
+
+### Safe emission and final findings
+
+An input range is emit-safe only after every built-in detector that could start
+before or inside it is unable to produce or displace a finding that overlaps
+that range. A chunk boundary, a minimum token length, or a provisional match is
+never a closing boundary. A delimiter, a complete fixed-width match plus its
+required right boundary, or explicit finalization may close a window.
+
+The implementation may emit confirmed ordinary prefixes progressively. It must
+retain an open lexical line, URL authority, variable-length token, or private-key
+block until that construct closes or a configured limit fails. It must not emit
+any code unit from a provisional finding, including a finding that may later
+lose overlap resolution. Output fragments concatenate in original order and
+must not end between the two code units of a valid surrogate pair.
+
+Final findings are immutable and use absolute UTF-16 offsets into the logical
+original input. IDs and ordering follow the synchronous pipeline. Policy is
+evaluated exactly once after each finding is final, and only then may its text
+or placeholder be emitted. Placeholder numbering is one-based across the
+session and advances only for `redact` and `block` actions.
+
+The existing `SecretPolicy` receives the final whole-input `findingCount`.
+Progressive evaluation cannot know that value. Therefore the incremental API
+must use a separate policy context that contains the zero-based finalized
+`findingIndex` but no provisional or total count. The default incremental policy
+has the same action mapping as `defaultSecretPolicy`. A caller that requires the
+existing whole-input policy context must continue using `scan` or
+`scanAndRedact`; adapting such a policy is explicit and is not guaranteed to be
+behaviorally equivalent.
+
+### Required limits
+
+Every session must receive explicit positive safe-integer limits. There are no
+environment-derived or silent defaults:
+
+- `maxInputCodeUnits` bounds the total logical input accepted by one session;
+- `maxBufferedCodeUnits` bounds plaintext retained but not yet emitted;
+- `maxTokenCodeUnits` bounds an open logical line, single-line credential, JWT,
+  contextual assignment, or other delimiter-terminated token; and
+- `maxMultilineCodeUnits` bounds an open PEM-style private-key block.
+
+The implementation validates the complete limit relationship before accepting
+input. `maxBufferedCodeUnits` must accommodate the larger of the token and
+multiline limits plus the detector lookaround reserve. A construct that reaches
+a limit without a closing boundary is not reclassified as ordinary text: the
+session fails before any code unit from that construct is emitted. This turns
+otherwise unbounded detector shapes into explicit rejection boundaries rather
+than false-negative paths.
+
+### Detector retention inventory
+
+| Detector family | Evidence that must remain open | Closing evidence | Bound |
+| --- | --- | --- | --- |
+| AWS and GitHub | Prefix, fixed body, and one boundary code unit on each side | Exact length plus a non-token right boundary or finalization | Fixed match plus lookaround reserve |
+| GitLab, OpenAI, Anthropic, Shopify, and Vault | Recognized prefix and the complete opaque suffix | Non-token delimiter or finalization | `maxTokenCodeUnits` |
+| JWT | All three potentially growing segments and left/right token boundaries | Non-token delimiter or finalization | `maxTokenCodeUnits` |
+| Bearer, Basic, and Token authorization | Current logical line from the structural scheme through its credential | Credential delimiter, line end, or finalization | `maxTokenCodeUnits` |
+| Contextual assignment | Current logical line from the possible name through the bounded value | Assignment delimiter, line end, or finalization | `maxTokenCodeUnits`; the detector still rejects values above 4,096 code units |
+| Connection URL | Possible scheme boundary and complete authority through host and optional port | Authority delimiter or finalization | Existing 8,192-code-unit authority bound within `maxTokenCodeUnits` |
+| Private key | Possible begin marker suffix; after recognition, the complete block through the matching footer | Matching footer, subject to overlap lookahead, or failure at the multiline limit | `maxMultilineCodeUnits` |
+
+The open-line rule is intentionally conservative. It covers unbounded whitespace
+and name portions in the current contextual regular expressions without
+changing their synchronous meaning. Custom synchronous detectors have no
+retention declaration and therefore are not accepted by the incremental API.
+A future custom incremental detector contract would need deterministic maximum
+lookbehind, match, and closing-bound declarations; adding it is not part of the
+approved implementation item.
+
+### Equivalence boundary
+
+For built-in detectors, accepted input within all explicit limits, the default
+incremental policy, and the same placeholder formatter, concatenated incremental
+text and final findings must equal one `scanAndRedact` call over the concatenated
+logical input. This includes actions, ordering, IDs, absolute offsets, overlap
+resolution, and placeholder numbering. Chunk partitioning cannot affect the
+result.
+
+The contract intentionally does not claim equivalence for malformed UTF-8,
+limit-exceeding input, aborted or failed sessions, custom synchronous detectors,
+or whole-input policies that depend on `PolicyContext.findingCount`. These cases
+fail or remain on the synchronous API rather than emitting potentially unsafe
+plaintext. The executable partition corpus covers every UTF-16 code-unit and
+UTF-8 byte boundary around representative synthetic matches and is the shared
+acceptance source for the future core and stream adapters.
+
 ## Public result safety
 
-Preferred result shape:
+Public result shape:
 
 ```ts
 interface ScanResult {
-  text: string;
-  findings: SecretFinding[];
+  readonly text: string;
+  readonly findings: readonly SecretFinding[];
 }
 ```
 
@@ -295,7 +436,7 @@ The initial implementation should remain one package:
 
 Do not prematurely split browser and server packages because the scanning core should remain runtime-neutral.
 
-Recommended layout:
+Current layout:
 
 ```text
 src/
@@ -306,9 +447,12 @@ src/
 │   ├── connection-string.ts
 │   ├── generic-token.ts
 │   ├── github.ts
+│   ├── gitlab.ts
 │   ├── jwt.ts
 │   ├── openai.ts
-│   └── private-key.ts
+│   ├── private-key.ts
+│   ├── shopify.ts
+│   └── vault.ts
 ├── entropy.ts
 ├── policy.ts
 ├── redact.ts
@@ -341,21 +485,22 @@ Avoid coupling core logic to:
 
 ## Build strategy
 
-Recommended:
+Current strategy:
 
 - TypeScript
 - ESM-first
 - declaration output
 - explicit package `exports`
 - tree-shakeable detectors
-- Node 20+ for development/CI
+- Node 20+ runtime support and Node 20/22 CI coverage
 - browser-compatible runtime code
 
-A CommonJS build should only be added if consumer demand justifies it.
+The current package intentionally has no CommonJS build. One should only be
+added if consumer demand justifies the additional compatibility surface.
 
 ## Performance and regex safety
 
-v0.1 should prioritize correctness while avoiding pathological regular expressions.
+The initial release should prioritize correctness while avoiding pathological regular expressions.
 
 Requirements:
 
@@ -399,7 +544,8 @@ Include values that may look secret-like but should remain unchanged:
 
 ## Browser UX integration
 
-The core package should not provide UI components in v0.1. Consumers can build review flows using findings and offsets.
+The initial core package should not provide UI components. Consumers can build
+review flows using findings and offsets.
 
 Example UX:
 
@@ -480,7 +626,7 @@ They must never include plaintext secret values.
 
 ## Extension model
 
-Initial public extension points should be limited to:
+Public extension points are limited to:
 
 - custom detectors
 - detector registry
@@ -489,7 +635,7 @@ Initial public extension points should be limited to:
 
 Internal candidate-resolution mechanics should remain private until the algorithm stabilizes.
 
-## Initial milestone
+## Initial readiness milestone
 
 The first publishable version should prove four things:
 
@@ -498,7 +644,7 @@ The first publishable version should prove four things:
 3. Sanitized output preserves enough semantic structure for downstream reasoning.
 4. False-positive behavior is testable and tunable.
 
-Recommended v0.1 acceptance criteria:
+Implemented readiness criteria:
 
 - `scan`, `redact`, and `scanAndRedact`
 - typed detector interface
