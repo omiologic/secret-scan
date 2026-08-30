@@ -154,7 +154,9 @@ or formatter failure also discards retained plaintext and throws a fixed,
 input-free `IncrementalSanitizerError`. Custom synchronous detectors are not
 accepted because they do not declare deterministic retention bounds. A custom
 incremental policy receives `{ findingIndex }`, not the unknowable final
-whole-input finding count.
+whole-input finding count. `maxBufferedCodeUnits` applies only to unresolved
+plaintext still held by the session; finalized safe output does not accumulate
+against it, so transport chunk partitioning does not change acceptance.
 
 ### Stream adapters
 

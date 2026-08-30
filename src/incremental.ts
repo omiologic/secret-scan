@@ -173,16 +173,16 @@ export function createIncrementalSanitizer(
 
   const registry = createDetectorRegistry();
   let state: IncrementalSanitizerState = "accepting";
-  let buffered = "";
-  let bufferedOffset = 0;
-  let totalInput = 0;
+  let retainedPlaintext = "";
+  let finalizedInputCodeUnits = 0;
+  let totalInputCodeUnits = 0;
   let findingCount = 0;
   let placeholderCount = 0;
   let multilineFooter: string | undefined;
   let multilineDetected = false;
 
   function fail(code: IncrementalSanitizerErrorCode): never {
-    buffered = "";
+    retainedPlaintext = "";
     multilineFooter = undefined;
     multilineDetected = false;
     state = "failed";
@@ -257,43 +257,44 @@ export function createIncrementalSanitizer(
     return frozenResult(text, findings);
   }
 
-  function appendBuffered(piece: string, closesLine = false): void {
-    buffered += piece;
-    if (buffered.length > limits.maxBufferedCodeUnits) {
-      fail("BUFFER_LIMIT_EXCEEDED");
-    }
-    const privateKeys = inspectPrivateKeys(buffered);
+  function appendRetained(piece: string, closesLine = false): void {
+    retainedPlaintext += piece;
+    const privateKeys = inspectPrivateKeys(retainedPlaintext);
     multilineDetected ||= privateKeys.hasBegin;
     multilineFooter = privateKeys.openFooter;
     const constructLimit = multilineDetected
       ? limits.maxMultilineCodeUnits
       : limits.maxTokenCodeUnits;
-    const openLength = closesLine ? buffered.length - 1 : buffered.length;
+    const openLength = closesLine
+      ? retainedPlaintext.length - 1
+      : retainedPlaintext.length;
     if (openLength > constructLimit) {
       fail(multilineDetected
         ? "MULTILINE_LIMIT_EXCEEDED"
         : "TOKEN_LIMIT_EXCEEDED");
     }
+    if (retainedPlaintext.length > limits.maxBufferedCodeUnits) {
+      fail("BUFFER_LIMIT_EXCEEDED");
+    }
   }
 
   function hasOpenSingleLineConstruct(): boolean {
     return (
-      hasOpenContextualAssignment(buffered) ||
-      hasOpenBearerAuthorization(buffered)
+      hasOpenContextualAssignment(retainedPlaintext) ||
+      hasOpenBearerAuthorization(retainedPlaintext)
     );
   }
 
   function append(chunk: string): IncrementalSanitizerResult {
     requireAccepting();
     if (typeof chunk !== "string") return fail("INVALID_INPUT");
-    if (chunk.length > limits.maxInputCodeUnits - totalInput) {
+    if (chunk.length > limits.maxInputCodeUnits - totalInputCodeUnits) {
       return fail("INPUT_LIMIT_EXCEEDED");
     }
-    totalInput += chunk.length;
+    totalInputCodeUnits += chunk.length;
 
-    const texts: string[] = [];
+    const emittedTexts: string[] = [];
     const findings: SecretFinding[] = [];
-    let pendingEmissionCodeUnits = 0;
     let cursor = 0;
     while (cursor < chunk.length) {
       const lineFeed = chunk.indexOf("\n", cursor);
@@ -304,37 +305,32 @@ export function createIncrementalSanitizer(
           ? lineFeed
           : Math.min(lineFeed, carriageReturn);
       if (newline < 0) {
-        appendBuffered(chunk.slice(cursor));
+        appendRetained(chunk.slice(cursor));
         break;
       }
 
-      appendBuffered(chunk.slice(cursor, newline + 1), true);
+      appendRetained(chunk.slice(cursor, newline + 1), true);
       if (
         (multilineFooter === undefined && !hasOpenSingleLineConstruct())
       ) {
-        const unitLength = buffered.length;
-        const result = processUnit(buffered, bufferedOffset);
-        pendingEmissionCodeUnits += unitLength;
-        if (pendingEmissionCodeUnits > limits.maxBufferedCodeUnits) {
-          return fail("BUFFER_LIMIT_EXCEEDED");
-        }
-        texts.push(result.text);
+        const result = processUnit(retainedPlaintext, finalizedInputCodeUnits);
+        emittedTexts.push(result.text);
         findings.push(...result.findings);
-        bufferedOffset += buffered.length;
-        buffered = "";
+        finalizedInputCodeUnits += retainedPlaintext.length;
+        retainedPlaintext = "";
         multilineFooter = undefined;
         multilineDetected = false;
       }
       cursor = newline + 1;
     }
-    return frozenResult(texts.join(""), findings);
+    return frozenResult(emittedTexts.join(""), findings);
   }
 
   function finalize(): IncrementalSanitizerResult {
     requireAccepting();
-    const input = buffered;
-    const inputOffset = bufferedOffset;
-    buffered = "";
+    const input = retainedPlaintext;
+    const inputOffset = finalizedInputCodeUnits;
+    retainedPlaintext = "";
     multilineFooter = undefined;
     multilineDetected = false;
     try {
@@ -349,7 +345,7 @@ export function createIncrementalSanitizer(
 
   function abort(): void {
     requireAccepting();
-    buffered = "";
+    retainedPlaintext = "";
     multilineFooter = undefined;
     multilineDetected = false;
     state = "aborted";

@@ -13,6 +13,7 @@ import type {
 } from "../../src/index.js";
 import {
   codeUnitPartitions,
+  fixedCodeUnitPartition,
   incrementalPartitionCorpus,
   singleCodeUnitPartition,
   utf8BytePartitions,
@@ -132,6 +133,100 @@ describe("incremental partition equivalence", () => {
     const input = `${block}\n${block}`;
     expect(sanitize(singleCodeUnitPartition(input))).toEqual(scanAndRedact(input));
   });
+
+  it("accepts the audit reproduction identically as one chunk and every split", () => {
+    const input = "x\n".repeat(200);
+    const limits = {
+      maxInputCodeUnits: 512,
+      maxBufferedCodeUnits: 192,
+      maxTokenCodeUnits: 32,
+      maxMultilineCodeUnits: 64,
+    };
+    const expected = scanAndRedact(input);
+    const twentyChunks = fixedCodeUnitPartition(input, 20);
+
+    expect(input).toHaveLength(400);
+    expect(twentyChunks).toHaveLength(20);
+    expect(sanitize([input], { limits })).toEqual(expected);
+    expect(sanitize(twentyChunks, { limits })).toEqual(expected);
+    for (const chunks of codeUnitPartitions(input)) {
+      expect(sanitize(chunks, { limits })).toEqual(expected);
+    }
+  });
+
+  it("keeps retained and finalized units separate across line endings and Unicode", () => {
+    const privateKey = [
+      "-----BEGIN PRIVATE KEY-----",
+      "U1lOVEhFVElDX1JFVk9LRURfUEFSVElUSU9O",
+      "-----END PRIVATE KEY-----",
+    ].join("\r\n");
+    const lineEndings = ["\r", "\n", "\r\n"] as const;
+    const closedLines = Array.from(
+      { length: 24 },
+      (_, index) => `closed-${index}-🧪${lineEndings[index % lineEndings.length]}`,
+    ).join("");
+    const input = `${closedLines}api_key=${
+      "SYNTHETIC_REVOKED_PARTITION_VALUE"
+    }\r${privateKey}\ntail`;
+    const limits = {
+      maxInputCodeUnits: 2_048,
+      maxBufferedCodeUnits: 384,
+      maxTokenCodeUnits: 128,
+      maxMultilineCodeUnits: 256,
+    };
+    const expected = scanAndRedact(input);
+
+    for (const chunks of [
+      [input],
+      fixedCodeUnitPartition(input, 1),
+      fixedCodeUnitPartition(input, 7),
+      fixedCodeUnitPartition(input, 31),
+    ]) {
+      expect(sanitize(chunks, { limits })).toEqual(expected);
+    }
+    for (const chunks of codeUnitPartitions(input)) {
+      expect(sanitize(chunks, { limits })).toEqual(expected);
+    }
+  });
+
+  it.each([
+    [
+      "token",
+      {
+        maxInputCodeUnits: 512,
+        maxBufferedCodeUnits: 192,
+        maxTokenCodeUnits: 32,
+        maxMultilineCodeUnits: 64,
+      },
+      "x".repeat(32),
+    ],
+    [
+      "multiline",
+      {
+        maxInputCodeUnits: 512,
+        maxBufferedCodeUnits: 256,
+        maxTokenCodeUnits: 64,
+        maxMultilineCodeUnits: 128,
+      },
+      `-----BEGIN PRIVATE KEY-----\n${"A".repeat(100)}`,
+    ],
+  ] as const)("accepts an open %s construct at its exact limit", (
+    name,
+    limits,
+    input,
+  ) => {
+    const expected = scanAndRedact(input);
+    expect(input).toHaveLength(
+      name === "token" ? limits.maxTokenCodeUnits : limits.maxMultilineCodeUnits,
+    );
+    for (const chunks of [
+      ...codeUnitPartitions(input),
+      fixedCodeUnitPartition(input, 1),
+      fixedCodeUnitPartition(input, 17),
+    ]) {
+      expect(sanitize(chunks, { limits })).toEqual(expected);
+    }
+  });
 });
 
 describe("incremental lifecycle and safety", () => {
@@ -177,17 +272,6 @@ describe("incremental lifecycle and safety", () => {
 
   it.each([
     ["input", { ...LIMITS, maxInputCodeUnits: 16_384 }, "x".repeat(16_385), "INPUT_LIMIT_EXCEEDED"],
-    [
-      "buffer",
-      {
-        maxInputCodeUnits: 512,
-        maxBufferedCodeUnits: 192,
-        maxTokenCodeUnits: 32,
-        maxMultilineCodeUnits: 64,
-      },
-      "x\n".repeat(97),
-      "BUFFER_LIMIT_EXCEEDED",
-    ],
     ["token", { ...LIMITS, maxTokenCodeUnits: 32 }, "x".repeat(33), "TOKEN_LIMIT_EXCEEDED"],
     [
       "multiline",
@@ -207,6 +291,60 @@ describe("incremental lifecycle and safety", () => {
       expect(session.state).toBe("failed");
     }
     expect(() => session.finalize()).toThrowError("no longer accepting");
+  });
+
+  it.each([
+    [
+      "token",
+      {
+        maxInputCodeUnits: 512,
+        maxBufferedCodeUnits: 192,
+        maxTokenCodeUnits: 64,
+        maxMultilineCodeUnits: 64,
+      },
+      `ordinary\r\napi_key=${"SYNTHETIC_REVOKED_"}${"X".repeat(48)}`,
+      "TOKEN_LIMIT_EXCEEDED",
+    ],
+    [
+      "multiline",
+      {
+        maxInputCodeUnits: 512,
+        maxBufferedCodeUnits: 256,
+        maxTokenCodeUnits: 64,
+        maxMultilineCodeUnits: 128,
+      },
+      `ordinary\n-----BEGIN PRIVATE KEY-----\r\n${"U1lOVEhFVElD".repeat(10)}`,
+      "MULTILINE_LIMIT_EXCEEDED",
+    ],
+  ] as const)("fails with the same safe %s error across every partition", (
+    _name,
+    limits,
+    input,
+    code,
+  ) => {
+    for (const chunks of [
+      ...codeUnitPartitions(input),
+      fixedCodeUnitPartition(input, 1),
+      fixedCodeUnitPartition(input, 17),
+    ]) {
+      const session = createIncrementalSanitizer({ limits });
+      const emitted: string[] = [];
+      let failure: unknown;
+      try {
+        for (const chunk of chunks) emitted.push(session.append(chunk).text);
+        emitted.push(session.finalize().text);
+      } catch (error) {
+        failure = error;
+      }
+
+      expect(failure).toBeInstanceOf(IncrementalSanitizerError);
+      expect((failure as IncrementalSanitizerError).code).toBe(code);
+      expect(failure).not.toHaveProperty("cause");
+      expect(String(failure)).not.toContain(input);
+      expect(emitted.join("")).not.toContain("SYNTHETIC_REVOKED_");
+      expect(session.state).toBe("failed");
+      expect(() => session.finalize()).toThrowError("no longer accepting");
+    }
   });
 
   it("rejects incomplete, unsafe limit relationships and detector extensions", () => {

@@ -185,3 +185,18 @@ export function singleCodeUnitPartition(input: string): readonly string[] {
     Array.from({ length: input.length }, (_, index) => input.slice(index, index + 1)),
   );
 }
+
+/** Consecutive chunks of one fixed UTF-16 code-unit size. */
+export function fixedCodeUnitPartition(
+  input: string,
+  chunkCodeUnits: number,
+): readonly string[] {
+  if (!Number.isSafeInteger(chunkCodeUnits) || chunkCodeUnits <= 0) {
+    throw new TypeError("Invalid incremental partition size.");
+  }
+  const chunks: string[] = [];
+  for (let cursor = 0; cursor < input.length; cursor += chunkCodeUnits) {
+    chunks.push(input.slice(cursor, cursor + chunkCodeUnits));
+  }
+  return Object.freeze(chunks);
+}

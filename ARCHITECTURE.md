@@ -369,6 +369,15 @@ environment-derived or silent defaults:
   contextual assignment, or other delimiter-terminated token; and
 - `maxMultilineCodeUnits` bounds an open PEM-style private-key block.
 
+Accounting keeps four quantities distinct. Total input is the sum of accepted
+chunks and is checked against `maxInputCodeUnits`. Retained plaintext is the
+unresolved input still owned by the session and is checked against
+`maxBufferedCodeUnits` and the applicable construct limit. Finalized input
+units have already passed detection and policy; they advance absolute offsets
+but no longer count as retained plaintext. Emitted text is sanitized output
+accumulated for the current operation's return value and has no separate size
+limit. Callers that need an output-size limit must impose one independently.
+
 The implementation validates the complete limit relationship before accepting
 input. `maxBufferedCodeUnits` must accommodate the larger of the token and
 multiline limits plus the detector lookaround reserve. A construct that reaches
@@ -404,7 +413,9 @@ incremental policy, and the same placeholder formatter, concatenated incremental
 text and final findings must equal one `scanAndRedact` call over the concatenated
 logical input. This includes actions, ordering, IDs, absolute offsets, overlap
 resolution, and placeholder numbering. Chunk partitioning cannot affect the
-result.
+result or whether an otherwise identical logical input is accepted. In
+particular, finalized input processed within one `append` call does not
+accumulate against `maxBufferedCodeUnits`.
 
 The contract intentionally does not claim equivalence for malformed UTF-8,
 limit-exceeding input, aborted or failed sessions, custom synchronous detectors,
