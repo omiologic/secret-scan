@@ -25,6 +25,12 @@ const ERROR_MESSAGES: Readonly<Record<SecretRedactionErrorCode, string>> = {
 const IDENTIFIER_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 const MAX_IDENTIFIER_LENGTH = 64;
 const MAX_PLACEHOLDER_LENGTH = 256;
+const MIN_FORBIDDEN_MATCH_LENGTH = 4;
+
+interface ForbiddenMatchedTextIndex {
+  readonly byLength: ReadonlyMap<number, ReadonlySet<string>>;
+  readonly lengths: readonly number[];
+}
 
 export class SecretRedactionError extends Error {
   readonly code: SecretRedactionErrorCode;
@@ -123,7 +129,7 @@ function formatPlaceholder(
   formatter: PlaceholderFormatter,
   finding: SecretFinding,
   context: PlaceholderContext,
-  forbiddenMatchedTexts: readonly string[],
+  forbiddenMatchedTexts: ForbiddenMatchedTextIndex,
 ): string {
   let placeholder: unknown;
   try {
@@ -136,14 +142,61 @@ function formatPlaceholder(
     typeof placeholder !== "string" ||
     placeholder.length === 0 ||
     placeholder.length > MAX_PLACEHOLDER_LENGTH ||
-    forbiddenMatchedTexts.some(
-      (matchedText) =>
-        matchedText.length >= 4 && placeholder.includes(matchedText),
-    )
+    containsForbiddenMatchedText(placeholder, forbiddenMatchedTexts)
   ) {
     throw new SecretRedactionError("INVALID_PLACEHOLDER");
   }
   return placeholder;
+}
+
+function buildForbiddenMatchedTextIndex(
+  input: string,
+  findings: readonly SecretFinding[],
+): ForbiddenMatchedTextIndex {
+  const byLength = new Map<number, Set<string>>();
+
+  for (const finding of findings) {
+    if (finding.action !== "redact" && finding.action !== "block") continue;
+
+    const length = finding.end - finding.start;
+    if (
+      length < MIN_FORBIDDEN_MATCH_LENGTH ||
+      length > MAX_PLACEHOLDER_LENGTH
+    ) {
+      continue;
+    }
+
+    let values = byLength.get(length);
+    if (values === undefined) {
+      values = new Set<string>();
+      byLength.set(length, values);
+    }
+    values.add(input.slice(finding.start, finding.end));
+  }
+
+  return {
+    byLength,
+    lengths: [...byLength.keys()].sort((left, right) => left - right),
+  };
+}
+
+function containsForbiddenMatchedText(
+  placeholder: string,
+  index: ForbiddenMatchedTextIndex,
+): boolean {
+  for (const length of index.lengths) {
+    if (length > placeholder.length) break;
+
+    const forbiddenValues = index.byLength.get(length);
+    if (forbiddenValues === undefined) continue;
+
+    for (let start = 0; start + length <= placeholder.length; start += 1) {
+      if (forbiddenValues.has(placeholder.slice(start, start + length))) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**
@@ -183,11 +236,10 @@ export function redact(
   const chunks: string[] = [];
   let cursor = 0;
   let placeholderIndex = 0;
-  const forbiddenMatchedTexts = normalized
-    .filter(
-      (finding) => finding.action === "redact" || finding.action === "block",
-    )
-    .map((finding) => input.slice(finding.start, finding.end));
+  const forbiddenMatchedTexts = buildForbiddenMatchedTextIndex(
+    input,
+    normalized,
+  );
   for (const finding of normalized) {
     if (finding.action === "warn" || finding.action === "allow") continue;
 

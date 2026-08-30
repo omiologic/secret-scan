@@ -175,6 +175,32 @@ Examples include:
 - Shopify access tokens
 - modern Vault tokens
 
+#### PEM private-key delimiters
+
+Private-key detection recognizes exact `BEGIN` and `END` pairs for `PRIVATE
+KEY`, `RSA PRIVATE KEY`, `DSA PRIVATE KEY`, `EC PRIVATE KEY`, `OPENSSH PRIVATE
+KEY`, and `ENCRYPTED PRIVATE KEY`. A normally paired block also requires at
+least 16 base64-alphabet code units after CR and LF are removed. Delimiters are
+structural evidence only; the detector does not parse, decrypt, or
+cryptographically validate the body.
+
+The parser advances once through supported delimiters and maintains an
+input-bounded last-in-first-out label stack. Adjacent complete blocks remain
+separate. A lone
+incomplete header is ignored to avoid classifying documentation fragments, but
+nested, repeated, out-of-order, or mismatched supported delimiters are treated
+as malformed credential structure. Such a structure produces one conservative
+candidate from its outermost header through the point where the delimiter stack
+resolves, or through end of input when it remains unresolved. This prevents an
+inner block from winning overlap resolution while surrounding key material is
+left behind.
+
+The malformed rule intentionally favors false positives over partial release:
+prose containing multiple exact supported private-key headers can be blocked.
+Public-key, certificate, unsupported-label, missing-hyphen, and lone truncated
+near-matches remain ignored. Detection still emits metadata only; the default
+policy supplies the `block` action and custom policies remain independent.
+
 ### Structural detectors
 
 These recognize credential-bearing syntax such as:
@@ -246,6 +272,11 @@ stronger structural evidence. This favors precision and bounded redaction; the
 tradeoff is that a detector which understates its specificity may lose a real
 overlap, while one which overstates specificity may suppress a more accurate
 candidate.
+
+The greedy priority pass stores accepted, mutually disjoint spans in a balanced
+interval tree. Overlap lookup and insertion are logarithmic while the final
+public ordering remains by original-input offset. This preserves the winner
+contract without comparing each candidate with every previously accepted span.
 
 ## Policy evaluation
 
@@ -396,7 +427,7 @@ than false-negative paths.
 | Bearer, Basic, and Token authorization | Current logical line from the structural scheme through its credential | Credential delimiter, line end, or finalization | `maxTokenCodeUnits` |
 | Contextual assignment | Current logical line from the possible name through the bounded value | Assignment delimiter, line end, or finalization | `maxTokenCodeUnits`; the detector still rejects values above 4,096 code units |
 | Connection URL | Possible scheme boundary and complete authority through host and optional port | Authority delimiter or finalization | Existing 8,192-code-unit authority bound within `maxTokenCodeUnits` |
-| Private key | Possible begin marker suffix; after recognition, the complete block through the matching footer | Matching footer, subject to overlap lookahead, or failure at the multiline limit | `maxMultilineCodeUnits` |
+| Private key | Possible delimiter suffix and the outermost open supported delimiter stack | The stack resolves, explicit finalization, or failure at the multiline limit | `maxMultilineCodeUnits` |
 
 The open-line rule is intentionally conservative. It covers unbounded whitespace
 and name portions in the current contextual regular expressions without
@@ -405,6 +436,13 @@ retention declaration and therefore are not accepted by the incremental API.
 A future custom incremental detector contract would need deterministic maximum
 lookbehind, match, and closing-bound declarations; adding it is not part of the
 approved implementation item.
+
+Incremental private-key retention uses the same delimiter transitions as the
+synchronous detector. It keeps only fixed delimiter-length lookbehind while
+advancing its parser state across appended text, so chunk boundaries and
+repeated headers do not cause prior retained prefixes to be rescanned. An open
+outermost structure remains retained until its stack resolves, finalization
+applies the synchronous end-of-input rule, or the multiline limit fails safely.
 
 ### Equivalence boundary
 
@@ -565,8 +603,23 @@ Requirements:
 - no catastrophic regex backtracking
 - deterministic detector order
 - avoid unnecessary full-string copies
+- resolve candidate overlaps in `O(n log n)` time after prioritization
+- validate placeholders without a placeholder-by-finding cross-product
 - reconstruct redacted output in a single pass after findings are finalized
 - benchmark representative 1 KB, 100 KB, and 1 MB inputs
+
+Placeholder validation indexes only unique redacted or blocked matched values
+that are between four and 256 UTF-16 code units: shorter values are outside the
+selected reproduction rule, and longer values cannot fit in a valid
+placeholder. Each formatter result is checked through bounded substring lookups
+against that index. This keeps the check exact while avoiding retention of
+duplicate or impossible-to-reproduce matched slices.
+
+The synchronous API deliberately has no implicit input or finding-count limit.
+Its accepted findings, public metadata, and output use memory proportional to
+the request. Server consumers must impose request-size and custom-detector
+candidate-count limits that fit their own event-loop latency and memory budget;
+incremental scanning uses its separately declared mandatory limits.
 
 Every regex detector should include adversarial tests for ReDoS risk.
 

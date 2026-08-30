@@ -29,4 +29,37 @@ describe("regex safety", () => {
     const input = "ordinary text 1234\n".repeat(55_000);
     expect(runDetectorPipeline(input, createDetectorRegistry())).toEqual([]);
   }, 2_000);
+
+  it("handles many unmatched private-key headers without repeated suffix searches", () => {
+    const input = "-----BEGIN PRIVATE KEY-----\n".repeat(10_000);
+    const result = runDetectorPipeline(input, createDetectorRegistry());
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      type: "private_key",
+      detector: "private-key",
+      start: 0,
+      end: input.length,
+    });
+  }, 2_000);
+
+  it("finds one full span for a large complete private-key block", () => {
+    const input = [
+      "-----BEGIN PRIVATE KEY-----",
+      "U1lOVEhFVElDX1JFVk9LRURfQk9EWQ==".repeat(32_000),
+      "-----END PRIVATE KEY-----",
+    ].join("\n");
+    const result = runDetectorPipeline(input, createDetectorRegistry());
+
+    expect(result).toEqual([
+      {
+        id: "finding-1",
+        type: "private_key",
+        detector: "private-key",
+        confidence: "high",
+        start: 0,
+        end: input.length,
+      },
+    ]);
+  }, 2_000);
 });

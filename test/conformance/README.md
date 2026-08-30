@@ -26,7 +26,7 @@ source input, matched substrings, candidate signals, or exception causes.
 
 | Detector area | Supported behavior | Intentional or current boundary |
 | --- | --- | --- |
-| Private keys | Complete PEM-style private-key blocks | Public keys and incomplete blocks are ignored |
+| Private keys | Complete PEM-style private-key blocks plus fail-safe outer spans for nested, repeated, out-of-order, or mismatched supported delimiters | Public keys, unsupported labels, near-matches, and lone incomplete headers are ignored |
 | AWS | Fixed-length `AKIA` and `ASIA` access-key IDs | Other AWS identifiers, prefixes, lengths, and embedded values are ignored |
 | GitHub | Current classic shapes and fine-grained shape | Unknown prefixes, wrong lengths, and embedded values are ignored |
 | GitLab | Documented standard token prefixes with substantial opaque suffixes | Customized PAT prefixes, short values, and embedded values are ignored |

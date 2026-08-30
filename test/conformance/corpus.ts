@@ -52,6 +52,19 @@ const contextualEscaped =
   String.raw`{"api_key":"SYNTHETIC_REVOKED_\"QUOTED_VALUE"}`;
 const contextualEscapedValue =
   String.raw`SYNTHETIC_REVOKED_\"QUOTED_VALUE`;
+const nestedPrivateKey = [
+  "-----BEGIN RSA PRIVATE KEY-----",
+  "SYNTHETIC_REVOKED_OUTER_BODY",
+  "-----BEGIN EC PRIVATE KEY-----",
+  "SYNTHETIC_REVOKED_INNER_BODY",
+  "-----END EC PRIVATE KEY-----",
+  "-----END RSA PRIVATE KEY-----",
+].join("\n");
+const mismatchedPrivateKey = [
+  "-----BEGIN RSA PRIVATE KEY-----",
+  "SYNTHETIC_REVOKED_MISMATCHED_BODY",
+  "-----END EC PRIVATE KEY-----",
+].join("\n");
 
 export const conformanceCorpus: readonly ConformanceCase[] = [
   {
@@ -104,6 +117,30 @@ export const conformanceCorpus: readonly ConformanceCase[] = [
     input: `-----BEGIN PRIVATE KEY-----\n${"A".repeat(100_000)}`,
     expected: [],
     note: "A long missing footer must terminate without a finding.",
+  },
+  {
+    id: "private-key-adversarial-nested",
+    detector: "private-key",
+    kind: "adversarial",
+    support: "supported",
+    input: nestedPrivateKey,
+    expected: one(nestedPrivateKey, nestedPrivateKey, {
+      detector: "private-key", type: "private_key", confidence: "high",
+      specificity: "private-key",
+    }),
+    note: "Nested supported delimiters produce one fail-safe outer span.",
+  },
+  {
+    id: "private-key-adversarial-mismatched",
+    detector: "private-key",
+    kind: "adversarial",
+    support: "supported",
+    input: mismatchedPrivateKey,
+    expected: one(mismatchedPrivateKey, mismatchedPrivateKey, {
+      detector: "private-key", type: "private_key", confidence: "high",
+      specificity: "private-key",
+    }),
+    note: "An unresolved mismatched footer closes fail-safe at end of input.",
   },
   {
     id: "aws-positive-akia",

@@ -37,6 +37,23 @@ const SYNTHETIC = {
   vault: "hvs.SYNTHETIC_REVOKED_VAULT_TOKEN",
 } as const;
 
+const PRIVATE_KEY_LABELS = [
+  "PRIVATE KEY",
+  "RSA PRIVATE KEY",
+  "DSA PRIVATE KEY",
+  "EC PRIVATE KEY",
+  "OPENSSH PRIVATE KEY",
+  "ENCRYPTED PRIVATE KEY",
+] as const;
+
+function privateKeyBlock(label: string): string {
+  return [
+    `-----BEGIN ${label}-----`,
+    "U1lOVEhFVElDX1JFVk9LRURfUEVNX0JPRFk=",
+    `-----END ${label}-----`,
+  ].join("\n");
+}
+
 describe("known-format detectors", () => {
   it.each([
     [privateKeyDetector, SYNTHETIC.privateKey, "private_key", "private-key"],
@@ -73,6 +90,109 @@ describe("known-format detectors", () => {
       "aws_access_key_id",
       "openai_api_key",
     ]);
+  });
+
+  it.each(PRIVATE_KEY_LABELS)(
+    "detects the supported %s delimiter pair",
+    (label) => {
+      const input = privateKeyBlock(label);
+      expect(privateKeyDetector.detect(input, { inputLength: input.length }))
+        .toEqual([
+          expect.objectContaining({
+            type: "private_key",
+            confidence: "high",
+            specificity: "private-key",
+            start: 0,
+            end: input.length,
+          }),
+        ]);
+    },
+  );
+
+  it("returns separate full spans for adjacent complete blocks", () => {
+    const first = privateKeyBlock("PRIVATE KEY");
+    const second = privateKeyBlock("EC PRIVATE KEY");
+    const input = `${first}\n${second}`;
+    const result = scanAndRedact(input);
+
+    expect(result.text).toBe("<SECRET_1>\n<SECRET_2>");
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        id: "finding-1",
+        action: "block",
+        start: 0,
+        end: first.length,
+      }),
+      expect.objectContaining({
+        id: "finding-2",
+        action: "block",
+        start: first.length + 1,
+        end: input.length,
+      }),
+    ]);
+  });
+
+  it("blocks one outer span for properly nested supported delimiters", () => {
+    const nested = [
+      "-----BEGIN RSA PRIVATE KEY-----",
+      "U1lOVEhFVElDX1JFVk9LRURfT1VURVI=",
+      "-----BEGIN EC PRIVATE KEY-----",
+      "U1lOVEhFVElDX1JFVk9LRURfSU5ORVI=",
+      "-----END EC PRIVATE KEY-----",
+      "-----END RSA PRIVATE KEY-----",
+    ].join("\n");
+    const input = `before\n${nested}\nafter`;
+    const result = scanAndRedact(input);
+
+    expect(result.text).toBe("before\n<SECRET_1>\nafter");
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        type: "private_key",
+        detector: "private-key",
+        confidence: "high",
+        action: "block",
+        start: input.indexOf("-----BEGIN"),
+        end: input.lastIndexOf("-----") + 5,
+      }),
+    ]);
+  });
+
+  it("blocks unresolved repeated or mismatched supported delimiters to end of input", () => {
+    const fixtures = [
+      [
+        "-----BEGIN PRIVATE KEY-----",
+        "SYNTHETIC_REVOKED_OUTER_BODY",
+        "-----BEGIN PRIVATE KEY-----",
+        "SYNTHETIC_REVOKED_INNER_BODY",
+      ].join("\n"),
+      [
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "SYNTHETIC_REVOKED_MISMATCHED_BODY",
+        "-----END EC PRIVATE KEY-----",
+        "ordinary trailing text",
+      ].join("\n"),
+      [
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "-----BEGIN EC PRIVATE KEY-----",
+        "-----END RSA PRIVATE KEY-----",
+        "SYNTHETIC_REVOKED_TRAILING_INNER_BODY",
+        "-----END EC PRIVATE KEY-----",
+      ].join("\n"),
+    ];
+
+    for (const input of fixtures) {
+      const result = scanAndRedact(input);
+      expect(result.text).toBe("<SECRET_1>");
+      expect(result.findings).toEqual([
+        expect.objectContaining({
+          type: "private_key",
+          detector: "private-key",
+          action: "block",
+          start: 0,
+          end: input.length,
+        }),
+      ]);
+    }
   });
 
   it.each([
@@ -138,5 +258,16 @@ describe("documented precision and recall boundaries", () => {
     [privateKeyDetector, "-----BEGIN PRIVATE KEY-----\nSYNTHETIC_TRUNCATED"],
   ] as const)("rejects deliberately unsupported lookalike for %s", (detector, input) => {
     expect(detector.detect(input, { inputLength: input.length })).toEqual([]);
+  });
+
+  it.each([
+    "----BEGIN PRIVATE KEY-----\nSYNTHETIC_REVOKED_NEAR_MATCH",
+    "-----BEGIN PRIVATE KEYS-----\nSYNTHETIC_REVOKED_NEAR_MATCH",
+    "-----BEGIN CERTIFICATE-----\nSYNTHETIC_REVOKED_CERTIFICATE",
+    "Documentation mentions -----BEGIN PRIVATE KEY----- once.",
+    "-----BEGIN PRIVATE KEY-----\nSHORT\n-----END PRIVATE KEY-----",
+  ])("does not classify private-key delimiter prose or near matches", (input) => {
+    expect(privateKeyDetector.detect(input, { inputLength: input.length }))
+      .toEqual([]);
   });
 });

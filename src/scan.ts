@@ -71,6 +71,17 @@ interface RankedCandidate extends Omit<ResolvedSecretCandidate, "id"> {
   readonly candidateOrder: number;
 }
 
+interface IntervalNode {
+  readonly candidate: RankedCandidate;
+  left: IntervalNode | undefined;
+  right: IntervalNode | undefined;
+  height: number;
+}
+
+interface IntervalInsertion {
+  inserted: boolean;
+}
+
 function isSafeIdentifier(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -91,6 +102,21 @@ function isSpecificity(value: unknown): value is SecretCandidateSpecificity {
     value === "contextual" ||
     value === "entropy"
   );
+}
+
+function rangeEquals(
+  input: string,
+  start: number,
+  end: number,
+  value: string,
+): boolean {
+  if (end - start !== value.length) return false;
+  for (let offset = 0; offset < value.length; offset += 1) {
+    if (input.charCodeAt(start + offset) !== value.charCodeAt(offset)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function normalizeCandidate(
@@ -120,8 +146,10 @@ function normalizeCandidate(
     throw new SecretScanError("INVALID_CANDIDATE");
   }
 
-  const matchedText = input.slice(start, end);
-  if (type === matchedText || detector.id === matchedText) {
+  if (
+    rangeEquals(input, start, end, type) ||
+    rangeEquals(input, start, end, detector.id)
+  ) {
     throw new SecretScanError("INVALID_CANDIDATE");
   }
 
@@ -204,8 +232,88 @@ function prioritizeCandidates(candidates: RankedCandidate[]): RankedCandidate[] 
   return candidates.sort(compareCandidatePriority);
 }
 
-function overlaps(left: RankedCandidate, right: RankedCandidate): boolean {
-  return left.start < right.end && right.start < left.end;
+function intervalHeight(node: IntervalNode | undefined): number {
+  return node?.height ?? 0;
+}
+
+function refreshIntervalHeight(node: IntervalNode): void {
+  node.height =
+    Math.max(intervalHeight(node.left), intervalHeight(node.right)) + 1;
+}
+
+function rotateIntervalLeft(node: IntervalNode): IntervalNode {
+  const pivot = node.right;
+  if (pivot === undefined) return node;
+
+  node.right = pivot.left;
+  pivot.left = node;
+  refreshIntervalHeight(node);
+  refreshIntervalHeight(pivot);
+  return pivot;
+}
+
+function rotateIntervalRight(node: IntervalNode): IntervalNode {
+  const pivot = node.left;
+  if (pivot === undefined) return node;
+
+  node.left = pivot.right;
+  pivot.right = node;
+  refreshIntervalHeight(node);
+  refreshIntervalHeight(pivot);
+  return pivot;
+}
+
+function rebalanceInterval(node: IntervalNode): IntervalNode {
+  refreshIntervalHeight(node);
+  const balance = intervalHeight(node.left) - intervalHeight(node.right);
+
+  if (balance > 1) {
+    if (
+      node.left !== undefined &&
+      intervalHeight(node.left.left) < intervalHeight(node.left.right)
+    ) {
+      node.left = rotateIntervalLeft(node.left);
+    }
+    return rotateIntervalRight(node);
+  }
+
+  if (balance < -1) {
+    if (
+      node.right !== undefined &&
+      intervalHeight(node.right.right) < intervalHeight(node.right.left)
+    ) {
+      node.right = rotateIntervalRight(node.right);
+    }
+    return rotateIntervalLeft(node);
+  }
+
+  return node;
+}
+
+function insertDisjointInterval(
+  node: IntervalNode | undefined,
+  candidate: RankedCandidate,
+  insertion: IntervalInsertion,
+): IntervalNode {
+  if (node === undefined) {
+    insertion.inserted = true;
+    return {
+      candidate,
+      left: undefined,
+      right: undefined,
+      height: 1,
+    };
+  }
+
+  if (candidate.end <= node.candidate.start) {
+    node.left = insertDisjointInterval(node.left, candidate, insertion);
+  } else if (candidate.start >= node.candidate.end) {
+    node.right = insertDisjointInterval(node.right, candidate, insertion);
+  } else {
+    return node;
+  }
+
+  return insertion.inserted ? rebalanceInterval(node) : node;
 }
 
 export function runDetectorPipeline(
@@ -221,12 +329,15 @@ export function runDetectorPipeline(
   }
 
   const accepted: RankedCandidate[] = [];
+  let intervalRoot: IntervalNode | undefined;
   const prioritized = prioritizeCandidates(
     collectCandidates(input, registry.detectors),
   );
 
   for (const candidate of prioritized) {
-    if (!accepted.some((current) => overlaps(current, candidate))) {
+    const insertion: IntervalInsertion = { inserted: false };
+    intervalRoot = insertDisjointInterval(intervalRoot, candidate, insertion);
+    if (insertion.inserted) {
       accepted.push(candidate);
     }
   }

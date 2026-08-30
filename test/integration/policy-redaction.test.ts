@@ -224,6 +224,28 @@ describe("redact", () => {
     }
   });
 
+  it("rejects a placeholder containing any eligible matched value", () => {
+    const input = "SYNTHETIC_ONE|SYNTHETIC_TWO|SYNTHETIC_ONE";
+    const firstEnd = input.indexOf("|");
+    const secondStart = firstEnd + 1;
+    const secondEnd = input.indexOf("|", secondStart);
+    const findings = [
+      finding(0, firstEnd, "redact", "finding-1"),
+      finding(secondStart, secondEnd, "redact", "finding-2"),
+      finding(secondEnd + 1, input.length, "redact", "finding-3"),
+    ];
+
+    expect(() =>
+      redact(input, findings, {
+        placeholderFormatter(_safeFinding, context) {
+          return context.placeholderIndex === 1
+            ? "<SYNTHETIC_TWO>"
+            : `<REMOVED_${context.placeholderIndex}>`;
+        },
+      }),
+    ).toThrowError("The placeholder formatter returned an invalid value.");
+  });
+
   it("rejects overlapping and out-of-range findings with safe errors", () => {
     const input = "SYNTHETIC_REVOKED_VALUE";
     expect(() =>

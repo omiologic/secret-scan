@@ -39,6 +39,72 @@ function detector(
   };
 }
 
+function referenceResolution(
+  detectorCandidates: readonly (readonly CandidateInput[])[],
+) {
+  const specificityRank: Readonly<Record<SecretCandidateSpecificity, number>> = {
+    "private-key": 5,
+    provider: 4,
+    structural: 3,
+    contextual: 2,
+    entropy: 1,
+  };
+  const confidenceRank: Readonly<Record<SecretConfidence, number>> = {
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+  const ranked = detectorCandidates.flatMap((candidates, detectorOrder) =>
+    candidates.map((candidate, candidateOrder) => ({
+      ...candidate,
+      detector: `reference-${detectorOrder}`,
+      confidence: candidate.confidence ?? "high",
+      specificity: candidate.specificity ?? "contextual",
+      detectorOrder,
+      candidateOrder,
+    })),
+  );
+
+  ranked.sort(
+    (left, right) =>
+      specificityRank[right.specificity] -
+        specificityRank[left.specificity] ||
+      confidenceRank[right.confidence] - confidenceRank[left.confidence] ||
+      left.end - left.start - (right.end - right.start) ||
+      left.detectorOrder - right.detectorOrder ||
+      left.candidateOrder - right.candidateOrder,
+  );
+
+  const accepted: typeof ranked = [];
+  for (const candidate of ranked) {
+    if (
+      accepted.every(
+        (current) =>
+          current.end <= candidate.start || current.start >= candidate.end,
+      )
+    ) {
+      accepted.push(candidate);
+    }
+  }
+
+  accepted.sort(
+    (left, right) =>
+      left.start - right.start ||
+      left.end - right.end ||
+      left.type.localeCompare(right.type) ||
+      left.detector.localeCompare(right.detector),
+  );
+
+  return accepted.map((candidate, index) => ({
+    id: `finding-${index + 1}`,
+    type: candidate.type,
+    detector: candidate.detector,
+    confidence: candidate.confidence,
+    start: candidate.start,
+    end: candidate.end,
+  }));
+}
+
 describe("deterministic candidate pipeline", () => {
   it("returns no findings for empty input", () => {
     const registry = new DetectorRegistry([
@@ -224,6 +290,107 @@ describe("deterministic candidate pipeline", () => {
         end: 8,
       },
     ]);
+  });
+
+  it("uses detector emission order after all earlier precedence dimensions tie", () => {
+    const registry = new DetectorRegistry([
+      detector("emission-order", [
+        { type: "emitted_first", start: 0, end: 8 },
+        { type: "emitted_second", start: 0, end: 8 },
+      ]),
+    ]);
+
+    expect(runDetectorPipeline("abcdefgh", registry)).toEqual([
+      {
+        id: "finding-1",
+        type: "emitted_first",
+        detector: "emission-order",
+        confidence: "high",
+        start: 0,
+        end: 8,
+      },
+    ]);
+  });
+
+  it("resolves dense adjacent, duplicate, and containing candidates", () => {
+    const spanCount = 1_000;
+    const input = "x".repeat(spanCount * 2);
+    const adjacent = Array.from({ length: spanCount }, (_, index) => ({
+      type: `span_${index}`,
+      start: index * 2,
+      end: index * 2 + 2,
+      confidence: "high" as const,
+      specificity: "contextual" as const,
+    }));
+    const duplicates = adjacent.map((candidate, index) => ({
+      ...candidate,
+      type: `duplicate_${index}`,
+    }));
+    const registry = new DetectorRegistry([
+      detector("adjacent", adjacent),
+      detector("duplicates", duplicates),
+      detector("containing", [
+        {
+          type: "containing_span",
+          start: 0,
+          end: input.length,
+          confidence: "low",
+          specificity: "contextual",
+        },
+      ]),
+    ]);
+
+    const findings = runDetectorPipeline(input, registry);
+
+    expect(findings).toHaveLength(spanCount);
+    expect(
+      findings.every(
+        (finding, index) =>
+          finding.id === `finding-${index + 1}` &&
+          finding.detector === "adjacent" &&
+          finding.start === index * 2 &&
+          finding.end === index * 2 + 2,
+      ),
+    ).toBe(true);
+  });
+
+  it("matches an algorithm-independent greedy reference on dense overlaps", () => {
+    const input = "x".repeat(512);
+    const confidences = ["high", "medium", "low"] as const;
+    const specificities = [
+      "private-key",
+      "provider",
+      "structural",
+      "contextual",
+      "entropy",
+    ] as const;
+    let state = 0x15_5ca1e;
+    const random = (maximum: number) => {
+      state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+      return state % maximum;
+    };
+    const detectorCandidates = Array.from({ length: 4 }, (_, detectorOrder) =>
+      Array.from({ length: 300 }, (_, candidateOrder) => {
+        const start = random(input.length - 1);
+        return {
+          type: `candidate_${detectorOrder}_${candidateOrder}`,
+          start,
+          end: Math.min(input.length, start + 1 + random(48)),
+          confidence: confidences[random(confidences.length)] ?? "high",
+          specificity:
+            specificities[random(specificities.length)] ?? "contextual",
+        };
+      }),
+    );
+    const registry = new DetectorRegistry(
+      detectorCandidates.map((candidates, index) =>
+        detector(`reference-${index}`, candidates),
+      ),
+    );
+
+    expect(runDetectorPipeline(input, registry)).toEqual(
+      referenceResolution(detectorCandidates),
+    );
   });
 
   it("uses an immutable registry snapshot during detector execution", () => {

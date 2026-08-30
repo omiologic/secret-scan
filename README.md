@@ -101,7 +101,8 @@ const result = scanAndRedact(
 
 A custom formatter receives only normalized finding metadata and a one-based
 placeholder index—not the input or matched value. It must return a non-empty
-string of at most 256 characters and must not reproduce a detected value.
+string of at most 256 characters and must not reproduce any redacted or blocked
+matched value of four or more UTF-16 code units.
 
 ```ts
 const result = scanAndRedact(input, {
@@ -284,6 +285,14 @@ placeholder exclusions favor precision. The tradeoff is that truncated,
 short, newly introduced, or unsupported credential formats can be missed.
 Server applications should combine this library with appropriate request
 limits and other security controls; it is not a complete DLP system.
+
+Whole-input scanning has no built-in input-size or finding-count limit. The
+overlap and placeholder-safety algorithms scale with candidate and finding
+counts, but metadata and sanitized output still require memory proportional to
+the accepted findings. Authoritative servers should enforce request-size and,
+when accepting custom detectors, candidate-count limits appropriate to their
+latency and memory budgets. The incremental API separately requires explicit
+plaintext-retention and total-input limits.
 
 ## Browser boundary
 

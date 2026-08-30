@@ -1,6 +1,7 @@
 import { defaultIncrementalSecretPolicy } from "./policy.js";
 import { hasOpenBearerAuthorization } from "./detectors/bearer-token.js";
 import { hasOpenContextualAssignment } from "./detectors/generic-token.js";
+import { createPrivateKeyRetentionTracker } from "./detectors/private-key.js";
 import {
   redact,
   defaultPlaceholderFormatter,
@@ -54,9 +55,6 @@ const ERROR_MESSAGES: Readonly<Record<IncrementalSanitizerErrorCode, string>> = 
 
 /** Reserve for the longest built-in fixed match and boundary lookaround. */
 export const INCREMENTAL_LOOKAROUND_CODE_UNITS = 128;
-
-const BEGIN_PRIVATE_KEY_PATTERN =
-  /-----BEGIN (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----/;
 
 export class IncrementalSanitizerError extends Error {
   readonly code: IncrementalSanitizerErrorCode;
@@ -119,26 +117,6 @@ function frozenResult(
   return Object.freeze({ text, findings: Object.freeze([...findings]) });
 }
 
-function inspectPrivateKeys(input: string): {
-  readonly hasBegin: boolean;
-  readonly openFooter?: string;
-} {
-  let cursor = 0;
-  let hasBegin = false;
-  while (cursor < input.length) {
-    const remaining = input.slice(cursor);
-    const match = BEGIN_PRIVATE_KEY_PATTERN.exec(remaining);
-    const begin = match?.[0];
-    if (begin === undefined || match?.index === undefined) return { hasBegin };
-    hasBegin = true;
-    const footer = `-----END ${begin.slice(11, -5)}-----`;
-    const footerStart = input.indexOf(footer, cursor + match.index + begin.length);
-    if (footerStart < 0) return { hasBegin, openFooter: footer };
-    cursor = footerStart + footer.length;
-  }
-  return { hasBegin };
-}
-
 /**
  * Creates a bounded, runtime-neutral incremental sanitizer. Complete logical
  * lines are finalized progressively; an open line or PEM block remains held.
@@ -178,12 +156,14 @@ export function createIncrementalSanitizer(
   let totalInputCodeUnits = 0;
   let findingCount = 0;
   let placeholderCount = 0;
-  let multilineFooter: string | undefined;
+  const privateKeyRetention = createPrivateKeyRetentionTracker();
+  let multilineOpen = false;
   let multilineDetected = false;
 
   function fail(code: IncrementalSanitizerErrorCode): never {
     retainedPlaintext = "";
-    multilineFooter = undefined;
+    privateKeyRetention.reset();
+    multilineOpen = false;
     multilineDetected = false;
     state = "failed";
     throw new IncrementalSanitizerError(code);
@@ -259,9 +239,9 @@ export function createIncrementalSanitizer(
 
   function appendRetained(piece: string, closesLine = false): void {
     retainedPlaintext += piece;
-    const privateKeys = inspectPrivateKeys(retainedPlaintext);
+    const privateKeys = privateKeyRetention.append(piece);
     multilineDetected ||= privateKeys.hasBegin;
-    multilineFooter = privateKeys.openFooter;
+    multilineOpen = privateKeys.hasOpen;
     const constructLimit = multilineDetected
       ? limits.maxMultilineCodeUnits
       : limits.maxTokenCodeUnits;
@@ -311,14 +291,15 @@ export function createIncrementalSanitizer(
 
       appendRetained(chunk.slice(cursor, newline + 1), true);
       if (
-        (multilineFooter === undefined && !hasOpenSingleLineConstruct())
+        (!multilineOpen && !hasOpenSingleLineConstruct())
       ) {
         const result = processUnit(retainedPlaintext, finalizedInputCodeUnits);
         emittedTexts.push(result.text);
         findings.push(...result.findings);
         finalizedInputCodeUnits += retainedPlaintext.length;
         retainedPlaintext = "";
-        multilineFooter = undefined;
+        privateKeyRetention.reset();
+        multilineOpen = false;
         multilineDetected = false;
       }
       cursor = newline + 1;
@@ -331,7 +312,8 @@ export function createIncrementalSanitizer(
     const input = retainedPlaintext;
     const inputOffset = finalizedInputCodeUnits;
     retainedPlaintext = "";
-    multilineFooter = undefined;
+    privateKeyRetention.reset();
+    multilineOpen = false;
     multilineDetected = false;
     try {
       const result = processUnit(input, inputOffset);
@@ -346,7 +328,8 @@ export function createIncrementalSanitizer(
   function abort(): void {
     requireAccepting();
     retainedPlaintext = "";
-    multilineFooter = undefined;
+    privateKeyRetention.reset();
+    multilineOpen = false;
     multilineDetected = false;
     state = "aborted";
   }

@@ -134,6 +134,38 @@ describe("incremental partition equivalence", () => {
     expect(sanitize(singleCodeUnitPartition(input))).toEqual(scanAndRedact(input));
   });
 
+  it("retains malformed private-key structures until the fail-safe span closes", () => {
+    const fixtures = [
+      [
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "SYNTHETIC_REVOKED_OUTER_BODY",
+        "-----BEGIN EC PRIVATE KEY-----",
+        "SYNTHETIC_REVOKED_INNER_BODY",
+        "-----END EC PRIVATE KEY-----",
+        "-----END RSA PRIVATE KEY-----",
+      ].join("\n"),
+      [
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "SYNTHETIC_REVOKED_MISMATCHED_BODY",
+        "-----END EC PRIVATE KEY-----",
+      ].join("\n"),
+      [
+        "-----BEGIN PRIVATE KEY-----",
+        "-----BEGIN PRIVATE KEY-----",
+        "SYNTHETIC_REVOKED_REPEATED_BODY",
+      ].join("\n"),
+    ];
+
+    for (const input of fixtures) {
+      const expected = scanAndRedact(input);
+      expect(expected.text).toBe("<SECRET_1>");
+      for (const chunks of codeUnitPartitions(input)) {
+        expect(sanitize(chunks)).toEqual(expected);
+      }
+      expect(sanitize(singleCodeUnitPartition(input))).toEqual(expected);
+    }
+  });
+
   it("accepts the audit reproduction identically as one chunk and every split", () => {
     const input = "x\n".repeat(200);
     const limits = {
