@@ -1,4 +1,6 @@
 import type {
+  IncrementalSanitizer,
+  IncrementalSanitizerOptions,
   ScanOptions,
   ScanResult,
   SecretCandidate,
@@ -7,6 +9,7 @@ import type {
   SecretFinding,
   SecretPolicy,
 } from "../src/index.js";
+import { createIncrementalSanitizer } from "../src/index.js";
 
 const detector: SecretDetector = {
   id: "synthetic-detector",
@@ -60,7 +63,23 @@ type FindingHasNoPlaintextValue = "value" extends keyof SecretFinding
 
 const findingHasNoPlaintextValue: FindingHasNoPlaintextValue = true;
 
+const incrementalOptions: IncrementalSanitizerOptions = {
+  limits: {
+    maxInputCodeUnits: 4_096,
+    maxBufferedCodeUnits: 2_176,
+    maxTokenCodeUnits: 1_024,
+    maxMultilineCodeUnits: 2_048,
+  },
+  policy: {
+    evaluate(_finding, context) {
+      return context.findingIndex === 0 ? "redact" : "warn";
+    },
+  },
+};
+const incremental: IncrementalSanitizer = createIncrementalSanitizer(incrementalOptions);
+
 void options;
 void result;
 void candidate;
 void findingHasNoPlaintextValue;
+void incremental;

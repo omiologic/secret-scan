@@ -79,3 +79,43 @@ export interface ScanResult {
   readonly text: string;
   readonly findings: readonly SecretFinding[];
 }
+
+export type IncrementalSanitizerState =
+  | "accepting"
+  | "finalized"
+  | "aborted"
+  | "failed";
+
+export interface IncrementalPolicyContext {
+  /** Zero-based position among findings finalized by this session. */
+  readonly findingIndex: number;
+}
+
+export interface IncrementalSecretPolicy {
+  evaluate(
+    finding: DetectedSecretFinding,
+    context: IncrementalPolicyContext,
+  ): SecretAction;
+}
+
+export interface IncrementalLimits {
+  readonly maxInputCodeUnits: number;
+  readonly maxBufferedCodeUnits: number;
+  readonly maxTokenCodeUnits: number;
+  readonly maxMultilineCodeUnits: number;
+}
+
+export interface IncrementalSanitizerOptions extends RedactOptions {
+  readonly limits: IncrementalLimits;
+  readonly policy?: IncrementalSecretPolicy;
+}
+
+/** Safe output and final findings produced by one session operation. */
+export interface IncrementalSanitizerResult extends ScanResult {}
+
+export interface IncrementalSanitizer {
+  readonly state: IncrementalSanitizerState;
+  append(chunk: string): IncrementalSanitizerResult;
+  finalize(): IncrementalSanitizerResult;
+  abort(): void;
+}
