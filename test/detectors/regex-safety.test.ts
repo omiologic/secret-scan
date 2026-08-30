@@ -16,6 +16,7 @@ describe("regex safety", () => {
       `sk-ant-api03-${"A".repeat(100_000)}!`,
       `shpat_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
       `hvs.${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `api_key="${"\\".repeat(100_000)}`,
     ];
 
     for (const input of fragments) {

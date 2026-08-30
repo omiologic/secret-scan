@@ -5,8 +5,8 @@ import type {
   SecretDetector,
 } from "../types.js";
 
-const ASSIGNMENT_PATTERN =
-  /(?:^|[\s{,;])["']?([A-Za-z][A-Za-z0-9_.-]*)["']?\s*(?:=|:)\s*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s,;}\]"'\r\n]+))/gm;
+const ASSIGNMENT_PREFIX_PATTERN =
+  /(?:^|[\s{,;])["']?([A-Za-z][A-Za-z0-9_.-]*)["']?\s*(?:=|:)\s*/gm;
 const AUTHORIZATION_PATTERN =
   /(?:^|[\r\n])[ \t]*authorization[ \t]*:[ \t]*(basic|token)[ \t]+([A-Za-z0-9+/=_-]{12,})/gim;
 
@@ -38,6 +38,97 @@ const MIN_HIGH_ENTROPY_LENGTH = 16;
 const HIGH_ENTROPY_THRESHOLD = 3;
 const AMBIGUOUS_ENTROPY_THRESHOLD = 3.5;
 const MAX_CONTEXT_VALUE_LENGTH = 4_096;
+
+interface AssignmentValueSpan {
+  readonly start: number;
+  readonly end: number;
+}
+
+function isUnquotedValueBoundary(character: string | undefined): boolean {
+  return (
+    character === undefined ||
+    character === " " ||
+    character === "\t" ||
+    character === "\v" ||
+    character === "\f" ||
+    character === "\r" ||
+    character === "\n" ||
+    character === "," ||
+    character === ";" ||
+    character === "}" ||
+    character === "]" ||
+    character === '"' ||
+    character === "'"
+  );
+}
+
+function isQuotedValueBoundary(character: string | undefined): boolean {
+  return (
+    character === undefined ||
+    character === " " ||
+    character === "\t" ||
+    character === "\v" ||
+    character === "\f" ||
+    character === "\r" ||
+    character === "\n" ||
+    character === "," ||
+    character === ";" ||
+    character === "}" ||
+    character === "]"
+  );
+}
+
+function quotedAssignmentValue(
+  input: string,
+  openingQuote: number,
+): AssignmentValueSpan | undefined {
+  const quote = input[openingQuote];
+  if (quote !== '"' && quote !== "'") return undefined;
+
+  const start = openingQuote + 1;
+  let backslashRun = 0;
+  for (let cursor = start; cursor < input.length; cursor += 1) {
+    const character = input[cursor];
+    if (character === "\r" || character === "\n") return undefined;
+    if (cursor - start > MAX_CONTEXT_VALUE_LENGTH) return undefined;
+
+    if (character === "\\") {
+      backslashRun += 1;
+      continue;
+    }
+
+    if (character === quote && backslashRun % 2 === 0) {
+      return isQuotedValueBoundary(input[cursor + 1])
+        ? { start, end: cursor }
+        : undefined;
+    }
+    backslashRun = 0;
+  }
+
+  return undefined;
+}
+
+function unquotedAssignmentValue(
+  input: string,
+  start: number,
+): AssignmentValueSpan | undefined {
+  let end = start;
+  while (!isUnquotedValueBoundary(input[end])) {
+    end += 1;
+    if (end - start > MAX_CONTEXT_VALUE_LENGTH) return undefined;
+  }
+  return end > start ? { start, end } : undefined;
+}
+
+function assignmentValue(
+  input: string,
+  start: number,
+): AssignmentValueSpan | undefined {
+  const first = input[start];
+  return first === '"' || first === "'"
+    ? quotedAssignmentValue(input, start)
+    : unquotedAssignmentValue(input, start);
+}
 
 /** Internal retention hint for the built-in incremental scanner. */
 export function hasOpenContextualAssignment(input: string): boolean {
@@ -104,26 +195,25 @@ function assignmentConfidence(
 
 function assignmentCandidates(input: string): SecretCandidate[] {
   const candidates: SecretCandidate[] = [];
-  for (const match of input.matchAll(ASSIGNMENT_PATTERN)) {
+  for (const match of input.matchAll(ASSIGNMENT_PREFIX_PATTERN)) {
     const nameValue = match[1];
-    const value = match[2] ?? match[3] ?? match[4];
     const whole = match[0];
     const matchStart = match.index;
     if (
       nameValue === undefined ||
-      value === undefined ||
       whole === undefined ||
       matchStart === undefined
     ) {
       continue;
     }
 
+    const valueSpan = assignmentValue(input, matchStart + whole.length);
+    if (valueSpan === undefined) continue;
+    const value = input.slice(valueSpan.start, valueSpan.end);
     const name = normalizeName(nameValue);
     const confidence = assignmentConfidence(name, value);
     if (confidence === undefined) continue;
 
-    const relativeStart = whole.lastIndexOf(value);
-    const start = matchStart + relativeStart;
     candidates.push({
       type: "contextual_secret",
       detector: "generic-token",
@@ -133,8 +223,8 @@ function assignmentCandidates(input: string): SecretCandidate[] {
         HIGH_SIGNAL_NAMES.has(name) ? "high-signal-name" : "ambiguous-name",
         confidence === "high" ? "bounded-entropy" : "context-only",
       ],
-      start,
-      end: start + value.length,
+      start: valueSpan.start,
+      end: valueSpan.end,
     });
   }
   return candidates;

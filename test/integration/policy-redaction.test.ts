@@ -265,6 +265,44 @@ describe("redact", () => {
 });
 
 describe("public scanning APIs", () => {
+  it.each([
+    ["escaped quote", 'SYNTHETIC_REVOKED_"QUOTED_VALUE'],
+    ["escaped backslash", "SYNTHETIC_REVOKED_TRAILING\\"],
+    ["odd backslash run", 'SYNTHETIC_REVOKED_\\"QUOTED_VALUE'],
+    ["even backslash run", "SYNTHETIC_REVOKED_TRAILING\\\\"],
+  ])("redacts a complete JSON string with an %s", (_case, value) => {
+    const input = JSON.stringify({ api_key: value, note: "ordinary" });
+    const encodedValue = JSON.stringify(value).slice(1, -1);
+    const result = scanAndRedact(input);
+
+    expect(JSON.parse(result.text)).toEqual({
+      api_key: "<SECRET_1>",
+      note: "ordinary",
+    });
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        start: input.indexOf(encodedValue),
+        end: input.indexOf(encodedValue) + encodedValue.length,
+      }),
+    ]);
+    expect(result.text).not.toContain(encodedValue);
+  });
+
+  it("preserves JSON syntax around escaped slash and Unicode spellings", () => {
+    const input = String.raw`{"api_key":"SYNTHETIC_REVOKED_\/PATH_\u0056ALUE","safe":true}`;
+    const result = scanAndRedact(input);
+
+    expect(JSON.parse(result.text)).toEqual({ api_key: "<SECRET_1>", safe: true });
+    expect(result.text).toBe(`{"api_key":"<SECRET_1>","safe":true}`);
+  });
+
+  it("preserves assignment syntax around an escaped single quote", () => {
+    const input = String.raw`client_secret='SYNTHETIC_REVOKED_\'QUOTED_VALUE'`;
+    const result = scanAndRedact(input);
+
+    expect(result.text).toBe("client_secret='<SECRET_1>'");
+  });
+
   it("preserves original offsets after redaction and rescans cleanly", () => {
     const input = `before ${OPENAI_VALUE} after`;
     const result = scanAndRedact(input);

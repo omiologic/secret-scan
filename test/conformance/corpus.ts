@@ -48,6 +48,10 @@ const vaultOverlap = `client_secret=${values.vault}`;
 const jwtOverlap = `Authorization: Bearer ${values.jwt}`;
 const connectionOverlap =
   `password=postgres://fixture:${values.connectionPassword}@localhost/db`;
+const contextualEscaped =
+  String.raw`{"api_key":"SYNTHETIC_REVOKED_\"QUOTED_VALUE"}`;
+const contextualEscapedValue =
+  String.raw`SYNTHETIC_REVOKED_\"QUOTED_VALUE`;
 
 export const conformanceCorpus: readonly ConformanceCase[] = [
   {
@@ -693,6 +697,18 @@ export const conformanceCorpus: readonly ConformanceCase[] = [
       specificity: "contextual",
     }),
     note: "A high-signal assignment with bounded entropy is supported.",
+  },
+  {
+    id: "contextual-positive-escaped-quote",
+    detector: "generic-token",
+    kind: "positive",
+    support: "supported",
+    input: contextualEscaped,
+    expected: one(contextualEscaped, contextualEscapedValue, {
+      detector: "generic-token", type: "contextual_secret", confidence: "high",
+      specificity: "contextual",
+    }),
+    note: "An escaped quote remains inside one complete structured value span.",
   },
   {
     id: "contextual-negative-token-name",

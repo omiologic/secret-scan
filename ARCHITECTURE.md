@@ -203,6 +203,25 @@ WEBHOOK_SECRET
 
 The word `token` alone should not imply a secret because it is common in AI and parser-related text.
 
+Quoted contextual assignments use a small bounded grammar rather than a
+general-purpose data parser. A value begins after a single or double quote and
+ends at the first matching quote preceded by an even-length run of backslashes.
+A quote after an odd-length run is escaped and remains part of the detected
+span. Backslash escapes, including escaped quotes, escaped slashes, and Unicode
+escape spellings, are retained exactly as written; they are not decoded or
+semantically interpreted. The closing quote must be followed by end of input,
+whitespace, `,`, `;`, `}`, or `]`.
+
+The detector rejects the complete contextual candidate when the quoted value
+contains a physical line ending, has no closing quote, has non-delimiter text
+after its closing quote, or exceeds 4,096 UTF-16 code units. It never falls
+back to a prefix match. Redaction selects only the encoded contents between the
+quotes, so valid JSON and similar structured text retain their surrounding
+syntax. This bounded lexical approach prevents secret suffixes from surviving
+redaction without claiming to validate JSON, YAML, shell, or another host
+format. It can miss multiline, oversized, or host-specific quoted credentials,
+and a lexically complete value may still be invalid in its host format.
+
 ### Entropy heuristic
 
 Entropy helps classify unknown formats but should not be used as the sole aggressive signal. Hashes, UUIDs, build IDs, checksums, and generated identifiers may all look random.

@@ -46,6 +46,79 @@ describe("generic contextual detector", () => {
     ]);
   });
 
+  it.each([
+    ["one backslash before an escaped quote", 'SYNTHETIC_REVOKED_"QUOTED_VALUE'],
+    ["two backslashes before the closing quote", "SYNTHETIC_REVOKED_TRAILING\\"],
+    ["three backslashes before an escaped quote", 'SYNTHETIC_REVOKED_\\"QUOTED_VALUE'],
+    ["four backslashes before the closing quote", "SYNTHETIC_REVOKED_TRAILING\\\\"],
+  ])("bounds a JSON value with %s", (_case, value) => {
+    const encodedValue = JSON.stringify(value).slice(1, -1);
+    const input = `{"api_key":"${encodedValue}","note":"ordinary"}`;
+    const [finding] = runDetectorPipeline(input, createDetectorRegistry());
+
+    expect(finding).toMatchObject({
+      type: "contextual_secret",
+      detector: "generic-token",
+      start: input.indexOf(encodedValue),
+      end: input.indexOf(encodedValue) + encodedValue.length,
+    });
+  });
+
+  it("keeps escaped slashes and Unicode escapes inside the detected span", () => {
+    const input = String.raw`{"api_key":"SYNTHETIC_REVOKED_\/PATH_\u0056ALUE"}`;
+    const encodedValue = String.raw`SYNTHETIC_REVOKED_\/PATH_\u0056ALUE`;
+    const [finding] = runDetectorPipeline(input, createDetectorRegistry());
+
+    expect(finding).toMatchObject({
+      start: input.indexOf(encodedValue),
+      end: input.indexOf(encodedValue) + encodedValue.length,
+    });
+  });
+
+  it("keeps an escaped single quote inside an assignment-style value", () => {
+    const input = String.raw`client_secret='SYNTHETIC_REVOKED_\'QUOTED_VALUE'`;
+    const encodedValue = String.raw`SYNTHETIC_REVOKED_\'QUOTED_VALUE`;
+    const [finding] = runDetectorPipeline(input, createDetectorRegistry());
+
+    expect(finding).toMatchObject({
+      start: input.indexOf(encodedValue),
+      end: input.indexOf(encodedValue) + encodedValue.length,
+    });
+  });
+
+  it("accepts the maximum quoted value length and rejects the next code unit", () => {
+    const maximum = `api_key="${"A".repeat(4_096)}"`;
+    const overlong = `api_key="${"A".repeat(4_097)}"`;
+
+    expect(genericTokenDetector.detect(maximum, { inputLength: maximum.length }))
+      .toHaveLength(1);
+    expect(genericTokenDetector.detect(overlong, { inputLength: overlong.length }))
+      .toEqual([]);
+  });
+
+  it.each([
+    ['api_key="SYNTHETIC_REVOKED_TRAILING\\"'],
+    ['api_key="SYNTHETIC_REVOKED_LINE\nBREAK"'],
+    ['api_key="SYNTHETIC_REVOKED_VALUE"suffix'],
+    ["api_key='SYNTHETIC_REVOKED_TRAILING\\'"],
+  ])("rejects malformed quoted structure without a partial finding", (input) => {
+    expect(genericTokenDetector.detect(input, { inputLength: input.length })).toEqual([]);
+  });
+
+  it("ignores quoted placeholders beside supported quoted values", () => {
+    const input = `{"api_key":"<SECRET_1>","client_secret":"${HIGH_ENTROPY_VALUE}"}`;
+    const candidates = genericTokenDetector.detect(input, {
+      inputLength: input.length,
+    });
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        start: input.indexOf(HIGH_ENTROPY_VALUE),
+        end: input.indexOf(HIGH_ENTROPY_VALUE) + HIGH_ENTROPY_VALUE.length,
+      }),
+    ]);
+  });
+
   it.each(["clientSecret", "client-secret", "client.secret", "CLIENT_SECRET"])(
     "normalizes the contextual name %s",
     (name) => {
@@ -225,6 +298,7 @@ describe("contextual detector safety", () => {
   it("handles malformed and long near-matches without throwing", () => {
     const inputs = [
       'api_key="unterminated',
+      `api_key="${"\\".repeat(100_000)}`,
       `api_key=${"A".repeat(100_000)}`,
       `postgres://fixture:${"A".repeat(100_000)}@localhost/db`,
       `postgres://fixture:${"%2".repeat(50_000)}@localhost/db`,
