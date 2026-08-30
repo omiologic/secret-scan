@@ -1,0 +1,5 @@
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+# Project-config relative paths resolve from this .codex directory.
+writable_roots = ["../../secret-scan.wiki"]

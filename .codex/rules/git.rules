@@ -1,0 +1,44 @@
+# Allow ordinary Git operations only when the repository is selected explicitly.
+# Use `git -C . ...` for secret-scan and `git -C ../secret-scan.wiki ...`
+# for its sibling GitHub Wiki checkout.
+prefix_rule(
+    pattern = [
+        "git",
+        "-C",
+        [".", "../secret-scan.wiki"],
+        [
+            "add",
+            "branch",
+            "check-ignore",
+            "commit",
+            "describe",
+            "diff",
+            "fetch",
+            "log",
+            "ls-files",
+            "ls-remote",
+            "ls-tree",
+            "pull",
+            "push",
+            "remote",
+            "rev-parse",
+            "show",
+            "status",
+            "tag",
+        ],
+    ],
+    decision = "allow",
+    justification = "Allow ordinary Git operations for secret-scan and its sibling wiki checkout.",
+    match = [
+        "git -C . status --short --branch",
+        "git -C . add .codex/config.toml",
+        "git -C ../secret-scan.wiki status --short --branch",
+        "git -C ../secret-scan.wiki push origin master",
+    ],
+    not_match = [
+        "git status --short --branch",
+        "git -C ../another-repository status",
+        "git -C . clean -fd",
+        "git -C ../secret-scan.wiki reset --hard",
+    ],
+)

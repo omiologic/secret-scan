@@ -1,71 +1,216 @@
 # secret-scan
 
-Deterministic secret detection and redaction for browser and server JavaScript/TypeScript applications.
+Deterministic secret detection and redaction for browser and server
+JavaScript/TypeScript applications.
 
-`secret-scan` is designed for applications that accept untrusted text—AI prompts, chat input, logs, terminal output, MCP/tool responses, configuration fragments, support tickets, or uploaded text—and need to prevent credentials from crossing a trust boundary.
+`secret-scan` inspects untrusted text before it is logged, persisted, indexed,
+sent to a tool, or added to model context. The core is runtime-neutral,
+side-effect free, and performs no network requests, telemetry, secret storage,
+or environment-dependent lookup.
 
-> Detect and redact secrets before the text is persisted, logged, indexed, forwarded to tools, or sent to an AI model.
+> Client-side scanning is preventive UX. Server-side scanning is the
+> authoritative enforcement boundary.
 
-## Package
+## Release status
 
-GitHub: `omiologic/secret-scan`  
-NPM: `@omiologic/secret-scan`
+The intended package name is `@omiologic/secret-scan`. The package is currently
+pre-release: no version has been selected or approved, and no release changelog
+entry exists. Installation from npm applies only after a separately approved
+release:
 
 ```bash
 npm install @omiologic/secret-scan
 ```
 
+For repository development, use `npm ci` followed by `npm run ci`.
+
+## Quick start
+
+All examples use unmistakably synthetic, revoked values.
+
 ```ts
 import { scanAndRedact } from "@omiologic/secret-scan";
 
-const result = scanAndRedact(`
-OPENAI_API_KEY=sk-proj-example-value
-Authorization: Bearer eyJhbGciOi...
-`);
+const input = "API_KEY=SYNTHETIC_REVOKED_CONTEXT_VALUE";
+const result = scanAndRedact(input);
 
 console.log(result.text);
+// API_KEY=<SECRET_1>
 ```
 
-Possible output:
+Findings contain classification, action, and original-input offsets. They never
+contain the matched plaintext value.
 
-```text
-OPENAI_API_KEY=<SECRET_1>
-Authorization: Bearer <SECRET_2>
+```ts
+result.findings[0];
+// {
+//   id: "finding-1",
+//   type: "contextual_secret",
+//   detector: "generic-token",
+//   confidence: "high",
+//   action: "redact",
+//   start: 8,
+//   end: 39
+// }
 ```
 
-Findings contain classification and location metadata, not plaintext secret values.
+Offsets are JavaScript string offsets into the original input, including when
+the sanitized text has a different length.
 
-## Why
+## Public API
 
-Users routinely paste content containing API keys, bearer/OAuth tokens, GitHub tokens, AWS credentials, private keys, database URLs, webhook secrets, session tokens, and other high-entropy secrets.
+### `scan(input, options?)`
 
-Visual masking is not enough. If a UI displays `••••••` while the original value is still submitted, the secret has already crossed the boundary. `secret-scan` performs an actual transformation before downstream processing.
+Runs the built-in detectors plus any detectors supplied in `options.detectors`,
+resolves overlaps, evaluates policy, and returns immutable findings.
 
-## Goals
+```ts
+import { scan } from "@omiologic/secret-scan";
 
-- One runtime-neutral core for browsers and Node.js.
-- Deterministic detection with no LLM or remote service.
-- Side-effect-free core with no logging or telemetry by default.
-- Known-format detectors plus contextual and entropy heuristics.
-- Semantic placeholders such as `<SECRET_1>` that preserve useful structure.
-- Findings that never expose plaintext secret values.
-- Custom detector and policy extension points.
-- Easy server-side enforcement even when client-side scanning is present.
+const findings = scan("password=SYNTHETIC_REVOKED_PASSPHRASE");
+```
 
-## Non-goals
+### `redact(input, findings, options?)`
 
-The initial library is not a complete DLP suite, PII classifier, credential vault, password manager, malware scanner, or replacement for infrastructure-level secret management.
+Reconstructs text in one ordered pass. Findings with `redact` or `block`
+actions are replaced. Findings with `warn` or `allow` remain unchanged.
 
-## Browser use
+```ts
+import { redact, scan } from "@omiologic/secret-scan";
 
-Client-side scanning prevents an accidental secret from leaving the user's browser.
+const input = "client_secret=SYNTHETIC_REVOKED_CLIENT_VALUE";
+const findings = scan(input);
+const safeText = redact(input, findings);
+```
+
+The default placeholders are `<SECRET_1>`, `<SECRET_2>`, and so on. A typed
+formatter is included:
+
+```ts
+import {
+  scanAndRedact,
+  typedPlaceholderFormatter,
+} from "@omiologic/secret-scan";
+
+const result = scanAndRedact(
+  "api_key=SYNTHETIC_REVOKED_TYPED_VALUE",
+  { placeholderFormatter: typedPlaceholderFormatter },
+);
+// api_key=<CONTEXTUAL_SECRET_1>
+```
+
+A custom formatter receives only normalized finding metadata and a one-based
+placeholder index—not the input or matched value. It must return a non-empty
+string of at most 256 characters and must not reproduce a detected value.
+
+```ts
+const result = scanAndRedact(input, {
+  placeholderFormatter(finding, { placeholderIndex }) {
+    return `<REMOVED_${finding.type}_${placeholderIndex}>`;
+  },
+});
+```
+
+### `scanAndRedact(input, options?)`
+
+Scans once, evaluates policy once, and returns:
+
+```ts
+interface ScanResult {
+  readonly text: string;
+  readonly findings: readonly SecretFinding[];
+}
+```
+
+### Core types
+
+```ts
+type SecretConfidence = "high" | "medium" | "low";
+type SecretAction = "redact" | "block" | "warn" | "allow";
+
+interface SecretFinding {
+  readonly id: string;
+  readonly type: string;
+  readonly detector: string;
+  readonly confidence: SecretConfidence;
+  readonly action: SecretAction;
+  readonly start: number;
+  readonly end: number;
+}
+```
+
+The package also exports the detector registry, built-in detector instances,
+the entropy helper, default policy, placeholder formatters, extension types,
+and sanitized `SecretScanError` and `SecretRedactionError` classes.
+
+## Policy
+
+Detection and enforcement are separate. A policy receives immutable detection
+metadata without plaintext and returns one action.
+
+The default policy is:
+
+| Detection | Default action |
+| --- | --- |
+| Private-key block | `block` |
+| Known provider, bearer/JWT, authorization, or connection credential | `redact` |
+| Other high-confidence secret | `redact` |
+| Other medium- or low-confidence secret | `warn` |
+
+Consumers can supply a stricter server policy without changing detection:
+
+```ts
+import type { SecretPolicy } from "@omiologic/secret-scan";
+
+const serverPolicy: SecretPolicy = {
+  evaluate(finding) {
+    return finding.confidence === "high" ? "block" : "warn";
+  },
+};
+
+const result = scanAndRedact(request.content, { policy: serverPolicy });
+if (result.findings.some((finding) => finding.action === "block")) {
+  throw new Error("Blocked sensitive input");
+}
+```
+
+Policy and formatter exceptions are replaced with fixed, input-free library
+errors. The original exception is not attached as a cause.
+
+## Detection coverage
+
+Built-in detection includes:
+
+- PEM-style private-key blocks;
+- AWS access-key IDs;
+- GitHub classic and fine-grained tokens;
+- GitLab tokens with documented standard prefixes;
+- JWT structure and bearer credentials;
+- OpenAI and Anthropic API-key shapes;
+- Shopify Admin and delegate access tokens;
+- modern HashiCorp Vault service, batch, and recovery tokens;
+- contextual credential assignments;
+- Basic and Token authorization headers; and
+- credential-bearing PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and AMQP URLs.
+
+Entropy is only a supporting signal. Random-looking text is not classified
+without structural or contextual evidence, and the generic name `token` alone
+is deliberately ignored.
+
+Strict prefixes, supported URI schemes, minimum lengths, bounded values, and
+placeholder exclusions favor precision. The tradeoff is that truncated,
+short, newly introduced, or unsupported credential formats can be missed.
+Server applications should combine this library with appropriate request
+limits and other security controls; it is not a complete DLP system.
+
+## Browser boundary
+
+Scan before constructing the request body so the original value does not leave
+the device:
 
 ```ts
 const result = scanAndRedact(userInput);
-
-if (result.findings.length > 0) {
-  showSecretWarning(result);
-}
+showSecretWarning(result.findings);
 
 await fetch("/api/conversation", {
   method: "POST",
@@ -73,14 +218,14 @@ await fetch("/api/conversation", {
 });
 ```
 
-Client-side scanning is a preventive UX layer, not the authoritative security boundary.
+## Server boundary
 
-## Server use
-
-The server should scan again even when the browser already scanned the input.
+Scan again before logging, persistence, context construction, or model/tool
+invocation. This protects direct API clients, older or modified clients, CLIs,
+SDKs, MCP integrations, and agents.
 
 ```ts
-const result = scanAndRedact(request.content);
+const result = scanAndRedact(request.content, { policy: serverPolicy });
 
 if (result.findings.some((finding) => finding.action === "block")) {
   throw new Error("Blocked sensitive input");
@@ -90,128 +235,50 @@ await conversationStore.save(result.text);
 return modelGateway.respond({ input: result.text });
 ```
 
-This protects direct API consumers, older clients, CLIs, MCP clients, automation, agents, and future native clients.
+Avoid logging raw request or tool bodies before scanning.
 
-## Tool and MCP output
+## Runtime and package compatibility
 
-Tool output should also be scanned before becoming model context:
+- ESM package with an explicit root export.
+- Node.js 20 or newer.
+- Modern browsers capable of running ES2022 output.
+- No Node-only or DOM dependency in the runtime core.
+- No CommonJS build.
 
-```ts
-const rawToolOutput = await tool.execute(args);
-const safeToolOutput = scanAndRedact(rawToolOutput);
-return safeToolOutput.text;
+Once a public version is approved, the documented root exports and their
+TypeScript contracts constitute the SemVer public API. Files under internal
+package paths are not public API. Published version identifiers are immutable.
+
+## Development
+
+```bash
+npm ci
+npm run typecheck
+npm test
+npm run ci
 ```
 
-## Detection model
+The test suite covers deterministic detection, false positives, overlap
+resolution, redaction and policy invariants, error safety, browser bundling,
+Node import, representative 1 KB/100 KB/1 MB performance thresholds, and
+dry-run package contents. Package inspection uses `0.0.0-inspection` only inside a
+temporary directory because selecting a release version requires explicit
+approval.
 
-`secret-scan` combines:
+## Security and release process
 
-1. **Known formats** — private keys, AWS access keys, GitHub tokens, JWTs, bearer tokens, provider API keys.
-2. **Context** — assignments and headers such as `API_KEY`, `SECRET`, `ACCESS_TOKEN`, `PASSWORD`, `PRIVATE_KEY`, and `Authorization: Bearer`.
-3. **Entropy** — random-looking values can increase confidence when combined with contextual or structural evidence.
+See [SECURITY.md](./SECURITY.md) for private vulnerability reporting and the
+security model. Never submit active credentials in a report or fixture.
 
-Entropy alone should not trigger aggressive redaction because hashes, IDs, and generated names may also look random.
-
-## Proposed API
-
-```ts
-export type SecretConfidence = "high" | "medium" | "low";
-export type SecretAction = "redact" | "block" | "warn" | "allow";
-
-export interface SecretFinding {
-  id: string;
-  type: string;
-  detector: string;
-  confidence: SecretConfidence;
-  action: SecretAction;
-  start: number;
-  end: number;
-}
-
-export interface ScanResult {
-  text: string;
-  findings: SecretFinding[];
-}
-
-export function scan(input: string, options?: ScanOptions): SecretFinding[];
-export function redact(input: string, findings: SecretFinding[], options?: ScanOptions): string;
-export function scanAndRedact(input: string, options?: ScanOptions): ScanResult;
-```
-
-## Policy
-
-Detection and enforcement are separate concerns.
-
-| Detection | Default action |
-| --- | --- |
-| Private key | block |
-| Known API key | redact |
-| AWS credential | redact |
-| OAuth/bearer token | redact |
-| Session token | redact |
-| Database URL with credentials | redact |
-| High-confidence generic secret | redact |
-| Medium-confidence generic secret | warn |
-
-## Planned repository structure
-
-```text
-secret-scan/
-├── src/
-│   ├── detectors/
-│   ├── entropy.ts
-│   ├── policy.ts
-│   ├── redact.ts
-│   ├── registry.ts
-│   ├── scan.ts
-│   ├── types.ts
-│   └── index.ts
-├── test/
-│   ├── detectors/
-│   ├── false-positives/
-│   └── integration/
-├── README.md
-├── ARCHITECTURE.md
-├── SECURITY.md
-├── LICENSE
-├── package.json
-├── tsconfig.json
-└── vitest.config.ts
-```
-
-## Release plan
-
-### v0.1
-
-- TypeScript core
-- ESM package with browser and Node support
-- detector interface and registry
-- redaction engine and semantic placeholders
-- known-format detectors
-- contextual/entropy detector
-- policy interface
-- unit and false-positive tests
-- browser and Node build tests
-- GitHub Actions CI
-- npm publication as `@omiologic/secret-scan`
-
-### v0.2
-
-- streaming/chunk scanning
-- richer connection-string parsing
-- improved overlap resolution
-- detector diagnostics
-- performance benchmarks
-- runtime/framework helpers where justified
+A release requires explicit user approval after tests pass and the public API
+and required changelog entry have been reviewed. Readiness checks do not choose
+a version or authorize a tag, package publication, deployment, or release.
 
 ## Architecture
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md).
-
-## Security reporting
-
-Do not include active credentials in public issues. Use synthetic or revoked examples when reporting detector bypasses. A formal `SECURITY.md` should be added before the first public release.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for processing, trust boundaries,
+overlap resolution, and extension constraints.
 
 ## License
 
-Recommended: MIT.
+[MIT](./LICENSE)
