@@ -39,6 +39,18 @@ const HIGH_ENTROPY_THRESHOLD = 3;
 const AMBIGUOUS_ENTROPY_THRESHOLD = 3.5;
 const MAX_CONTEXT_VALUE_LENGTH = 4_096;
 
+/** Internal retention hint for the built-in incremental scanner. */
+export function hasOpenContextualAssignment(input: string): boolean {
+  const match =
+    /(?:^|[\s{,;])["']?([A-Za-z][A-Za-z0-9_.-]*)["']?\s*(?:(?:=|:)\s*)?$/.exec(
+      input,
+    );
+  const name = match?.[1];
+  if (name === undefined) return false;
+  const normalized = normalizeName(name);
+  return HIGH_SIGNAL_NAMES.has(normalized) || AMBIGUOUS_NAMES.has(normalized);
+}
+
 function normalizeName(name: string): string {
   return name
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")

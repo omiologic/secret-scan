@@ -46,13 +46,12 @@ is [secret-scan-00009](../../_notes/plans/archived/secret-scan-00009.qualify-pro
 ## Incremental boundary corpus
 
 [`incremental-partitions.ts`](./incremental-partitions.ts) defines the whole-input
-reference results that the future incremental core must reproduce. Its
+reference results that the incremental core reproduces. Its
 generators enumerate every two-chunk UTF-16 code-unit boundary, every UTF-8 byte
 boundary under streaming decode, and a one-code-unit-at-a-time partition for
 representative fixed-width, open-ended, structural, contextual, URL, Unicode,
 overlap, multiline, negative, and end-of-input cases.
 
-The current test executes corpus construction and boundary completeness against
-the synchronous behavioral reference. Work item `secret-scan-00011` will run the
-same partitions through the incremental implementation; this contract work does
-not provide or imply a streaming runtime API.
+The integration suite executes the same partitions through the bounded session
+implementation and compares them with the synchronous behavioral reference.
+Independently scanning chunks remains unsafe.

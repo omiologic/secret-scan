@@ -59,6 +59,10 @@ describe("package contents", () => {
       expect(paths).toContain("SECURITY.md");
       expect(paths).toContain("dist/index.js");
       expect(paths).toContain("dist/index.d.ts");
+      expect(paths).toContain("dist/adapters/node-stream.js");
+      expect(paths).toContain("dist/adapters/node-stream.d.ts");
+      expect(paths).toContain("dist/adapters/web-stream.js");
+      expect(paths).toContain("dist/adapters/web-stream.d.ts");
       expect(paths.some((path) => path.startsWith("src/"))).toBe(false);
       expect(paths.some((path) => path.startsWith("test/"))).toBe(false);
       expect(paths.some((path) => path.startsWith("_notes/"))).toBe(false);

@@ -2,6 +2,11 @@ import type { SecretCandidate, SecretDetector } from "../types.js";
 
 const BEARER_PATTERN = /(?:authorization\s*:\s*)?bearer[ \t]+([A-Za-z0-9._~+/-]{16,}={0,2})/gi;
 
+/** Internal retention hint for the built-in incremental scanner. */
+export function hasOpenBearerAuthorization(input: string): boolean {
+  return /(?:^|[^A-Za-z0-9_-])authorization\s*(?::\s*)?$/i.test(input);
+}
+
 /**
  * Requires the explicit Bearer scheme and a token of at least 16 characters.
  * This keeps arbitrary identifiers out of scope but intentionally misses short

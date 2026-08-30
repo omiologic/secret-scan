@@ -1,7 +1,7 @@
 import { performance } from "node:perf_hooks";
 import { describe, expect, it } from "vitest";
 
-import { scanAndRedact } from "../../src/index.js";
+import { createIncrementalSanitizer, scanAndRedact } from "../../src/index.js";
 
 const CASES = [
   { bytes: 1_024, maximumMilliseconds: 100 },
@@ -31,4 +31,29 @@ describe("representative scan performance", () => {
     },
     5_000,
   );
+});
+
+describe("representative incremental performance and retention", () => {
+  it("sanitizes one MiB in bounded line-sized plaintext retention", () => {
+    const input = ordinaryInput(1_024 * 1_024);
+    const session = createIncrementalSanitizer({
+      limits: {
+        maxInputCodeUnits: input.length,
+        maxBufferedCodeUnits: 4_224,
+        maxTokenCodeUnits: 4_096,
+        maxMultilineCodeUnits: 4_096,
+      },
+    });
+    const startedAt = performance.now();
+    const results = [];
+    for (let offset = 0; offset < input.length; offset += 1_024) {
+      results.push(session.append(input.slice(offset, offset + 1_024)));
+    }
+    results.push(session.finalize());
+    const elapsed = performance.now() - startedAt;
+
+    expect(results.map(({ text }) => text).join("")).toBe(input);
+    expect(results.flatMap(({ findings }) => findings)).toEqual([]);
+    expect(elapsed).toBeLessThan(3_000);
+  }, 5_000);
 });

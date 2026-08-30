@@ -272,9 +272,9 @@ Partial masking such as `sk-proj-****abcd` may be useful in credential-managemen
 
 ## Incremental scanning contract
 
-The package does not yet expose an incremental runtime API. The following
-contract is the implementation boundary for `secret-scan-00011`; defining it
-does not change synchronous behavior or make chunk-by-chunk scanning safe.
+The package exposes a bounded incremental runtime API implemented under this
+contract. It does not change synchronous behavior, and independently scanning
+chunks remains unsafe.
 
 ### Logical input and lifecycle
 
@@ -393,7 +393,7 @@ or whole-input policies that depend on `PolicyContext.findingCount`. These cases
 fail or remain on the synchronous API rather than emitting potentially unsafe
 plaintext. The executable partition corpus covers every UTF-16 code-unit and
 UTF-8 byte boundary around representative synthetic matches and is the shared
-acceptance source for the future core and stream adapters.
+acceptance source for the core and future stream adapters.
 
 ## Public result safety
 
@@ -440,6 +440,10 @@ Current layout:
 
 ```text
 src/
+├── adapters/
+│   ├── node-stream.ts
+│   ├── shared.ts
+│   └── web-stream.ts
 ├── detectors/
 │   ├── anthropic.ts
 │   ├── aws.ts
@@ -454,6 +458,7 @@ src/
 │   ├── shopify.ts
 │   └── vault.ts
 ├── entropy.ts
+├── incremental.ts
 ├── policy.ts
 ├── redact.ts
 ├── registry.ts
@@ -462,14 +467,37 @@ src/
 └── index.ts
 ```
 
-Runtime-specific helpers can later be added as adapters:
+The Node and Web adapters are thin wrappers around `incremental.ts`. Shared
+UTF-8 decoding and result aggregation remain runtime-neutral in
+`adapters/shared.ts`; only `node-stream.ts` imports `node:stream`. A Web Worker
+adapter remains a possible future extension rather than current scope.
+
+### Stream adapter boundary
+
+Both adapters accept `Uint8Array` chunks and keep one fatal `TextDecoder` for
+the complete stream. They pass decoded strings to one incremental sanitizer,
+emit only the sanitizer's finalized text, and expose accumulated immutable
+finding metadata. They do not rerun detectors or policy.
+
+The Node adapter subclasses `Transform`; `_flush` supplies the required final
+input boundary and `_destroy` aborts an accepting sanitizer. The Web adapter
+uses native readable and writable stream backpressure around a
+`TransformStream`; close flushes, readable cancellation and writable abort drop
+retained plaintext, and transform failures error both sides with sanitized
+library errors. Output already emitted before a later failure was previously
+finalized as safe; output retained at the failure boundary is never enqueued.
+
+Package subpath exports isolate these surfaces:
 
 ```text
-adapters/
-├── node-stream.ts
-├── web-stream.ts
-└── web-worker.ts
+@omiologic/secret-scan             runtime-neutral core
+@omiologic/secret-scan/node-stream Node Transform adapter
+@omiologic/secret-scan/web-stream  Web TransformStream adapter
 ```
+
+The root and Web graphs cannot resolve `node:stream`. This keeps browser
+bundling independent of Node shims while preserving the whole-string entry
+point.
 
 ## Runtime constraints
 
@@ -631,6 +659,7 @@ Public extension points are limited to:
 - custom detectors
 - detector registry
 - custom policy
+- custom incremental policy
 - placeholder formatter
 
 Internal candidate-resolution mechanics should remain private until the algorithm stabilizes.

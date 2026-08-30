@@ -15,7 +15,13 @@ export {
   vaultTokenDetector,
 } from "./detectors/index.js";
 export { calculateShannonEntropy } from "./entropy.js";
-export { defaultSecretPolicy } from "./policy.js";
+export { defaultIncrementalSecretPolicy, defaultSecretPolicy } from "./policy.js";
+export {
+  createIncrementalSanitizer,
+  INCREMENTAL_LOOKAROUND_CODE_UNITS,
+  IncrementalSanitizerError,
+} from "./incremental.js";
+export type { IncrementalSanitizerErrorCode } from "./incremental.js";
 export {
   defaultPlaceholderFormatter,
   redact,
@@ -29,6 +35,13 @@ export type { SecretScanErrorCode } from "./scan.js";
 export type {
   DetectorContext,
   DetectedSecretFinding,
+  IncrementalLimits,
+  IncrementalPolicyContext,
+  IncrementalSanitizer,
+  IncrementalSanitizerOptions,
+  IncrementalSanitizerResult,
+  IncrementalSanitizerState,
+  IncrementalSecretPolicy,
   PlaceholderContext,
   PlaceholderFormatter,
   PolicyContext,

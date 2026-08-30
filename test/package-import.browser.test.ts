@@ -9,7 +9,7 @@ describe("browser package import", () => {
       platform: "browser",
       stdin: {
         contents:
-          'import { scanAndRedact } from "@omiologic/secret-scan"; globalThis.secretScanResult = scanAndRedact("ordinary text");',
+          'import { createIncrementalSanitizer } from "@omiologic/secret-scan"; const session = createIncrementalSanitizer({ limits: { maxInputCodeUnits: 1024, maxBufferedCodeUnits: 384, maxTokenCodeUnits: 128, maxMultilineCodeUnits: 256 } }); session.append("ordinary text"); globalThis.secretScanResult = session.finalize();',
         loader: "js",
         resolveDir: process.cwd(),
         sourcefile: "browser-consumer.js",
@@ -29,5 +29,26 @@ describe("browser package import", () => {
         }
       ).secretScanResult,
     ).toEqual({ text: "ordinary text", findings: [] });
+  });
+
+  it("bundles the Web stream subpath without Node-only dependencies", async () => {
+    const result = await build({
+      bundle: true,
+      format: "esm",
+      metafile: true,
+      platform: "browser",
+      stdin: {
+        contents:
+          'import { createWebStreamSanitizer } from "@omiologic/secret-scan/web-stream"; globalThis.secretScanWebAdapter = createWebStreamSanitizer;',
+        loader: "js",
+        resolveDir: process.cwd(),
+        sourcefile: "browser-stream-consumer.js",
+      },
+      write: false,
+    });
+    expect(result.errors).toEqual([]);
+    expect(Object.keys(result.metafile.inputs).some((path) =>
+      path.includes("node-stream") || path.startsWith("node:"),
+    )).toBe(false);
   });
 });

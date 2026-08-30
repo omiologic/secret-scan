@@ -122,6 +122,86 @@ interface ScanResult {
 }
 ```
 
+### `createIncrementalSanitizer(options)`
+
+Incrementally sanitizes chunked strings without treating chunk boundaries as
+detection boundaries. Every session requires explicit input and plaintext
+retention limits. Concatenate the `text` and `findings` returned by each
+`append` call and the required final `finalize` call.
+
+```ts
+import { createIncrementalSanitizer } from "@omiologic/secret-scan";
+
+const session = createIncrementalSanitizer({
+  limits: {
+    maxInputCodeUnits: 1_000_000,
+    maxBufferedCodeUnits: 32_896,
+    maxTokenCodeUnits: 8_192,
+    maxMultilineCodeUnits: 32_768,
+  },
+});
+
+const first = session.append("api_key=SYNTHETIC_REVOKED_");
+const second = session.append("INCREMENTAL_VALUE\nordinary text");
+const final = session.finalize();
+
+const safeText = first.text + second.text + final.text;
+// api_key=<SECRET_1>\nordinary text
+```
+
+`abort()` discards retained plaintext. Any limit, lifecycle, policy, detector,
+or formatter failure also discards retained plaintext and throws a fixed,
+input-free `IncrementalSanitizerError`. Custom synchronous detectors are not
+accepted because they do not declare deterministic retention bounds. A custom
+incremental policy receives `{ findingIndex }`, not the unknowable final
+whole-input finding count.
+
+### Stream adapters
+
+Runtime adapters are isolated package subpaths and accept UTF-8 byte chunks.
+Each uses one fatal, stateful decoder, so a multibyte character may safely span
+chunks and malformed UTF-8 fails without releasing buffered plaintext.
+
+Node.js consumers receive a native `Transform` whose output is UTF-8 bytes:
+
+```ts
+import { Readable } from "node:stream";
+import { createNodeStreamSanitizer } from "@omiologic/secret-scan/node-stream";
+
+const adapter = createNodeStreamSanitizer({
+  limits: {
+    maxInputCodeUnits: 1_000_000,
+    maxBufferedCodeUnits: 32_896,
+    maxTokenCodeUnits: 8_192,
+    maxMultilineCodeUnits: 32_768,
+  },
+});
+const output = Readable.from([inputBytes]).pipe(adapter);
+```
+
+Modern browsers receive a `TransformStream<Uint8Array, string>`:
+
+```ts
+import { createWebStreamSanitizer } from "@omiologic/secret-scan/web-stream";
+
+const adapter = createWebStreamSanitizer({
+  limits: {
+    maxInputCodeUnits: 1_000_000,
+    maxBufferedCodeUnits: 32_896,
+    maxTokenCodeUnits: 8_192,
+    maxMultilineCodeUnits: 32_768,
+  },
+});
+const safeStrings = response.body.pipeThrough(adapter);
+```
+
+After normal finalization, `adapter.findings` contains immutable findings with
+absolute offsets. Node destruction and Web readable cancellation or writable
+abort discard retained plaintext. The Web adapter also exposes `abort()` for
+explicit early termination. Adapter and decoder failures use fixed,
+input-free errors. Importing the root or Web subpath never resolves Node-only
+modules.
+
 ### Core types
 
 ```ts
@@ -239,11 +319,14 @@ Avoid logging raw request or tool bodies before scanning.
 
 ## Runtime and package compatibility
 
-- ESM package with an explicit root export.
+- ESM package with explicit root, `./node-stream`, and `./web-stream` exports.
 - Node.js 20 or newer.
 - Modern browsers capable of running ES2022 output.
-- No Node-only or DOM dependency in the runtime core.
+- No Node-only or DOM dependency in the runtime core; Node stream imports are
+  isolated to `./node-stream`.
 - No CommonJS build.
+- Incremental core accepts JavaScript strings; stream adapters accept UTF-8
+  bytes and own their stateful decoding.
 
 Once a public version is approved, the documented root exports and their
 TypeScript contracts constitute the SemVer public API. Files under internal
