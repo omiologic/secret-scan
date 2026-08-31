@@ -46,7 +46,9 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit && tsc --project test/tsconfig.json",
     "test": "npm run build && vitest run",
-    "ci": "npm run typecheck && npm test"
+    "ci": "npm run typecheck && npm test",
+    "release:check": "npm run ci && npm pack --dry-run",
+    "release": "npm publish --access public"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
@@ -56,5 +58,6 @@
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "version": "0.1.0-beta.1"
 }

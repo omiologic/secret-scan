@@ -24,8 +24,7 @@ describe("package contents", () => {
       const manifest = JSON.parse(
         readFileSync("package.json", "utf8"),
       ) as Record<string, unknown>;
-      expect(manifest).not.toHaveProperty("version");
-      manifest.version = "0.0.0-inspection";
+      expect(manifest.version).toBe("0.1.0-beta.1");
       writeFileSync(
         join(temporaryDirectory, "package.json"),
         `${JSON.stringify(manifest, null, 2)}\n`,
@@ -51,7 +50,7 @@ describe("package contents", () => {
 
       expect(result).toMatchObject({
         name: "@omiologic/secret-scan",
-        version: "0.0.0-inspection",
+        version: "0.1.0-beta.1",
       });
       expect(paths).toContain("package.json");
       expect(paths).toContain("README.md");

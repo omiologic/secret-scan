@@ -1,9 +1,11 @@
 # Changelog
 
-This file records user-visible package changes. No version or release is
-selected by an `Unreleased` entry.
+This file records user-visible package changes. An `Unreleased` entry does not
+select or authorize a release.
 
 ## Unreleased
+
+## 0.1.0-beta.1 - 2026-08-31
 
 ### Added
 
