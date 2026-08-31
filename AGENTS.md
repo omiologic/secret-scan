@@ -2,8 +2,8 @@
 
 ## Required context
 
-1. Read `README.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, and `_notes/GOVERNANCE.md` before making material changes.
-2. Use `.agents/skills/context-governance/SKILL.md` for governed planning, Decisions, Conventions, Constraints, Git policy, and Version policy.
+1. Read `README.md`, `ARCHITECTURE.md`, and `CONVENTIONS.md` before making material changes. Read `_notes/GOVERNANCE.md` as additional local policy when it exists.
+2. When the temporary local `.agents/skills/context-governance/SKILL.md` is installed, use it for governed planning, Decisions, Conventions, Constraints, Git policy, and Version policy.
 3. Keep changes within the deterministic secret-detection and redaction boundary described by the architecture.
 
 ## Security boundary
@@ -18,8 +18,10 @@
 - Preserve browser and Node.js compatibility and keep the public API runtime-neutral.
 - Keep detection separate from policy enforcement; additions should state their false-positive and false-negative tradeoffs.
 - Add deterministic tests for detector, redaction, overlap-resolution, or policy behavior changes.
-- Follow `_notes/GOVERNANCE.md` for branch, commit, review, merge, version, and changelog policy. Governance declarations do not authorize Git or release operations.
+- Follow `_notes/GOVERNANCE.md` for branch, commit, review, merge, version, and changelog policy when that local governance file exists. Governance declarations do not authorize Git or release operations.
 
 ## Release authority
 
 A release requires explicit user approval after tests pass and the public API and changelog have been reviewed. Do not choose a version, create a tag or release, publish a package, or deploy without that approval.
+
+Prepare an approved version on `release/v{version-slug}` (for example, `release/v0-1-0-beta-1`), merge it into `main`, and dispatch publication from `main`. The release workflow creates annotated `v{version}` only after npm verification. Use `Reconcile Release` only with explicit authorization to repair a matching published version without republishing it.
