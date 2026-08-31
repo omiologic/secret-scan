@@ -1,7 +1,14 @@
 import type {
-  ConformanceCase,
+  ConformanceCaseInput,
   ConformanceExpectation,
 } from "./schema.js";
+import { defineConformanceCases } from "./schema.js";
+import {
+  compoundAndRegressionCorpus,
+  generateGrammarMutations,
+  hostContextCorpus,
+  negativeQualificationCorpus,
+} from "./qualification-corpus.js";
 
 const values = {
   privateKey: [
@@ -69,7 +76,93 @@ const mismatchedPrivateKey = [
   "-----END EC PRIVATE KEY-----",
 ].join("\n");
 
-export const conformanceCorpus: readonly ConformanceCase[] = [
+const additionalProviderSpecifications = [
+  ["stripe", "stripe-token", "stripe_credential", `sk_live_${"SYNTHETICREVOKED".repeat(2)}`, "sk_live_SYNTHETICSHORT"],
+  ["slack", "slack-token", "slack_token", `xoxb-${"SYNTHETIC-REVOKED-".repeat(2)}`, "xoxb-SYNTHETICSHORT"],
+  ["pypi", "pypi-token", "pypi_api_token", `pypi-${"SYNTHETIC_REVOKED_".repeat(5)}`, `pypi-${"SYNTHETIC_REVOKED_".repeat(2)}`],
+  ["huggingface", "huggingface-token", "huggingface_token", `hf_${"SYNTHETIC_REVOKED_".repeat(2)}`, "hf_SYNTHETIC_SHORT"],
+  ["docker", "docker-token", "docker_token", `dckr_pat_${"SYNTHETIC_REVOKED_".repeat(2)}`, "dckr_pat_SYNTHETIC_SHORT"],
+  ["cloudflare", "cloudflare-token", "cloudflare_api_token", `cfut_${"SYNTHETIC_REVOKED_".repeat(2)}`, "cfut_SYNTHETIC_SHORT"],
+  ["digitalocean", "digitalocean-token", "digitalocean_token", `dop_v1_${"SYNTHETIC_REVOKED_".repeat(2)}`, "dop_v1_SYNTHETIC_SHORT"],
+  ["linear", "linear-token", "linear_token", `lin_api_${"SYNTHETIC_REVOKED_".repeat(2)}`, "lin_api_SYNTHETIC_SHORT"],
+  ["supabase", "supabase-token", "supabase_secret_key", `sb_secret_${"SYNTHETIC_REVOKED_".repeat(2)}`, "sb_secret_SYNTHETIC_SHORT"],
+  ["vercel", "vercel-token", "vercel_token", `vcp_${"SYNTHETIC_REVOKED_".repeat(2)}`, "vcp_SYNTHETIC_SHORT"],
+] as const;
+
+const additionalProviderConformance: readonly ConformanceCaseInput[] =
+  additionalProviderSpecifications.flatMap(
+    ([family, detector, type, value, short]) => {
+      const overlap = `access_token=${value}`;
+      const adversarialUnit = family === "stripe"
+        ? "SYNTHETICREVOKED"
+        : family === "slack"
+          ? "SYNTHETIC-REVOKED-"
+          : "SYNTHETIC_REVOKED_";
+      const adversarialValue = value.slice(0, value.indexOf("SYNTHETIC")) +
+        adversarialUnit.repeat(625);
+      const adversarial = `${adversarialValue}!`;
+      return [
+        {
+          id: `${family}-positive-qualified`,
+          detector,
+          kind: "positive",
+          support: "supported",
+          input: value,
+          expected: one(value, value, {
+            detector, type, confidence: "high", specificity: "provider",
+          }),
+          note: "A provider-published prefix with a substantial synthetic suffix is supported.",
+        },
+        {
+          id: `${family}-negative-ordinary-reference`,
+          detector,
+          kind: "negative",
+          support: "supported",
+          input: `${family}-documentation-identifier`,
+          expected: [],
+          note: "An ordinary provider-related identifier has no credential shape.",
+        },
+        {
+          id: `${family}-boundary-short`,
+          detector,
+          kind: "boundary",
+          support: "intentionally-unsupported",
+          input: short,
+          expected: [],
+          note: "Short examples are deliberately excluded from standalone matching.",
+        },
+        {
+          id: `${family}-overlap-context`,
+          detector,
+          kind: "overlap",
+          support: "supported",
+          input: overlap,
+          expected: one(overlap, value, {
+            detector, type, confidence: "high", specificity: "provider",
+          }),
+          note: "Qualified provider evidence wins over a contextual assignment.",
+        },
+        {
+          id: `${family}-adversarial-long-suffix`,
+          detector,
+          kind: "adversarial",
+          support: "supported",
+          input: adversarial,
+          expected: one(adversarial, adversarialValue, {
+            detector, type, confidence: "high", specificity: "provider",
+          }),
+          note: "A long delimited provider match remains deterministic and bounded.",
+        },
+      ] satisfies readonly ConformanceCaseInput[];
+    },
+  );
+
+export const conformanceCorpus = defineConformanceCases([
+  ...hostContextCorpus,
+  ...negativeQualificationCorpus,
+  ...generateGrammarMutations(),
+  ...compoundAndRegressionCorpus,
+  ...additionalProviderConformance,
   {
     id: "private-key-positive",
     detector: "private-key",
@@ -883,4 +976,4 @@ export const conformanceCorpus: readonly ConformanceCase[] = [
     expected: null,
     note: "Unqualified provider families require evidence before expectations are set.",
   },
-] as const;
+] as const);

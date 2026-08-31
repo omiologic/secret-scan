@@ -29,6 +29,10 @@ The contextual detector normalizes selected key names, bounds value length, excl
 ## Planned or considered
 
 - **current:** The shared [detector conformance corpus](../../../test/conformance/README.md) records assignment, authorization, connection-string, exclusion, overlap, boundary, and adversarial behavior.
+- **current:** The corpus labels representative `.env`, JSON, YAML, TOML,
+  shell, PowerShell, infrastructure, source-code, HTTP, log, transcript, chat,
+  Markdown, and XML host contexts. These prove lexical offset behavior, not
+  semantic parsing of those formats.
 - **unknown:** The timing and scope of broader URI schemes or naming conventions remain undefined.
 
 ## Qualification record
@@ -69,3 +73,4 @@ Medium-confidence contextual findings default to `warn`, so their text is unchan
 - Completed work item: [secret-scan-00008](../../plans/archived/secret-scan-00008.handle-encoded-connection-credentials.md)
 - Completed work item: [secret-scan-00013](../../plans/archived/secret-scan-00013.preserve-structured-quoted-secrets.md)
 - Coverage requalification: [secret-scan-00017](../../plans/archived/secret-scan-00017.requalify-credential-coverage.md)
+- Stable-release corpus qualification: [secret-scan-00024](../../plans/archived/secret-scan-00024.qualify-stable-release-corpus.md)

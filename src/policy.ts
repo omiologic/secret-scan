@@ -11,13 +11,23 @@ const ALWAYS_REDACT_TYPES = new Set([
   "authorization_credential",
   "aws_access_key_id",
   "bearer_token",
+  "cloudflare_api_token",
   "connection_string_password",
+  "digitalocean_token",
+  "docker_token",
   "github_token",
   "gitlab_token",
+  "huggingface_token",
   "jwt",
+  "linear_token",
   "openai_api_key",
+  "pypi_api_token",
   "shopify_access_token",
+  "slack_token",
+  "stripe_credential",
+  "supabase_secret_key",
   "vault_token",
+  "vercel_token",
 ]);
 
 /**

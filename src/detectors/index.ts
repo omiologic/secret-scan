@@ -1,5 +1,17 @@
 import type { SecretDetector } from "../types.js";
 
+import {
+  cloudflareTokenDetector,
+  digitalOceanTokenDetector,
+  dockerTokenDetector,
+  huggingFaceTokenDetector,
+  linearTokenDetector,
+  pypiTokenDetector,
+  slackTokenDetector,
+  stripeTokenDetector,
+  supabaseTokenDetector,
+  vercelTokenDetector,
+} from "./additional-providers.js";
 import { anthropicTokenDetector } from "./anthropic.js";
 import { awsAccessKeyDetector } from "./aws.js";
 import { bearerTokenDetector } from "./bearer-token.js";
@@ -17,15 +29,25 @@ export {
   anthropicTokenDetector,
   awsAccessKeyDetector,
   bearerTokenDetector,
+  cloudflareTokenDetector,
   connectionStringDetector,
+  digitalOceanTokenDetector,
+  dockerTokenDetector,
   genericTokenDetector,
   githubTokenDetector,
   gitlabTokenDetector,
+  huggingFaceTokenDetector,
   jwtDetector,
+  linearTokenDetector,
   openAiTokenDetector,
   privateKeyDetector,
+  pypiTokenDetector,
   shopifyTokenDetector,
+  slackTokenDetector,
+  stripeTokenDetector,
+  supabaseTokenDetector,
   vaultTokenDetector,
+  vercelTokenDetector,
 };
 
 export const builtInDetectors: readonly SecretDetector[] = Object.freeze([
@@ -37,6 +59,16 @@ export const builtInDetectors: readonly SecretDetector[] = Object.freeze([
   anthropicTokenDetector,
   shopifyTokenDetector,
   vaultTokenDetector,
+  stripeTokenDetector,
+  slackTokenDetector,
+  pypiTokenDetector,
+  huggingFaceTokenDetector,
+  dockerTokenDetector,
+  cloudflareTokenDetector,
+  digitalOceanTokenDetector,
+  linearTokenDetector,
+  supabaseTokenDetector,
+  vercelTokenDetector,
   jwtDetector,
   bearerTokenDetector,
   connectionStringDetector,

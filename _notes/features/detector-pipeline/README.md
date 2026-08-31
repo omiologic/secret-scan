@@ -19,10 +19,16 @@ An ordered registry runs built-ins first and appends detectors supplied through 
 - Public metadata containing classification, confidence, action, and ranges without candidate signals or matched plaintext.
 - Bounded incremental scanning with the same built-in detector pipeline and absolute UTF-16 offsets.
 - Node and Web UTF-8 stream adapters over that bounded incremental core.
+- A stable-release [coverage matrix](../../../test/conformance/COVERAGE.md)
+  across positive, near-miss, false-positive, host-context, overlap, mutation,
+  incremental, adversarial, and permanent regression evidence.
 
 ## Planned or considered
 
 - **current:** The reusable [detector conformance corpus](../../../test/conformance/README.md) and [incremental boundary corpus](../../../test/conformance/incremental-partitions.ts) define whole-input behavior and exhaustive representative chunk partitions.
+- **current:** Fixed grammar mutations and explicit qualification tiers make
+  corpus ordering and accepted/rejected boundaries reviewable without treating
+  fixture count as completeness.
 - **current:** [Incremental scanning](../../plans/archived/secret-scan-00011.implement-incremental-sanitization.md) implements the approved [safe incremental contract](../../../ARCHITECTURE.md#incremental-scanning-contract).
 - **unknown:** Internal candidate-resolution mechanics remain private until the algorithm stabilizes; the architecture does not commit to making them public.
 
@@ -47,5 +53,7 @@ enforce whether a finding is allowed, warned, redacted, or blocked.
 
 - Source: [registry](../../../src/registry.ts), [pipeline and scan API](../../../src/scan.ts), and [extension types](../../../src/types.ts)
 - Tests: [candidate pipeline](../../../test/integration/candidate-pipeline.test.ts) and [public type contracts](../../../test/type-contracts.ts)
+- Corpus evidence: [qualification contract](../../../test/conformance/README.md)
+  and [generated coverage table](../../../test/conformance/COVERAGE.md)
 - Architecture: [processing pipeline](../../../ARCHITECTURE.md#processing-pipeline), [detector model](../../../ARCHITECTURE.md#detector-model), [conflict resolution](../../../ARCHITECTURE.md#conflict-resolution), and [extension model](../../../ARCHITECTURE.md#extension-model)
-- Completed work items: [secret-scan-00001](../../plans/archived/secret-scan-00001.establish-package-foundation.md), [secret-scan-00002](../../plans/archived/secret-scan-00002.build-candidate-processing-pipeline.md), [secret-scan-00007](../../plans/archived/secret-scan-00007.establish-detector-conformance-corpus.md), and [secret-scan-00010](../../plans/archived/secret-scan-00010.define-incremental-scanning-semantics.md)
+- Completed work items: [secret-scan-00001](../../plans/archived/secret-scan-00001.establish-package-foundation.md), [secret-scan-00002](../../plans/archived/secret-scan-00002.build-candidate-processing-pipeline.md), [secret-scan-00007](../../plans/archived/secret-scan-00007.establish-detector-conformance-corpus.md), [secret-scan-00010](../../plans/archived/secret-scan-00010.define-incremental-scanning-semantics.md), and [secret-scan-00024](../../plans/archived/secret-scan-00024.qualify-stable-release-corpus.md)

@@ -18,6 +18,10 @@ describe("known-format false positives", () => {
     ["twilio api key SID", `SK${"0".repeat(32)}`],
     ["legacy vault-like identifier", "s.SYNTHETIC_REVOKED_IDENTIFIER"],
     ["shopify header name", "X-Shopify-Access-Token"],
+    ["stripe publishable key", `pk_live_${"SYNTHETIC_PUBLIC_VALUE"}`],
+    ["supabase publishable key", `sb_publishable_${"SYNTHETIC_PUBLIC_VALUE"}`],
+    ["notion opaque token", "ntn_SYNTHETIC_REVOKED_OPAQUE_VALUE"],
+    ["datadog-shaped hex", "0123456789abcdef0123456789abcdef"],
   ] as const)("does not classify a %s", (_name, input) => {
     expect(runDetectorPipeline(input, createDetectorRegistry())).toEqual([]);
   });
@@ -30,12 +34,16 @@ describe("known-format false positives", () => {
     const embeddedGitlab = "Xglpat-SYNTHETIC_REVOKED_GITLAB_TOKENY";
     const embeddedShopify = "Xshpat_SYNTHETIC_REVOKED_SHOPIFY_TOKENY";
     const embeddedVault = "Xhvs.SYNTHETIC_REVOKED_VAULT_TOKENY";
+    const embeddedCloudflare = "Xcfut_SYNTHETIC_REVOKED_PROVIDER_VALUEY";
+    const embeddedVercel = "Xvcp_SYNTHETIC_REVOKED_PROVIDER_VALUEY";
     expect(runDetectorPipeline(embeddedAws, createDetectorRegistry())).toEqual([]);
     expect(runDetectorPipeline(embeddedGithub, createDetectorRegistry())).toEqual([]);
     expect(runDetectorPipeline(embeddedGithubInstallation, createDetectorRegistry())).toEqual([]);
     expect(runDetectorPipeline(embeddedGitlab, createDetectorRegistry())).toEqual([]);
     expect(runDetectorPipeline(embeddedShopify, createDetectorRegistry())).toEqual([]);
     expect(runDetectorPipeline(embeddedVault, createDetectorRegistry())).toEqual([]);
+    expect(runDetectorPipeline(embeddedCloudflare, createDetectorRegistry())).toEqual([]);
+    expect(runDetectorPipeline(embeddedVercel, createDetectorRegistry())).toEqual([]);
   });
 
   it("does not interpret bearer embedded in an identifier as a scheme", () => {

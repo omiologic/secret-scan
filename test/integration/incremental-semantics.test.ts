@@ -57,8 +57,18 @@ describe("incremental partition equivalence", () => {
         "vault-token",
         "jwt",
         "bearer-token",
+        "cloudflare-token",
         "connection-string",
+        "digitalocean-token",
+        "docker-token",
         "generic-token",
+        "huggingface-token",
+        "linear-token",
+        "pypi-token",
+        "slack-token",
+        "stripe-token",
+        "supabase-token",
+        "vercel-token",
       ]),
     );
     for (const fixture of fixtures) {

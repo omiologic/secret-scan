@@ -23,3 +23,20 @@ Prefer links over copied detail. The source code, repository architecture, and p
 ## Governed convention records
 
 - [Keep feature notes small and useful](conventions/feature-documentation.md)
+- [Convert confirmed detector defects into synthetic regressions](conventions/synthetic-secret-regressions.md)
+
+## Terminal output policy
+
+Use RTK for human-facing exploratory commands:
+
+- `rtk ls` for directory inspection
+- `rtk grep` for repository search
+- `rtk read` for reading files
+- `rtk git status` for repository status
+- `rtk git diff` for reviewing changes
+- `rtk git log` for commit history
+- `rtk tsc` for TypeScript diagnostics
+- `rtk lint` for lint diagnostics
+- `rtk test ...` for failure-focused test output
+
+Use the normal command when exact or machine-readable output is required, including JSON, patches, deployment output, security scans, and raw diagnostic logs. If RTK is unavailable, use the normal command and report the fallback.

@@ -51,6 +51,31 @@ const redisPasswordOnlyInput =
   `redis://:${connectionPassword}@cache.example.test:6379/0`;
 const awsContextualInput = `AWS_SESSION_TOKEN=${contextual}`;
 const adjacentInput = `${aws} ${gitlab}`;
+const additionalProviderValues = [
+  ["stripe_credential", "stripe-token", `sk_live_${"SYNTHETICREVOKED".repeat(2)}`],
+  ["slack_token", "slack-token", `xoxb-${"SYNTHETIC-REVOKED-".repeat(2)}`],
+  ["pypi_api_token", "pypi-token", `pypi-${"SYNTHETIC_REVOKED_".repeat(5)}`],
+  ["huggingface_token", "huggingface-token", `hf_${"SYNTHETIC_REVOKED_".repeat(2)}`],
+  ["docker_token", "docker-token", `dckr_pat_${"SYNTHETIC_REVOKED_".repeat(2)}`],
+  ["cloudflare_api_token", "cloudflare-token", `cfut_${"SYNTHETIC_REVOKED_".repeat(2)}`],
+  ["digitalocean_token", "digitalocean-token", `dop_v1_${"SYNTHETIC_REVOKED_".repeat(2)}`],
+  ["linear_token", "linear-token", `lin_api_${"SYNTHETIC_REVOKED_".repeat(2)}`],
+  ["supabase_secret_key", "supabase-token", `sb_secret_${"SYNTHETIC_REVOKED_".repeat(2)}`],
+  ["vercel_token", "vercel-token", `vcp_${"SYNTHETIC_REVOKED_".repeat(2)}`],
+] as const;
+const additionalProviderInput = additionalProviderValues
+  .map(([, , value]) => value)
+  .join("\n");
+const legacyVariableValues = [
+  ["openai_api_key", "openai-token", "sk-proj-SYNTHETIC_REVOKED_INCREMENTAL_KEY"],
+  ["anthropic_api_key", "anthropic-token", "sk-ant-api03-SYNTHETIC_REVOKED_INCREMENTAL_KEY"],
+  ["shopify_access_token", "shopify-token", "shpat_SYNTHETIC_REVOKED_INCREMENTAL_TOKEN"],
+  ["vault_token", "vault-token", "hvs.SYNTHETIC_REVOKED_INCREMENTAL_TOKEN"],
+  ["bearer_token", "bearer-token", "SYNTHETIC_REVOKED_INCREMENTAL_BEARER"],
+] as const;
+const legacyVariableInput = legacyVariableValues
+  .map(([type, , value]) => type === "bearer_token" ? `Bearer ${value}` : value)
+  .join("\n");
 
 /**
  * Contract fixtures for the future incremental core. All values are synthetic,
@@ -58,6 +83,53 @@ const adjacentInput = `${aws} ${gitlab}`;
  * findings. The generator deliberately lives outside runtime source.
  */
 export const incrementalPartitionCorpus: readonly IncrementalPartitionCase[] = [
+  {
+    id: "synthetic-regression-malformed-authority",
+    input: "postgres://fixture:SYNTHETIC%GGREVOKED@example.test/db",
+    expected: {
+      text: "postgres://fixture:SYNTHETIC%GGREVOKED@example.test/db",
+      findings: [],
+    },
+    note: "The permanent malformed-percent regression remains unchanged through core and stream partitions.",
+  },
+  {
+    id: "legacy-variable-detector-families",
+    input: legacyVariableInput,
+    expected: {
+      text: legacyVariableValues
+        .map(([type], index) => type === "bearer_token"
+          ? `Bearer <SECRET_${index + 1}>`
+          : `<SECRET_${index + 1}>`)
+        .join("\n"),
+      findings: legacyVariableValues.map(([type, detector, value], index) =>
+        finding(`finding-${index + 1}`, legacyVariableInput, value, {
+          type,
+          detector,
+          confidence: "high",
+          action: "redact",
+        })
+      ),
+    },
+    note: "Every pre-expansion variable-length detector family remains whole across UTF-16 and UTF-8 partitions.",
+  },
+  {
+    id: "additional-provider-families",
+    input: additionalProviderInput,
+    expected: {
+      text: additionalProviderValues
+        .map((_, index) => `<SECRET_${index + 1}>`)
+        .join("\n"),
+      findings: additionalProviderValues.map(([type, detector, value], index) =>
+        finding(`finding-${index + 1}`, additionalProviderInput, value, {
+          type,
+          detector,
+          confidence: "high",
+          action: "redact",
+        })
+      ),
+    },
+    note: "Every newly qualified variable-length provider family remains whole across partitions.",
+  },
   {
     id: "fixed-width-unicode",
     input: unicodeInput,

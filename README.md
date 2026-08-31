@@ -314,6 +314,14 @@ Built-in detection includes:
 - OpenAI and Anthropic API-key shapes;
 - Shopify Admin and delegate access tokens;
 - modern HashiCorp Vault service, batch, and recovery tokens;
+- Stripe secret, restricted, organization, and webhook-signing credentials;
+- Slack bot, user, app, workflow, rotating, and refresh tokens;
+- PyPI API tokens, Hugging Face user tokens, and Docker Hub personal and
+  organization tokens;
+- Cloudflare's current scannable API tokens and DigitalOcean personal, OAuth
+  access, and OAuth refresh tokens;
+- Linear API/OAuth tokens, Supabase elevated secret keys, and Vercel personal,
+  integration, app, refresh, and API-key credentials;
 - contextual credential assignments, including AWS secret-access-key and
   session-token setting names;
 - Basic and Token authorization headers; and
@@ -342,6 +350,10 @@ Intentional exclusions include:
   out-of-order, or mismatched supported private-key delimiters are instead
   detected conservatively as one outermost finding);
 - legacy Vault `s.`, `b.`, and `r.` forms;
+- public Stripe and Supabase keys; npm, Twilio, and Datadog's unprefixed or
+  identifier-like values; standalone Discord, SendGrid, Azure, and Notion
+  opaque values; legacy Cloudflare tokens; and provider variants outside the
+  qualified prefixes and conservative suffix bounds;
 - URI schemes outside the documented allowlist and unsupported authority forms
   such as Unix sockets, non-ASCII userinfo/hosts, malformed escapes, and SRV
   seed lists or explicit SRV ports; and
@@ -440,7 +452,10 @@ npm run ci
 The test suite covers deterministic detection, false positives, overlap
 resolution, redaction and policy invariants, error safety, browser bundling,
 Node import, representative 1 KB/100 KB/1 MB performance thresholds, and
-dry-run package contents. Package inspection uses `0.0.0-inspection` only
+dry-run package contents. The repository's stable-release [conformance coverage
+matrix](https://github.com/omiologic/secret-scan/blob/main/test/conformance/COVERAGE.md) tracks evidence by detector and records
+explicitly inapplicable gaps without treating fixture count as completeness.
+Package inspection uses `0.0.0-inspection` only
 inside a temporary directory because selecting a release version requires
 explicit approval.
 

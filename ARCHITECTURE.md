@@ -174,6 +174,8 @@ Examples include:
 - provider-specific API key formats
 - Shopify access tokens
 - modern Vault tokens
+- qualified Stripe, Slack, PyPI, Hugging Face, Docker, Cloudflare,
+  DigitalOcean, Linear, Supabase, and Vercel credential prefixes
 
 JWT matching intentionally requires three base64url-looking segments whose
 header and payload begin with encoded JSON-object-style prefixes. Differently
@@ -453,7 +455,7 @@ than false-negative paths.
 | Detector family | Evidence that must remain open | Closing evidence | Bound |
 | --- | --- | --- | --- |
 | AWS and fixed-width GitHub forms | Prefix, fixed body, and one boundary code unit on each side | Exact length plus a non-token right boundary or finalization | Fixed match plus lookaround reserve |
-| GitHub installation, GitLab, OpenAI, Anthropic, Shopify, and Vault | Recognized prefix and the complete opaque or rollout-safe suffix | Non-token delimiter or finalization | `maxTokenCodeUnits` |
+| GitHub installation, GitLab, OpenAI, Anthropic, Shopify, Vault, and qualified additional provider tokens | Recognized prefix and the complete opaque or rollout-safe suffix | Non-token delimiter or finalization | `maxTokenCodeUnits` |
 | JWT | All three potentially growing segments and left/right token boundaries | Non-token delimiter or finalization | `maxTokenCodeUnits` |
 | Bearer, Basic, and Token authorization | Current logical line from the structural scheme through its credential | Credential delimiter, line end, or finalization | `maxTokenCodeUnits` |
 | Contextual assignment | Current logical line from the possible name through the bounded value | Assignment delimiter, line end, or finalization | `maxTokenCodeUnits`; the detector still rejects values above 4,096 code units |
@@ -544,6 +546,7 @@ src/
 │   ├── shared.ts
 │   └── web-stream.ts
 ├── detectors/
+│   ├── additional-providers.ts
 │   ├── anthropic.ts
 │   ├── aws.ts
 │   ├── bearer-token.ts
@@ -692,6 +695,25 @@ Include values that may look secret-like but should remain unchanged:
 4. Findings must not overlap after conflict resolution.
 5. Offsets must refer to the original input.
 6. Scanning sanitized output must not rediscover the original secret.
+
+### Stable-release conformance qualification
+
+The conformance corpus organizes evidence into canonical, negative, malformed,
+contextual, adversarial, and regression tiers. Fixtures retain stable IDs,
+explicit host contexts, safe expected metadata, and—where applicable—fixed
+mutation provenance or resource caps. Deterministic grammar mutations exercise
+accepted shapes and immediate rejected neighbors without random seeds, network
+data, or implementation-derived expectations.
+
+The generated coverage matrix maps every built-in detector to positive,
+near-miss, false-positive, context, overlap, mutation, incremental, adversarial,
+and regression evidence. A missing applicable dimension fails qualification;
+an inapplicable dimension requires a written reason. The matrix is readiness
+evidence, not a claim of complete secret detection.
+
+Every confirmed false positive or false negative is converted to a permanent
+synthetic regression. Submitted credential material is discarded and is never
+copied, transformed, encoded, hashed, logged, or included in diagnostics.
 
 ## Browser UX integration
 

@@ -17,6 +17,16 @@ describe("regex safety", () => {
       `sk-ant-api03-${"A".repeat(100_000)}!`,
       `shpat_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
       `hvs.${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `sk_live_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `xoxb-${"SYNTHETIC_REVOKED-".repeat(6_250)}!`,
+      `pypi-${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `hf_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `dckr_pat_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `cfut_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `dop_v1_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `lin_api_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `sb_secret_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
+      `vcp_${"SYNTHETIC_REVOKED_".repeat(6_250)}!`,
       `api_key="${"\\".repeat(100_000)}`,
     ];
 

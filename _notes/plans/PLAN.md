@@ -2,11 +2,11 @@
 
 ## Backlog
 
-- [Qualify the stable-release conformance corpus](backlog/secret-scan-00024.qualify-stable-release-corpus.md)
+_No backlog work._
 
 ## Ready
 
-- [Qualify additional provider credential families](ready/secret-scan-00023.qualify-additional-provider-families.md)
+_No ready work._
 
 ## Active
 
@@ -36,3 +36,5 @@ _No active work._
 - [Harden CI supply-chain controls](archived/secret-scan-00020.harden-ci-supply-chain.md)
 - [Requalify the remediated package for beta](archived/secret-scan-00021.requalify-beta-readiness.md)
 - [Reconcile the customer documentation hierarchy](archived/secret-scan-00022.reconcile-customer-documentation.md)
+- [Qualify additional provider credential families](archived/secret-scan-00023.qualify-additional-provider-families.md)
+- [Qualify the stable-release conformance corpus](archived/secret-scan-00024.qualify-stable-release-corpus.md)

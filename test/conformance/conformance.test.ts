@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import { builtInDetectors } from "../../src/detectors/index.js";
 import { createDetectorRegistry } from "../../src/registry.js";
@@ -9,6 +10,13 @@ import {
   assertResolvedFindings,
 } from "./assertions.js";
 import { conformanceCorpus } from "./corpus.js";
+import {
+  buildCoverageRows,
+  coverageDimensions,
+  renderCoverageTable,
+} from "./coverage.js";
+import { incrementalPartitionCorpus } from "./incremental-partitions.js";
+import { generateGrammarMutations } from "./qualification-corpus.js";
 import { validateConformanceCorpus } from "./schema.js";
 
 const executable = validateConformanceCorpus(conformanceCorpus).filter(
@@ -27,6 +35,9 @@ describe("detector conformance corpus", () => {
     );
     expect(new Set(conformanceCorpus.map(({ kind }) => kind))).toEqual(
       new Set(["positive", "negative", "boundary", "overlap", "adversarial"]),
+    );
+    expect(new Set(conformanceCorpus.map(({ tier }) => tier))).toEqual(
+      new Set(["canonical", "negative", "malformed", "contextual", "adversarial", "regression"]),
     );
   });
 
@@ -62,13 +73,52 @@ describe("detector conformance corpus", () => {
   );
 
   it("keeps the adversarial corpus within a bounded runtime", () => {
-    const startedAt = Date.now();
     for (const fixture of executable.filter(({ kind }) => kind === "adversarial")) {
+      const startedAt = performance.now();
       const findings = runDetectorPipeline(fixture.input, createDetectorRegistry());
       assertResolvedFindings(fixture, findings);
+      expect(fixture.resource, fixture.id).toBeDefined();
+      expect(fixture.input.length, fixture.id).toBeLessThanOrEqual(
+        fixture.resource?.maxInputCodeUnits ?? 0,
+      );
+      expect(findings.length, fixture.id).toBeLessThanOrEqual(
+        fixture.resource?.maxFindings ?? 0,
+      );
+      expect(performance.now() - startedAt, fixture.id).toBeLessThan(
+        fixture.resource?.maxRuntimeMs ?? 0,
+      );
     }
-    expect(Date.now() - startedAt).toBeLessThan(2_000);
   }, 2_500);
+
+  it("has no silent stable-release coverage gaps", () => {
+    const rows = buildCoverageRows(
+      builtInDetectors,
+      executable,
+      incrementalPartitionCorpus,
+    );
+    for (const row of rows) {
+      for (const dimension of coverageDimensions) {
+        expect(row.dimensions[dimension].state, `${row.detector}:${dimension}`)
+          .not.toBe("gap");
+      }
+    }
+    const published = readFileSync(
+      new URL("./COVERAGE.md", import.meta.url),
+      "utf8",
+    );
+    expect(published).toContain(renderCoverageTable(rows));
+  });
+
+  it("generates grammar mutations in stable identity and order", () => {
+    const first = generateGrammarMutations()
+      .map(({ id, mutation }) => ({ id, mutation }));
+    const second = generateGrammarMutations()
+      .map(({ id, mutation }) => ({ id, mutation }));
+    expect(first).toEqual(second);
+    expect(new Set(first.map(({ id }) => id)).size).toBe(first.length);
+    expect(first.some(({ mutation }) => mutation?.operation === "invalid-prefix")).toBe(true);
+    expect(first.some(({ mutation }) => mutation?.operation === "encoded-prefix")).toBe(true);
+  });
 
   it("keeps validator and assertion failures input-free", () => {
     const fixture = executable.find(
