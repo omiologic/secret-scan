@@ -410,6 +410,24 @@ Once a public version is approved, the documented root exports and their
 TypeScript contracts constitute the SemVer public API. Files under internal
 package paths are not public API. Published version identifiers are immutable.
 
+## User guides
+
+This README is the package landing page and remains sufficient for installation,
+first use, supported APIs, and trust-boundary decisions. The
+[GitHub Wiki](https://github.com/omiologic/secret-scan/wiki) provides deeper,
+task-oriented guidance:
+
+- [whole-input scanning](https://github.com/omiologic/secret-scan/wiki/Whole-Input-Scanning);
+- [bounded incremental sanitization](https://github.com/omiologic/secret-scan/wiki/Incremental-Sanitization);
+- [Node stream integration](https://github.com/omiologic/secret-scan/wiki/Node-Stream-Integration)
+  and [Web stream integration](https://github.com/omiologic/secret-scan/wiki/Web-Stream-Integration);
+- [browser prevention and server enforcement](https://github.com/omiologic/secret-scan/wiki/Browser-and-Server-Enforcement); and
+- [detector extensions](https://github.com/omiologic/secret-scan/wiki/Deterministic-Scanning-and-Detector-Extensions)
+  and the supported detection families.
+
+The repository's `ARCHITECTURE.md`, `SECURITY.md`, and `CHANGELOG.md` remain the
+authoritative contributor design, security, and release-history contracts.
+
 ## Development
 
 ```bash

@@ -2,7 +2,7 @@
 schema_version: 3
 project_key: secret-scan
 canonical_ids_from: "2026-08-30T17:17:12Z"
-last_work_item_sequence: 21
+last_work_item_sequence: 24
 profile: minimal
 git_governance:
   branch_strategy: feature-branch
