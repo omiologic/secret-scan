@@ -14,6 +14,23 @@ const LIMITS = Object.freeze({
   maxMultilineCodeUnits: 16_384,
 });
 
+const FINALIZED_PREFIX_INPUT =
+  "api_key=SYNTHETIC_REVOKED_WEB_FINALIZED\n";
+const FINALIZED_PREFIX_OUTPUT = "api_key=<SECRET_1>\n";
+const UNRESOLVED_INPUT = "api_key=SYNTHETIC_REVOKED_WEB_UNRESOLVED";
+
+async function writeAndRead(
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+  reader: ReadableStreamDefaultReader<string>,
+  input: string,
+): Promise<string> {
+  const writing = writer.write(new TextEncoder().encode(input));
+  const result = await reader.read();
+  await writing;
+  expect(result.done).toBe(false);
+  return result.value ?? "";
+}
+
 async function sanitize(chunks: readonly Uint8Array[]) {
   const transform = createWebStreamSanitizer({ limits: LIMITS });
   const writer = transform.writable.getWriter();
@@ -57,12 +74,29 @@ describe("Web stream adapter", () => {
     expect(result.findings).toHaveLength(1);
   });
 
-  it("propagates backpressure and preserves fragmented output order", async () => {
-    const input = Array.from({ length: 256 }, (_, index) => `line-${index}\n`).join("");
-    const bytes = new TextEncoder().encode(input);
-    await expect(sanitize(
-      Array.from(bytes, (byte) => Uint8Array.of(byte)),
-    )).resolves.toMatchObject({ text: input });
+  it("stalls writes at native readable backpressure and resumes after a pull", async () => {
+    const transform = createWebStreamSanitizer({ limits: LIMITS });
+    const writer = transform.writable.getWriter();
+    const reader = transform.readable.getReader();
+    let settled = false;
+    const writing = writer.write(new TextEncoder().encode("ordinary line\n"))
+      .then(() => { settled = true; });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(writer.desiredSize).toBe(0);
+
+    await expect(reader.read()).resolves.toEqual({
+      value: "ordinary line\n",
+      done: false,
+    });
+    await writing;
+    expect(settled).toBe(true);
+
+    const closing = writer.close();
+    await expect(reader.read()).resolves.toEqual({ value: undefined, done: true });
+    await closing;
   });
 
   it("cancels without releasing an open buffered value", async () => {
@@ -76,6 +110,84 @@ describe("Web stream adapter", () => {
     await reader.cancel();
     await expect(pendingRead).resolves.toEqual({ value: undefined, done: true });
     expect(transform.findings).toEqual([]);
+  });
+
+  it("keeps finalized output but discards unresolved plaintext on readable cancellation", async () => {
+    const transform = createWebStreamSanitizer({ limits: LIMITS });
+    const writer = transform.writable.getWriter();
+    const reader = transform.readable.getReader();
+    const output = await writeAndRead(
+      writer,
+      reader,
+      FINALIZED_PREFIX_INPUT + UNRESOLVED_INPUT,
+    );
+    const pendingRead = reader.read();
+    const reason = new Error("Synthetic readable cancellation.");
+
+    await reader.cancel(reason);
+    await expect(pendingRead).resolves.toEqual({ value: undefined, done: true });
+    await expect(writer.close()).rejects.toBeInstanceOf(TypeError);
+    expect(output).toBe(FINALIZED_PREFIX_OUTPUT);
+    expect(Object.isFrozen(transform.findings)).toBe(true);
+    expect(transform.findings).toHaveLength(1);
+    expect(Object.isFrozen(transform.findings[0])).toBe(true);
+  });
+
+  it("keeps finalized output but discards unresolved plaintext on writable abort", async () => {
+    const transform = createWebStreamSanitizer({ limits: LIMITS });
+    const writer = transform.writable.getWriter();
+    const reader = transform.readable.getReader();
+    const output = await writeAndRead(
+      writer,
+      reader,
+      FINALIZED_PREFIX_INPUT + UNRESOLVED_INPUT,
+    );
+    const pendingRead = reader.read();
+    const reason = new Error("Synthetic writable abort.");
+
+    await writer.abort(reason);
+    await expect(pendingRead).rejects.toBe(reason);
+    expect(output).toBe(FINALIZED_PREFIX_OUTPUT);
+    expect(Object.isFrozen(transform.findings)).toBe(true);
+    expect(transform.findings).toHaveLength(1);
+    expect(Object.isFrozen(transform.findings[0])).toBe(true);
+  });
+
+  it("makes explicit abort idempotently win when it precedes close", async () => {
+    const transform = createWebStreamSanitizer({ limits: LIMITS });
+    const writer = transform.writable.getWriter();
+    const reader = transform.readable.getReader();
+    await writer.write(new TextEncoder().encode(UNRESOLVED_INPUT));
+
+    transform.abort();
+    transform.abort();
+    const closing = writer.close();
+    const reading = reader.read();
+
+    await expect(closing).rejects.toBeInstanceOf(IncrementalSanitizerError);
+    await expect(reading).rejects.toSatisfy((error: unknown) =>
+      error instanceof IncrementalSanitizerError
+      && error.message === "The incremental sanitizer is no longer accepting input."
+      && !error.message.includes(UNRESOLVED_INPUT));
+    expect(transform.findings).toEqual([]);
+  });
+
+  it("lets close safely finalize when it precedes explicit abort", async () => {
+    const transform = createWebStreamSanitizer({ limits: LIMITS });
+    const writer = transform.writable.getWriter();
+    const reader = transform.readable.getReader();
+    await writer.write(new TextEncoder().encode(UNRESOLVED_INPUT));
+
+    const closing = writer.close();
+    transform.abort();
+
+    await expect(reader.read()).resolves.toEqual({
+      value: "api_key=<SECRET_1>",
+      done: false,
+    });
+    await expect(reader.read()).resolves.toEqual({ value: undefined, done: true });
+    await closing;
+    expect(transform.findings).toHaveLength(1);
   });
 
   it("uses fixed errors and releases no buffered plaintext on failure", async () => {
@@ -100,5 +212,28 @@ describe("Web stream adapter", () => {
       .catch((error: unknown) => error);
     await expect(invalidWriting).resolves.toBeInstanceOf(StreamSanitizerError);
     await expect(invalidReading).resolves.toBeInstanceOf(StreamSanitizerError);
+  });
+
+  it("keeps only finalized output when malformed UTF-8 follows buffered plaintext", async () => {
+    const transform = createWebStreamSanitizer({ limits: LIMITS });
+    const writer = transform.writable.getWriter();
+    const reader = transform.readable.getReader();
+    const output = await writeAndRead(
+      writer,
+      reader,
+      FINALIZED_PREFIX_INPUT + UNRESOLVED_INPUT,
+    );
+    const reading = reader.read();
+    const writing = writer.write(Uint8Array.of(0xc3, 0x28));
+
+    await expect(writing).rejects.toSatisfy((error: unknown) =>
+      error instanceof StreamSanitizerError
+      && error.message === "Stream sanitizer input is not valid UTF-8."
+      && !("cause" in error));
+    await expect(reading).rejects.toBeInstanceOf(StreamSanitizerError);
+    expect(output).toBe(FINALIZED_PREFIX_OUTPUT);
+    expect(Object.isFrozen(transform.findings)).toBe(true);
+    expect(transform.findings).toHaveLength(1);
+    expect(Object.isFrozen(transform.findings[0])).toBe(true);
   });
 });
