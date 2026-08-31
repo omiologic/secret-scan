@@ -175,6 +175,12 @@ Examples include:
 - Shopify access tokens
 - modern Vault tokens
 
+JWT matching intentionally requires three base64url-looking segments whose
+header and payload begin with encoded JSON-object-style prefixes. Differently
+encoded, serialized, or encrypted token forms are excluded. Vault matching
+intentionally excludes legacy `s.`, `b.`, and `r.` forms because their prefixes
+are not distinctive enough for high-confidence offline detection.
+
 #### PEM private-key delimiters
 
 Private-key detection recognizes exact `BEGIN` and `END` pairs for `PRIVATE
@@ -220,6 +226,9 @@ supports password authentication without a named ACL user. Empty passwords,
 placeholder values, malformed authorities, and the same empty-username form on
 other schemes remain excluded. The detector selects only the original encoded
 password span and does not resolve hosts, decode credentials, or validate them.
+Schemes outside the documented allowlist, Unix-socket and non-ASCII authority
+forms, malformed percent escapes, and invalid host/port combinations are
+excluded by design.
 
 ### Context detectors
 
@@ -332,6 +341,13 @@ types:
 <PRIVATE_KEY_1>
 <BEARER_TOKEN_1>
 ```
+
+Every placeholder must be non-empty, no longer than 256 UTF-16 code units, and
+must not contain any `redact` or `block` matched range that could fit inside it.
+This includes one-, two-, and three-code-unit ranges supplied directly to
+`redact`; coincidental reproduction fails closed with a fixed, input-free
+error. `warn` and `allow` ranges intentionally remain in the reconstructed
+text and do not consume placeholder numbers.
 
 Partial masking such as `sk-proj-****abcd` may be useful in credential-management UI, but it is not the preferred strategy for conversational redaction.
 
@@ -582,6 +598,11 @@ The root and Web graphs cannot resolve `node:stream`. This keeps browser
 bundling independent of Node shims while preserving the whole-string entry
 point.
 
+Only the documented root values and types plus the Node and Web adapter
+subpath contracts are public. Detector-retention constants and candidate
+resolution machinery are implementation details, even when their source-level
+declarations are exported for use inside the package build.
+
 ## Runtime constraints
 
 The core should prefer JavaScript and Web Platform primitives.
@@ -624,17 +645,21 @@ Requirements:
 - benchmark representative 1 KB, 100 KB, and 1 MB inputs
 
 Placeholder validation indexes only unique redacted or blocked matched values
-that are between four and 256 UTF-16 code units: shorter values are outside the
-selected reproduction rule, and longer values cannot fit in a valid
-placeholder. Each formatter result is checked through bounded substring lookups
-against that index. This keeps the check exact while avoiding retention of
-duplicate or impossible-to-reproduce matched slices.
+that are at most 256 UTF-16 code units; longer values cannot fit in a valid
+placeholder. Every normalized finding is non-empty, so the index covers every
+short range as well. Each formatter result is checked through bounded substring
+lookups against that index. This keeps the check exact while avoiding retention
+of duplicate or impossible-to-reproduce matched slices.
 
 The synchronous API deliberately has no implicit input or finding-count limit.
 Its accepted findings, public metadata, and output use memory proportional to
-the request. Server consumers must impose request-size and custom-detector
-candidate-count limits that fit their own event-loop latency and memory budget;
-incremental scanning uses its separately declared mandatory limits.
+the request. An authoritative server must bound transport bytes and decoded
+string code units before scanning, require each custom detector to reject
+rather than truncate above a declared candidate limit, bound accepted findings
+and sanitized output before downstream use, and constrain scan concurrency to
+its measured event-loop latency and memory budget. Incremental scanning uses
+its separately declared mandatory input, buffer, token, and multiline limits;
+output accumulation remains caller-owned.
 
 Every regex detector should include adversarial tests for ReDoS risk.
 
@@ -761,6 +786,16 @@ Public extension points are limited to:
 - placeholder formatter
 
 Internal candidate-resolution mechanics should remain private until the algorithm stabilizes.
+
+All extensions are trusted in-process code. Custom detectors necessarily see
+the complete plaintext input and are responsible for plaintext-free candidate
+metadata, diagnostics, and failures. Policies and formatters are passed only
+immutable normalized metadata, but a consumer implementation can still access
+captured or global process state. Fixed library errors sanitize extension
+exceptions; they do not sandbox untrusted code. Findings supplied directly to
+`redact` are trusted assertions: the engine validates their shape, ranges,
+ordering, actions, and placeholder safety but does not rerun detection or
+authenticate the classification.
 
 ## Initial readiness milestone
 

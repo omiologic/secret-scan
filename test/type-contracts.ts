@@ -10,6 +10,7 @@ import type {
   SecretPolicy,
 } from "../src/index.js";
 import { createIncrementalSanitizer } from "../src/index.js";
+import * as publicApi from "../src/index.js";
 
 const detector: SecretDetector = {
   id: "synthetic-detector",
@@ -63,6 +64,14 @@ type FindingHasNoPlaintextValue = "value" extends keyof SecretFinding
 
 const findingHasNoPlaintextValue: FindingHasNoPlaintextValue = true;
 
+type RootHasNoImplementationLookaround =
+  "INCREMENTAL_LOOKAROUND_CODE_UNITS" extends keyof typeof publicApi
+    ? never
+    : true;
+
+const rootHasNoImplementationLookaround: RootHasNoImplementationLookaround =
+  true;
+
 const incrementalOptions: IncrementalSanitizerOptions = {
   limits: {
     maxInputCodeUnits: 4_096,
@@ -82,4 +91,5 @@ void options;
 void result;
 void candidate;
 void findingHasNoPlaintextValue;
+void rootHasNoImplementationLookaround;
 void incremental;

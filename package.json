@@ -24,6 +24,7 @@
     "README.md",
     "ARCHITECTURE.md",
     "SECURITY.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "exports": {

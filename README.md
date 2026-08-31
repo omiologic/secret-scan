@@ -14,9 +14,9 @@ or environment-dependent lookup.
 ## Release status
 
 The intended package name is `@omiologic/secret-scan`. The package is currently
-pre-release: no version has been selected or approved, and no release changelog
-entry exists. Installation from npm applies only after a separately approved
-release:
+pre-release: no version has been selected or approved. The changelog contains
+only a version-neutral `Unreleased` draft for human review. Installation from
+npm applies only after a separately approved release:
 
 ```bash
 npm install @omiologic/secret-scan
@@ -101,8 +101,10 @@ const result = scanAndRedact(
 
 A custom formatter receives only normalized finding metadata and a one-based
 placeholder index—not the input or matched value. It must return a non-empty
-string of at most 256 characters and must not reproduce any redacted or blocked
-matched value of four or more UTF-16 code units.
+string of at most 256 characters and must not contain any redacted or blocked
+matched value that can fit in the placeholder. This rule includes one-, two-,
+and three-code-unit caller-supplied findings; a coincidental reproduction fails
+with a fixed `SecretRedactionError` instead of returning the placeholder.
 
 ```ts
 const result = scanAndRedact(input, {
@@ -226,6 +228,44 @@ The package also exports the detector registry, built-in detector instances,
 the entropy helper, default policy, placeholder formatters, extension types,
 and sanitized `SecretScanError` and `SecretRedactionError` classes.
 
+### Supported package surface
+
+The root entry point deliberately supports these runtime values:
+
+- `scan`, `redact`, `scanAndRedact`, and `createIncrementalSanitizer`;
+- `DetectorRegistry`, `createDetectorRegistry`, and the documented built-in
+  detector instances and `builtInDetectors`;
+- `defaultSecretPolicy`, `defaultIncrementalSecretPolicy`,
+  `defaultPlaceholderFormatter`, and `typedPlaceholderFormatter`;
+- `calculateShannonEntropy`; and
+- `SecretScanError`, `SecretRedactionError`, and
+  `IncrementalSanitizerError`.
+
+The root also exports the TypeScript contracts used by those values, including
+detector, candidate, finding, policy, formatter, scan, redaction, and
+incremental-session types and the three public error-code unions. Retention
+tuning constants and candidate-resolution internals are not public API.
+
+The `./node-stream` and `./web-stream` subpaths expose only their corresponding
+adapter class, factory, sanitized stream error, relevant error-code union, and
+shared option/finding types. Other package-internal paths are unsupported.
+
+### Extension trust boundary
+
+Extensions are trusted in-process code, not a sandbox. A custom detector
+receives the complete plaintext input and must not return, log, persist, or
+attach matched text to candidates or errors. Policies and placeholder
+formatters receive only immutable normalized metadata, but application code can
+still capture plaintext through closures or other process state; use only
+reviewed implementations.
+
+Caller-supplied findings passed directly to `redact` are also trusted claims
+about the original input. The redactor validates metadata, bounds, ordering,
+overlap, and placeholder safety, but it does not rerun detection or decide
+whether a range is truly a credential. The caller owns those ranges and
+actions. Fixed library errors sanitize thrown extension exceptions but cannot
+make a malicious extension safe.
+
 ## Policy
 
 Detection and enforcement are separate. A policy receives immutable detection
@@ -292,13 +332,34 @@ format announcement is identified; the core never performs runtime lookups.
 Server applications should combine this library with appropriate request
 limits and other security controls; it is not a complete DLP system.
 
+Intentional exclusions include:
+
+- JWT spellings that do not use the accepted three base64url-looking segments
+  with encoded JSON-object-style header and payload prefixes, including other
+  encodings and encrypted or differently serialized token forms;
+- lone truncated private-key headers, unsupported PEM labels, malformed PEM
+  delimiter spellings, public keys, and certificates (exact nested, repeated,
+  out-of-order, or mismatched supported private-key delimiters are instead
+  detected conservatively as one outermost finding);
+- legacy Vault `s.`, `b.`, and `r.` forms;
+- URI schemes outside the documented allowlist and unsupported authority forms
+  such as Unix sockets, non-ASCII userinfo/hosts, malformed escapes, and SRV
+  seed lists or explicit SRV ports; and
+- automatic replacement of `warn` or `allow` findings: their text remains
+  unchanged unless the consumer chooses a policy action that replaces it.
+
 Whole-input scanning has no built-in input-size or finding-count limit. The
 overlap and placeholder-safety algorithms scale with candidate and finding
 counts, but metadata and sanitized output still require memory proportional to
-the accepted findings. Authoritative servers should enforce request-size and,
-when accepting custom detectors, candidate-count limits appropriate to their
-latency and memory budgets. The incremental API separately requires explicit
-plaintext-retention and total-input limits.
+the accepted findings. Before scanning, an authoritative server should enforce
+transport-byte and decoded-string code-unit limits. Every custom detector
+should reject rather than truncate when its documented per-request candidate
+limit would be exceeded, and the server should also bound total accepted
+findings and sanitized output before downstream persistence or context use.
+Choose these limits from measured event-loop latency and memory budgets, and
+bound concurrent scans at the application layer. The incremental API separately
+requires explicit total-input, retained-plaintext, token, and multiline limits;
+callers that accumulate its output must impose their own output limit.
 
 ## Browser boundary
 
@@ -361,9 +422,9 @@ npm run ci
 The test suite covers deterministic detection, false positives, overlap
 resolution, redaction and policy invariants, error safety, browser bundling,
 Node import, representative 1 KB/100 KB/1 MB performance thresholds, and
-dry-run package contents. Package inspection uses `0.0.0-inspection` only inside a
-temporary directory because selecting a release version requires explicit
-approval.
+dry-run package contents. Package inspection uses `0.0.0-inspection` only
+inside a temporary directory because selecting a release version requires
+explicit approval.
 
 ## Security and release process
 
@@ -373,6 +434,7 @@ security model. Never submit active credentials in a report or fixture.
 A release requires explicit user approval after tests pass and the public API
 and required changelog entry have been reviewed. Readiness checks do not choose
 a version or authorize a tag, package publication, deployment, or release.
+See the version-neutral [Unreleased changelog](./CHANGELOG.md).
 
 ## Architecture
 

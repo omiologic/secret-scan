@@ -3,6 +3,17 @@
   "compilerOptions": {
     "rootDir": "..",
     "noEmit": true,
+    "paths": {
+      "@omiologic/secret-scan": [
+        "./../src/index.ts"
+      ],
+      "@omiologic/secret-scan/node-stream": [
+        "./../src/adapters/node-stream.ts"
+      ],
+      "@omiologic/secret-scan/web-stream": [
+        "./../src/adapters/web-stream.ts"
+      ]
+    },
     "types": [
       "node",
       "vitest/globals"

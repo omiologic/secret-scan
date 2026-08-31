@@ -246,6 +246,17 @@ describe("redact", () => {
     ).toThrowError("The placeholder formatter returned an invalid value.");
   });
 
+  it.each(["x", "xy", "xyz"])(
+    "rejects formatter reproduction of the short caller-supplied finding %s",
+    (input) => {
+      expect(() =>
+        redact(input, [finding(0, input.length, "redact", "finding-1")], {
+          placeholderFormatter: () => `<${input}>`,
+        }),
+      ).toThrowError("The placeholder formatter returned an invalid value.");
+    },
+  );
+
   it("rejects overlapping and out-of-range findings with safe errors", () => {
     const input = "SYNTHETIC_REVOKED_VALUE";
     expect(() =>

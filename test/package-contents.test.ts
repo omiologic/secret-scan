@@ -34,6 +34,7 @@ describe("package contents", () => {
         "dist",
         "README.md",
         "ARCHITECTURE.md",
+        "CHANGELOG.md",
         "LICENSE",
         "SECURITY.md",
       ]) {
@@ -56,6 +57,7 @@ describe("package contents", () => {
       expect(paths).toContain("README.md");
       expect(paths).toContain("LICENSE");
       expect(paths).toContain("ARCHITECTURE.md");
+      expect(paths).toContain("CHANGELOG.md");
       expect(paths).toContain("SECURITY.md");
       expect(paths).toContain("dist/index.js");
       expect(paths).toContain("dist/index.d.ts");
@@ -63,6 +65,9 @@ describe("package contents", () => {
       expect(paths).toContain("dist/adapters/node-stream.d.ts");
       expect(paths).toContain("dist/adapters/web-stream.js");
       expect(paths).toContain("dist/adapters/web-stream.d.ts");
+      expect(readFileSync("dist/index.d.ts", "utf8")).not.toContain(
+        "INCREMENTAL_LOOKAROUND_CODE_UNITS",
+      );
       expect(paths.some((path) => path.startsWith("src/"))).toBe(false);
       expect(paths.some((path) => path.startsWith("test/"))).toBe(false);
       expect(paths.some((path) => path.startsWith("_notes/"))).toBe(false);

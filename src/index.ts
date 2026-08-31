@@ -18,7 +18,6 @@ export { calculateShannonEntropy } from "./entropy.js";
 export { defaultIncrementalSecretPolicy, defaultSecretPolicy } from "./policy.js";
 export {
   createIncrementalSanitizer,
-  INCREMENTAL_LOOKAROUND_CODE_UNITS,
   IncrementalSanitizerError,
 } from "./incremental.js";
 export type { IncrementalSanitizerErrorCode } from "./incremental.js";

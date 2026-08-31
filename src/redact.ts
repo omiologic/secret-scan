@@ -25,7 +25,6 @@ const ERROR_MESSAGES: Readonly<Record<SecretRedactionErrorCode, string>> = {
 const IDENTIFIER_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 const MAX_IDENTIFIER_LENGTH = 64;
 const MAX_PLACEHOLDER_LENGTH = 256;
-const MIN_FORBIDDEN_MATCH_LENGTH = 4;
 
 interface ForbiddenMatchedTextIndex {
   readonly byLength: ReadonlyMap<number, ReadonlySet<string>>;
@@ -159,10 +158,7 @@ function buildForbiddenMatchedTextIndex(
     if (finding.action !== "redact" && finding.action !== "block") continue;
 
     const length = finding.end - finding.start;
-    if (
-      length < MIN_FORBIDDEN_MATCH_LENGTH ||
-      length > MAX_PLACEHOLDER_LENGTH
-    ) {
+    if (length > MAX_PLACEHOLDER_LENGTH) {
       continue;
     }
 
