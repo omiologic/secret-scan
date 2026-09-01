@@ -1,0 +1,28 @@
+name: Package Release Rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      outcome:
+        description: Synthetic terminal outcome; this workflow never publishes npm
+        required: true
+        type: choice
+        options: [success, failure]
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm no-publication rehearsal
+        env:
+          OUTCOME: ${{ inputs.outcome }}
+        shell: bash
+        run: |
+          echo "Synthetic package release ${OUTCOME}; npm publication and Git tagging are disabled."
+          if [[ "${OUTCOME}" == "failure" ]]; then
+            exit 1
+          fi
