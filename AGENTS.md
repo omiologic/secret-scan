@@ -91,6 +91,20 @@ They answer different questions; do not let one stand in for the other.
 `rtk read` / `rtk grep` / `rtk find` are the fallback for files graft has not
 indexed, or for opening the exact `file:line` graft already pointed you at.
 
+## Issue workflow — two units of work
+
+Both live in `.agents/skills/` so Claude Code and Codex read the same file.
+
+| step | command | ends at |
+|---|---|---|
+| 1 | `resolve-issue <ISSUE_NUMBER>` | a verified `workbench/<N>-<slug>` branch, committed, not pushed |
+| 2 | *(you)* `ghpr run <N> --trace-db …/giro.trace.db` | commit message written, PR opened |
+| 3 | `review-pr <PR_NUMBER>` | final review + wrap-up done, ready to close |
+
+`resolve-issue` owns the `wip: #<N>` commit-subject rule that `ghpr` depends on:
+every commit on the branch carries that exact subject, with no body and no
+trailers. Once the PR exists that rule is over.
+
 ## Working from a GitHub issue
 
 An issue URL carries no code vocabulary, so graft's prompt hook has nothing to
