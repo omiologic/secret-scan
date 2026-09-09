@@ -33,11 +33,19 @@ pub enum SecretScanErrorCode {
     /// The Rust [`Action`](crate::Action) enum cannot express this, so this
     /// code is produced by bindings that accept dynamically typed actions.
     InvalidPolicyAction,
+    /// A redaction finding is out of range, misordered, or overlaps another
+    /// finding.
+    InvalidFindings,
+    /// The placeholder formatter reported a failure while redacting.
+    PlaceholderFailure,
+    /// The placeholder formatter returned an empty, oversized, or
+    /// matched-value-reproducing placeholder.
+    InvalidPlaceholder,
 }
 
 impl SecretScanErrorCode {
     /// Every code, in declaration order.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 10] = [
         Self::InvalidInput,
         Self::InvalidOptions,
         Self::InvalidDetector,
@@ -45,6 +53,9 @@ impl SecretScanErrorCode {
         Self::InvalidCandidate,
         Self::PolicyFailure,
         Self::InvalidPolicyAction,
+        Self::InvalidFindings,
+        Self::PlaceholderFailure,
+        Self::InvalidPlaceholder,
     ];
 
     /// The stable `SCREAMING_SNAKE_CASE` code string.
@@ -58,6 +69,9 @@ impl SecretScanErrorCode {
             Self::InvalidCandidate => "INVALID_CANDIDATE",
             Self::PolicyFailure => "POLICY_FAILURE",
             Self::InvalidPolicyAction => "INVALID_POLICY_ACTION",
+            Self::InvalidFindings => "INVALID_FINDINGS",
+            Self::PlaceholderFailure => "PLACEHOLDER_FAILURE",
+            Self::InvalidPlaceholder => "INVALID_PLACEHOLDER",
         }
     }
 
@@ -72,6 +86,9 @@ impl SecretScanErrorCode {
             Self::InvalidCandidate => "A secret detector returned an invalid candidate.",
             Self::PolicyFailure => "The secret policy failed.",
             Self::InvalidPolicyAction => "The secret policy returned an invalid action.",
+            Self::InvalidFindings => "Redaction findings are invalid.",
+            Self::PlaceholderFailure => "The placeholder formatter failed.",
+            Self::InvalidPlaceholder => "The placeholder formatter returned an invalid value.",
         }
     }
 }
@@ -161,6 +178,12 @@ mod tests {
             (
                 "INVALID_POLICY_ACTION",
                 "The secret policy returned an invalid action.",
+            ),
+            ("INVALID_FINDINGS", "Redaction findings are invalid."),
+            ("PLACEHOLDER_FAILURE", "The placeholder formatter failed."),
+            (
+                "INVALID_PLACEHOLDER",
+                "The placeholder formatter returned an invalid value.",
             ),
         ];
         for (code, (name, message)) in SecretScanErrorCode::ALL.into_iter().zip(expected) {
