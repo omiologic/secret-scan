@@ -332,14 +332,31 @@ impl IncrementalSanitizer {
         }
     }
 
+    /// Discards retained plaintext and every parser state derived from it.
+    ///
+    /// The buffer is released rather than truncated: `clear` would leave the
+    /// discarded bytes alive in a reusable allocation, and the retention
+    /// contract is to drop them.
+    fn discard_retained(&mut self) {
+        self.retained = String::new();
+        self.private_key.reset();
+        self.multiline_open = false;
+        self.multiline_detected = false;
+    }
+
+    /// Finishes a unit whose text and findings have been produced: its bytes
+    /// become finalized input that advances absolute offsets, and the
+    /// plaintext behind them is discarded.
+    fn finish_unit(&mut self) {
+        self.finalized_bytes += self.retained.len();
+        self.discard_retained();
+    }
+
     /// Discards retained plaintext and parser state and transitions to
     /// `failed`, returning `error` unchanged so callers can propagate it
     /// with `return Err(self.fail_with(error))`.
     fn fail_with(&mut self, error: SecretScanError) -> SecretScanError {
-        self.retained.clear();
-        self.private_key.reset();
-        self.multiline_open = false;
-        self.multiline_detected = false;
+        self.discard_retained();
         self.state = SessionState::Failed;
         error
     }
@@ -506,11 +523,7 @@ impl IncrementalSanitizer {
             if !self.multiline_open && !self.has_open_single_line_construct() {
                 match self.process_unit() {
                     Ok(result) => {
-                        self.finalized_bytes += self.retained.len();
-                        self.retained.clear();
-                        self.private_key.reset();
-                        self.multiline_open = false;
-                        self.multiline_detected = false;
+                        self.finish_unit();
                         emitted.push_str(&result.text);
                         findings.extend(result.findings);
                     }
@@ -538,11 +551,7 @@ impl IncrementalSanitizer {
         self.require_accepting()?;
         match self.process_unit() {
             Ok(result) => {
-                self.finalized_bytes += self.retained.len();
-                self.retained.clear();
-                self.private_key.reset();
-                self.multiline_open = false;
-                self.multiline_detected = false;
+                self.finish_unit();
                 self.state = SessionState::Finalized;
                 Ok(result)
             }
@@ -558,11 +567,171 @@ impl IncrementalSanitizer {
     /// `accepting` state.
     pub fn abort(&mut self) -> Result<(), SecretScanError> {
         self.require_accepting()?;
-        self.retained.clear();
-        self.private_key.reset();
-        self.multiline_open = false;
-        self.multiline_detected = false;
+        self.discard_retained();
         self.state = SessionState::Aborted;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Marker for a retained, unresolved value. It is not credential-shaped
+    /// on its own; the surrounding assignment is what a detector matches.
+    const MARKER: &str = "SYNTHETIC_REVOKED_RETENTION_MARKER";
+
+    fn generous_limits() -> IncrementalLimits {
+        IncrementalLimits::new(1_000_000, 16_512, 8_192, 16_384).unwrap()
+    }
+
+    fn session_with(
+        policy: Box<dyn IncrementalPolicy>,
+        formatter: Box<dyn PlaceholderFormatter>,
+    ) -> IncrementalSanitizer {
+        IncrementalSanitizer::with_policy_and_formatter(generous_limits(), policy, formatter)
+            .unwrap()
+    }
+
+    fn default_session() -> IncrementalSanitizer {
+        session_with(
+            Box::new(DefaultPolicy),
+            Box::new(default_placeholder_formatter),
+        )
+    }
+
+    /// Every discarding transition must leave the session holding no
+    /// plaintext and no parser state derived from it.
+    fn assert_nothing_retained(sanitizer: &IncrementalSanitizer) {
+        assert_eq!(sanitizer.retained, "");
+        assert_eq!(sanitizer.retained.capacity(), 0);
+        assert!(!sanitizer.multiline_open);
+        assert!(!sanitizer.multiline_detected);
+    }
+
+    #[test]
+    fn abort_discards_an_open_construct() {
+        let mut sanitizer = default_session();
+        sanitizer.append(&format!("api_key={MARKER}")).unwrap();
+        assert!(sanitizer.retained.contains(MARKER));
+
+        sanitizer.abort().unwrap();
+
+        assert_eq!(sanitizer.state, SessionState::Aborted);
+        assert_nothing_retained(&sanitizer);
+    }
+
+    #[test]
+    fn abort_discards_an_open_private_key_block() {
+        let mut sanitizer = default_session();
+        sanitizer
+            .append(&format!("-----BEGIN PRIVATE KEY-----\n{MARKER}\n"))
+            .unwrap();
+        assert!(sanitizer.multiline_open);
+
+        sanitizer.abort().unwrap();
+
+        assert_nothing_retained(&sanitizer);
+    }
+
+    #[test]
+    fn a_limit_failure_discards_the_construct_that_reached_it() {
+        let limits = IncrementalLimits::new(1_000_000, 160, 32, 32).unwrap();
+        let mut sanitizer = IncrementalSanitizer::new(limits).unwrap();
+
+        let error = sanitizer.append(&format!("api_key={MARKER}")).unwrap_err();
+
+        assert_eq!(error.code(), SecretScanErrorCode::TokenLimitExceeded);
+        assert_eq!(sanitizer.state, SessionState::Failed);
+        assert_nothing_retained(&sanitizer);
+    }
+
+    #[test]
+    fn an_input_limit_failure_discards_everything_retained_so_far() {
+        let limits = IncrementalLimits::new(64, 200, 32, 32).unwrap();
+        let mut sanitizer = IncrementalSanitizer::new(limits).unwrap();
+        sanitizer.append("api_key").unwrap();
+        assert_eq!(sanitizer.retained, "api_key");
+
+        let error = sanitizer.append(&"x".repeat(64)).unwrap_err();
+
+        assert_eq!(error.code(), SecretScanErrorCode::InputLimitExceeded);
+        assert_nothing_retained(&sanitizer);
+    }
+
+    #[test]
+    fn a_policy_failure_discards_the_unit_it_was_evaluating() {
+        let failing = |_: &DetectedFinding, _: &IncrementalPolicyContext| Err(PolicyFailure);
+        let mut sanitizer =
+            session_with(Box::new(failing), Box::new(default_placeholder_formatter));
+
+        let error = sanitizer
+            .append(&format!("api_key={MARKER}\n"))
+            .unwrap_err();
+
+        assert_eq!(error.code(), SecretScanErrorCode::PolicyFailure);
+        assert_eq!(sanitizer.state, SessionState::Failed);
+        assert_nothing_retained(&sanitizer);
+    }
+
+    #[test]
+    fn a_formatter_failure_discards_the_unit_it_was_redacting() {
+        let failing = |_: &Finding, _: &PlaceholderContext| Err(FormatterFailure);
+        let mut sanitizer = session_with(Box::new(DefaultPolicy), Box::new(failing));
+
+        let error = sanitizer
+            .append(&format!("api_key={MARKER}\n"))
+            .unwrap_err();
+
+        assert_eq!(error.code(), SecretScanErrorCode::PlaceholderFailure);
+        assert_nothing_retained(&sanitizer);
+    }
+
+    #[test]
+    fn an_invalid_placeholder_discards_the_unit_it_was_redacting() {
+        let reproducing = |_: &Finding, _: &PlaceholderContext| Ok(MARKER.to_string());
+        let mut sanitizer = session_with(Box::new(DefaultPolicy), Box::new(reproducing));
+
+        let error = sanitizer
+            .append(&format!("api_key={MARKER}\n"))
+            .unwrap_err();
+
+        assert_eq!(error.code(), SecretScanErrorCode::InvalidPlaceholder);
+        assert_nothing_retained(&sanitizer);
+    }
+
+    #[test]
+    fn a_state_failure_leaves_nothing_retained_to_discard() {
+        let mut sanitizer = default_session();
+        sanitizer.append(&format!("api_key={MARKER}")).unwrap();
+        sanitizer.abort().unwrap();
+
+        let error = sanitizer.append("ignored").unwrap_err();
+
+        assert_eq!(error.code(), SecretScanErrorCode::InvalidState);
+        assert_eq!(sanitizer.state, SessionState::Aborted);
+        assert_nothing_retained(&sanitizer);
+    }
+
+    #[test]
+    fn a_finalized_unit_is_discarded_once_its_offsets_are_recorded() {
+        let mut sanitizer = default_session();
+        let unit = format!("api_key={MARKER}\n");
+
+        sanitizer.append(&unit).unwrap();
+
+        assert_eq!(sanitizer.finalized_bytes, unit.len());
+        assert_nothing_retained(&sanitizer);
+    }
+
+    #[test]
+    fn the_debug_representation_never_carries_retained_plaintext() {
+        let mut sanitizer = default_session();
+        sanitizer.append(&format!("api_key={MARKER}")).unwrap();
+
+        let rendered = format!("{sanitizer:?}");
+
+        assert!(!rendered.contains(MARKER));
+        assert!(rendered.starts_with("IncrementalSanitizer {"));
     }
 }
