@@ -21,5 +21,13 @@ name = "secret_scan"
 # Intentionally empty. Additions must pass scripts/check-rust-workspace.py,
 # which enforces [workspace.metadata.secret-scan] in the root Cargo.toml.
 
+[dev-dependencies]
+# Test-only. Dev-dependencies are outside the core boundary because they never
+# ship (docs/rust-workspace.md#dependency-boundary); this one lets the
+# integration tests read the canonical `conformance/fixtures/*.json` contract
+# directly instead of copying fixture values into Rust, which
+# decision-govern-cross-language-conformance rejects.
+serde_json = "1"
+
 [lints]
 workspace = true

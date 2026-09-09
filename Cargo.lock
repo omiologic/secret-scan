@@ -429,6 +429,9 @@ dependencies = [
 [[package]]
 name = "secret-scan"
 version = "0.1.0-beta.1"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "secret-scan-cli"

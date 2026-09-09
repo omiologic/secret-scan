@@ -16,6 +16,42 @@
 //! limit, detector, policy, or placeholder failure discards retained
 //! plaintext and enters `failed`.
 //!
+//! # Partition invariance
+//!
+//! For every input this API accepts, the concatenated text, the findings and
+//! their actions, their order, IDs and absolute UTF-8 byte ranges, and
+//! placeholder numbering are identical to the whole-input reference
+//! ([`scan`](crate::scan) then [`redact`](crate::redact)) at every partition
+//! of that input — at every UTF-8 byte boundary and at every host-native
+//! `&str` boundary. Only the distribution of safe output across [`append`]
+//! and [`finalize`] results varies; what those results concatenate to does
+//! not. `tests/incremental_partitions.rs` enumerates both boundary kinds
+//! over the canonical corpus in `conformance/fixtures/incremental-corpus.json`,
+//! and `tests/adversarial_bounds.rs` holds the adversarial tier of
+//! `conformance/fixtures/synchronous-corpus.json` to its declared input,
+//! finding-count, and runtime caps.
+//!
+//! # Unsupported extensions
+//!
+//! Two whole-input capabilities are deliberately outside this API, because
+//! neither can be evaluated before the end of the input is known:
+//!
+//! - **Custom synchronous detectors.** Neither [`IncrementalSanitizer::new`]
+//!   nor [`IncrementalSanitizer::with_policy_and_formatter`] accepts a
+//!   [`DetectorRegistry`], so a session always runs the built-in detectors
+//!   only. A custom [`Detector`](crate::Detector) carries no retention
+//!   declaration, so a session could not bound how long it must hold an open
+//!   construct for it. Register custom detectors on the whole-input
+//!   [`scan`](crate::scan) path instead.
+//! - **Whole-input count-dependent policies.** [`PolicyContext`] carries the
+//!   total finalized finding count; [`IncrementalPolicyContext`]
+//!   deliberately does not, because a progressive evaluation cannot know how
+//!   many findings the whole session will produce. A [`Policy`] whose action
+//!   depends on [`PolicyContext::finding_count`] therefore has no
+//!   incremental equivalent: adapting it to [`IncrementalPolicy`] must
+//!   substitute the running index, which yields a different result. Policies
+//!   used incrementally must be count-independent, as [`DefaultPolicy`] is.
+//!
 //! [`append`]: IncrementalSanitizer::append
 //! [`finalize`]: IncrementalSanitizer::finalize
 //! [`abort`]: IncrementalSanitizer::abort
