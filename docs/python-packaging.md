@@ -77,13 +77,21 @@ under PEP 561 and a type checker resolves the API with no stub package.
 | `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | `manylinux_2_17_aarch64.manylinux2014_aarch64` | CPython 3.10 and 3.14 |
 | `x86_64-unknown-linux-musl` | `ubuntu-latest` | `musllinux_1_2_x86_64` | `python:3.10-alpine`, `python:3.14-alpine` |
 | `aarch64-unknown-linux-musl` | `ubuntu-24.04-arm` | `musllinux_1_2_aarch64` | `python:3.10-alpine`, `python:3.14-alpine` |
-| `x86_64-apple-darwin` | `macos-13` | `macosx_*_x86_64` | CPython 3.10 and 3.14 |
+| `x86_64-apple-darwin` | `macos-15-intel` | `macosx_*_x86_64` | CPython 3.10 and 3.14 |
 | `aarch64-apple-darwin` | `macos-latest` | `macosx_*_arm64` | CPython 3.10 and 3.14 |
 | `x86_64-pc-windows-msvc` | `windows-latest` | `win_amd64` | CPython 3.10 and 3.14 |
 | `aarch64-pc-windows-msvc` | `windows-11-arm` | `win_arm64` | CPython 3.11 and 3.14 |
 
 Every wheel is built and smoke-tested on the architecture it targets; nothing
-is cross-qualified. Windows on Arm is the one place the floor interpreter is
+is cross-qualified.
+
+Intel macOS is the runner label most likely to move. `macos-13` was the last
+standard Intel image and was retired on 2025-12-04; a job that asks for a
+retired label queues indefinitely rather than failing, so the symptom is a
+check that never reports. `macos-15-intel` is its standard-size replacement.
+If that job stops starting, check the current label in
+[actions/runner-images](https://github.com/actions/runner-images#available-images)
+before assuming the build broke. Windows on Arm is the one place the floor interpreter is
 not 3.10, because CPython for that platform starts at 3.11 — the wheel's abi3
 floor is unchanged and the x64 job exercises it.
 
