@@ -2,32 +2,51 @@
 
 ## Overview
 
-`secret-scan` is a deterministic text-inspection library for detecting and redacting credentials before untrusted content crosses a trust boundary.
+`secret-scan` is a deterministic, cross-language text-inspection product for
+detecting and redacting credentials before untrusted content crosses a trust
+boundary. One Rust core is the canonical implementation of built-in detection,
+candidate normalization and overlap resolution, policy evaluation, redaction,
+and bounded incremental sanitization.
 
-The same core runtime is intended to work in modern browsers, Node.js services, CLIs, serverless runtimes, MCP clients/servers, and agent/tool gateways.
+JavaScript, Python, Rust, and CLI consumers use runtime-specific surfaces over
+that core. Bindings translate host values, callbacks, errors, and string ranges;
+they do not reimplement detector behavior.
 
-The core package must not depend on an AI model, network service, filesystem, database, secret manager, or UI framework.
+The core is side-effect free. It performs no runtime network or filesystem
+access, environment lookup, telemetry, secret storage, model invocation, or UI
+work. These constraints make the same behavior suitable for browsers, Node.js,
+Python applications, Rust applications, CLIs, serverless runtimes, MCP systems,
+and agent/tool gateways.
 
-## Core security boundary
+## Migration state
 
-The key architectural distinction is between intentional credential storage and conversational/textual context.
+This document describes the accepted target architecture. Migration progress is
+tracked by [issue #3](https://github.com/omiologic/secret-scan/issues/3) and its
+sub-issues rather than duplicated here.
+
+Until the cutover qualification is complete:
+
+- the repository-root TypeScript implementation in `src/` remains the
+  behavioral oracle and the root `package.json` remains the current npm package;
+- `crates/secret-scan-core` and the top-level `conformance/` corpus are the
+  destination for canonical behavior;
+- `packages/javascript` is the replacement JavaScript package over the Node and
+  WebAssembly bindings; and
+- the TypeScript detector core is removed only after Rust parity and all
+  JavaScript lifecycle, stream, API, and package checks pass.
+
+Git preserves the retired implementation's history. The repository will not
+maintain a second `ts-legacy` detector implementation after cutover.
+
+## Security boundaries
+
+The main architectural distinction is between intentional credential storage
+and conversational or textual context.
 
 ```text
 Intentional credential path
 
-User
-  |
-  v
-Credential Manager
-  |
-  v
-Secret Vault
-  |
-  v
-Provider Gateway
-  |
-  v
-External Provider
+User -> Credential Manager -> Secret Vault -> Provider Gateway -> Provider
 ```
 
 ```text
@@ -45,842 +64,289 @@ User / Tool / MCP / Log
 Conversation / Context / Storage / Model
 ```
 
-A credential vault is allowed to contain secrets. Conversation history, context, knowledge, logs, telemetry, and model prompts should not.
+A credential vault may contain secrets. Conversation history, model context,
+knowledge stores, logs, telemetry, and diagnostics must not.
 
-## Client/server model
+Client-side scanning is preventive UX: it can warn or redact before plaintext
+leaves a device. Server-side scanning is the authoritative enforcement boundary
+and must run even when a client also scans. This protects direct API clients,
+older or modified clients, CLIs, SDKs, MCP integrations, and agents.
 
-Client-side and server-side scanning serve different purposes.
+Applications must not log raw request or tool bodies before scanning. Findings,
+errors, callbacks, fixtures, snapshots, and diagnostics must not expose matched
+plaintext.
 
-```text
-Browser
-┌─────────────────────────────┐
-│ User input                  │
-│      |                      │
-│      v                      │
-│ Client scan + redact        │
-│      |                      │
-│      v                      │
-│ Review / send safe text     │
-└─────────────┬───────────────┘
-              |
-              v
-Server
-┌─────────────────────────────┐
-│ Server scan + redact        │
-│      |                      │
-│      v                      │
-│ Policy                      │
-│      |                      │
-│      +--> block             │
-│      |                      │
-│      v                      │
-│ Safe persistence/context    │
-│      |                      │
-│      v                      │
-│ Model/tool boundary         │
-└─────────────────────────────┘
-```
-
-### Client responsibility
-
-The client scanner prevents high-confidence secrets from leaving the device, gives immediate feedback, and supports review before submission.
-
-It is not authoritative.
-
-### Server responsibility
-
-The server scanner enforces policy regardless of client behavior and protects direct API access, outdated or modified clients, CLIs, SDK consumers, MCP integrations, agents, and future clients.
-
-Security-sensitive consumers should always perform server-side scanning.
-
-## Processing pipeline
+## System topology
 
 ```text
-Input
-  |
-  v
-Normalization
-  |
-  v
-Detector Registry
-  |
-  +--> Known-format detectors
-  +--> Structural detectors
-  +--> Context detectors
-  +--> Entropy heuristic
-  |
-  v
-Candidate Findings
-  |
-  v
-Overlap / conflict resolution
-  |
-  v
-Confidence normalization
-  |
-  v
-Policy evaluation
-  |
-  v
-Redaction plan
-  |
-  v
-Sanitized text + safe metadata
+JavaScript                      Python          Rust          CLI
+   |                               |              |             |
+   +-> Node: N-API addon           +-> PyO3       |             |
+   |      bindings/node                binding    |             |
+   |                               bindings/python             |
+   +-> Browser: wasm-bindgen                      |             |
+          bindings/wasm                           |             |
+   |                               |              |             |
+   +-------------------------------+--------------+-------------+
+                                   |
+                                   v
+                         crates/secret-scan-core
+                                   |
+             detection -> overlap -> policy -> redaction
+                                   |
+                                   v
+                      safe text + safe metadata
+
+                  conformance/ is the shared contract
 ```
 
-## Detector model
+The binding and package layout is:
 
-A detector is an independent unit.
+| Path | Responsibility | Public artifact |
+| --- | --- | --- |
+| `crates/secret-scan-core` | Canonical detector, policy, redaction, and incremental behavior | crates.io library crate |
+| `crates/secret-scan-cli` | Process arguments, files, standard streams, output, and exit codes | `secret-scan` binary |
+| `bindings/node` | N-API conversion between Node.js and the Rust core | Private input to the npm package |
+| `bindings/wasm` | `wasm-bindgen` conversion between browsers and the Rust core | Private input to the npm package |
+| `bindings/python` | PyO3 extension and Python-facing package surface | Python distribution |
+| `packages/javascript` | One typed API with runtime-specific loading | `@omiologic/secret-scan` |
+| `conformance` | Language-neutral behavioral fixtures and schema | Repository contract, not a package |
 
-```ts
-export interface SecretDetector {
-  id: string;
+Detailed workspace dependency, lint, unsafe-code, MSRV, and registry-name
+policies live in [docs/rust-workspace.md](./docs/rust-workspace.md).
 
-  detect(
-    input: string,
-    context: DetectorContext
-  ): SecretCandidate[];
-}
-```
-
-A candidate contains classification and source-range metadata, not a public copy of the detected secret.
-
-```ts
-export interface SecretCandidate {
-  type: string;
-  detector: string;
-  start: number;
-  end: number;
-  confidence: SecretConfidence;
-  specificity?: SecretCandidateSpecificity;
-  signals?: string[];
-}
-```
-
-Internally, detectors may temporarily inspect matching substrings. Those values must not escape through public results, logs, telemetry, or thrown errors.
-
-## Detector classes
-
-### Known-format detectors
-
-Examples include:
-
-- private-key blocks
-- AWS access keys
-- GitHub token families
-- GitLab token families
-- JWT structure
-- bearer tokens
-- provider-specific API key formats
-- Shopify access tokens
-- modern Vault tokens
-- qualified Stripe, Slack, PyPI, Hugging Face, Docker, Cloudflare,
-  DigitalOcean, Linear, Supabase, and Vercel credential prefixes
-
-JWT matching intentionally requires three base64url-looking segments whose
-header and payload begin with encoded JSON-object-style prefixes. Differently
-encoded, serialized, or encrypted token forms are excluded. Vault matching
-intentionally excludes legacy `s.`, `b.`, and `r.` forms because their prefixes
-are not distinctive enough for high-confidence offline detection.
-
-#### PEM private-key delimiters
-
-Private-key detection recognizes exact `BEGIN` and `END` pairs for `PRIVATE
-KEY`, `RSA PRIVATE KEY`, `DSA PRIVATE KEY`, `EC PRIVATE KEY`, `OPENSSH PRIVATE
-KEY`, and `ENCRYPTED PRIVATE KEY`. A normally paired block also requires at
-least 16 base64-alphabet code units after CR and LF are removed. Delimiters are
-structural evidence only; the detector does not parse, decrypt, or
-cryptographically validate the body.
-
-The parser advances once through supported delimiters and maintains an
-input-bounded last-in-first-out label stack. Adjacent complete blocks remain
-separate. A lone
-incomplete header is ignored to avoid classifying documentation fragments, but
-nested, repeated, out-of-order, or mismatched supported delimiters are treated
-as malformed credential structure. Such a structure produces one conservative
-candidate from its outermost header through the point where the delimiter stack
-resolves, or through end of input when it remains unresolved. This prevents an
-inner block from winning overlap resolution while surrounding key material is
-left behind.
-
-The malformed rule intentionally favors false positives over partial release:
-prose containing multiple exact supported private-key headers can be blocked.
-Public-key, certificate, unsupported-label, missing-hyphen, and lone truncated
-near-matches remain ignored. Detection still emits metadata only; the default
-policy supplies the `block` action and custom policies remain independent.
-
-### Structural detectors
-
-These recognize credential-bearing syntax such as:
+## Canonical processing pipeline
 
 ```text
-Authorization: Bearer ...
-password=...
-api_key: ...
-postgres://user:password@host/db
-```
-
-Connection authority parsing stays lexical and bounded. Standard `mongodb://`
-authorities may contain a comma-separated list of individually valid hosts and
-ports, while `mongodb+srv://` accepts one DNS host without an explicit port.
-`redis://` and `rediss://` additionally accept `:password@host` because Redis
-supports password authentication without a named ACL user. Empty passwords,
-placeholder values, malformed authorities, and the same empty-username form on
-other schemes remain excluded. The detector selects only the original encoded
-password span and does not resolve hosts, decode credentials, or validate them.
-Schemes outside the documented allowlist, Unix-socket and non-ASCII authority
-forms, malformed percent escapes, and invalid host/port combinations are
-excluded by design.
-
-### Context detectors
-
-Contextual names can increase confidence:
-
-```text
-API_KEY
-SECRET_KEY
-ACCESS_TOKEN
-REFRESH_TOKEN
-PASSWORD
-PRIVATE_KEY
-CLIENT_SECRET
-WEBHOOK_SECRET
-AWS_SECRET_ACCESS_KEY
-AWS_SESSION_TOKEN
-```
-
-The AWS names are contextual signals, not provider-format validation. Their
-values follow the same bounded length and entropy confidence rules as other
-assignments, and the policy independently decides whether to warn or redact.
-
-The word `token` alone should not imply a secret because it is common in AI and parser-related text.
-
-Quoted contextual assignments use a small bounded grammar rather than a
-general-purpose data parser. A value begins after a single or double quote and
-ends at the first matching quote preceded by an even-length run of backslashes.
-A quote after an odd-length run is escaped and remains part of the detected
-span. Backslash escapes, including escaped quotes, escaped slashes, and Unicode
-escape spellings, are retained exactly as written; they are not decoded or
-semantically interpreted. The closing quote must be followed by end of input,
-whitespace, `,`, `;`, `}`, or `]`.
-
-The detector rejects the complete contextual candidate when the quoted value
-contains a physical line ending, has no closing quote, has non-delimiter text
-after its closing quote, or exceeds 4,096 UTF-16 code units. It never falls
-back to a prefix match. Redaction selects only the encoded contents between the
-quotes, so valid JSON and similar structured text retain their surrounding
-syntax. This bounded lexical approach prevents secret suffixes from surviving
-redaction without claiming to validate JSON, YAML, shell, or another host
-format. It can miss multiline, oversized, or host-specific quoted credentials,
-and a lexically complete value may still be invalid in its host format.
-
-### Entropy heuristic
-
-Entropy helps classify unknown formats but should not be used as the sole aggressive signal. Hashes, UUIDs, build IDs, checksums, and generated identifiers may all look random.
-
-## Conflict resolution
-
-Multiple detectors may identify the same span. For example, a JWT bearer token may trigger bearer-token, JWT, and generic high-entropy detection.
-
-Overlaps are resolved deterministically with this specificity precedence:
-
-1. private key / highly specific credential
-2. provider-specific detector
-3. structural detector
-4. contextual detector
-5. entropy-only candidate
-
-Within the same specificity tier, higher confidence wins, followed by the
-narrower span, detector registration order, and detector emission order.
-Candidates that omit specificity use the lowest `entropy` tier, so an
-unclassified custom detector cannot displace a detector that explicitly claims
-stronger structural evidence. This favors precision and bounded redaction; the
-tradeoff is that a detector which understates its specificity may lose a real
-overlap, while one which overstates specificity may suppress a more accurate
-candidate.
-
-The greedy priority pass stores accepted, mutually disjoint spans in a balanced
-interval tree. Overlap lookup and insertion are logarithmic while the final
-public ordering remains by original-input offset. This preserves the winner
-contract without comparing each candidate with every previously accepted span.
-
-## Policy evaluation
-
-Detection and enforcement are separate concerns.
-
-```ts
-export interface SecretPolicy {
-  evaluate(
-    finding: DetectedSecretFinding,
-    context: PolicyContext
-  ): SecretAction;
-}
-```
-
-```ts
-type SecretAction = "redact" | "block" | "warn" | "allow";
-```
-
-The policy receives immutable classification and range metadata before an
-action exists; it never receives the matched value. This allows browser and
-server consumers to enforce different actions over identical detections.
-
-## Redaction engine
-
-The default placeholder strategy is semantic and non-recoverable:
-
-```text
-<SECRET_1>
-<SECRET_2>
-<SECRET_3>
-```
-
-The exported typed placeholder formatter derives labels from safe finding
-types:
-
-```text
-<API_KEY_1>
-<PRIVATE_KEY_1>
-<BEARER_TOKEN_1>
-```
-
-Every placeholder must be non-empty, no longer than 256 UTF-16 code units, and
-must not contain any `redact` or `block` matched range that could fit inside it.
-This includes one-, two-, and three-code-unit ranges supplied directly to
-`redact`; coincidental reproduction fails closed with a fixed, input-free
-error. `warn` and `allow` ranges intentionally remain in the reconstructed
-text and do not consume placeholder numbers.
-
-Partial masking such as `sk-proj-****abcd` may be useful in credential-management UI, but it is not the preferred strategy for conversational redaction.
-
-## Incremental scanning contract
-
-The package exposes a bounded incremental runtime API implemented under this
-contract. It does not change synchronous behavior, and independently scanning
-chunks remains unsafe.
-
-### Logical input and lifecycle
-
-An incremental session consumes JavaScript strings. The logical original input
-is the exact UTF-16 code-unit concatenation of every appended chunk, including
-empty chunks and chunks that divide a surrogate pair. Runtime adapters that
-start from bytes must use one stateful, fatal UTF-8 decoder and pass only decoded
-strings to the core. Decoder errors belong to the adapter and must not release
-undecoded or buffered input.
-
-The state machine has four terminally distinct states:
-
-```text
-accepting --finalize--> finalized
-    |             |
-    +--abort------> aborted
-    |
-    +--failure----> failed
-```
-
-- `accepting` may receive chunks and return only output whose detection window
-  is closed;
-- `finalize` is required, supplies the end-of-input boundary, and may be called
-  exactly once;
-- `abort` discards retained plaintext and emits no further text or findings;
-- a limit, detector, policy, formatter, or state failure discards retained
-  plaintext, enters `failed`, and throws a fixed input-free error; and
-- append, finalize, or abort after a terminal transition fails safely and does
-  not expose retained state.
-
-Garbage collection is not a security erasure guarantee for JavaScript strings.
-Discarding means dropping library references and never returning, logging,
-storing, or attaching buffered text to an error.
-
-### Safe emission and final findings
-
-An input range is emit-safe only after every built-in detector that could start
-before or inside it is unable to produce or displace a finding that overlaps
-that range. A chunk boundary, a minimum token length, or a provisional match is
-never a closing boundary. A delimiter, a complete fixed-width match plus its
-required right boundary, or explicit finalization may close a window.
-
-The implementation may emit confirmed ordinary prefixes progressively. It must
-retain an open lexical line, URL authority, variable-length token, or private-key
-block until that construct closes or a configured limit fails. It must not emit
-any code unit from a provisional finding, including a finding that may later
-lose overlap resolution. Output fragments concatenate in original order and
-must not end between the two code units of a valid surrogate pair.
-
-Final findings are immutable and use absolute UTF-16 offsets into the logical
-original input. IDs and ordering follow the synchronous pipeline. Policy is
-evaluated exactly once after each finding is final, and only then may its text
-or placeholder be emitted. Placeholder numbering is one-based across the
-session and advances only for `redact` and `block` actions.
-
-The existing `SecretPolicy` receives the final whole-input `findingCount`.
-Progressive evaluation cannot know that value. Therefore the incremental API
-must use a separate policy context that contains the zero-based finalized
-`findingIndex` but no provisional or total count. The default incremental policy
-has the same action mapping as `defaultSecretPolicy`. A caller that requires the
-existing whole-input policy context must continue using `scan` or
-`scanAndRedact`; adapting such a policy is explicit and is not guaranteed to be
-behaviorally equivalent.
-
-### Required limits
-
-Every session must receive explicit positive safe-integer limits. There are no
-environment-derived or silent defaults:
-
-- `maxInputCodeUnits` bounds the total logical input accepted by one session;
-- `maxBufferedCodeUnits` bounds plaintext retained but not yet emitted;
-- `maxTokenCodeUnits` bounds an open logical line, single-line credential, JWT,
-  contextual assignment, or other delimiter-terminated token; and
-- `maxMultilineCodeUnits` bounds an open PEM-style private-key block.
-
-Accounting keeps four quantities distinct. Total input is the sum of accepted
-chunks and is checked against `maxInputCodeUnits`. Retained plaintext is the
-unresolved input still owned by the session and is checked against
-`maxBufferedCodeUnits` and the applicable construct limit. Finalized input
-units have already passed detection and policy; they advance absolute offsets
-but no longer count as retained plaintext. Emitted text is sanitized output
-accumulated for the current operation's return value and has no separate size
-limit. Callers that need an output-size limit must impose one independently.
-
-The implementation validates the complete limit relationship before accepting
-input. `maxBufferedCodeUnits` must accommodate the larger of the token and
-multiline limits plus the detector lookaround reserve. A construct that reaches
-a limit without a closing boundary is not reclassified as ordinary text: the
-session fails before any code unit from that construct is emitted. This turns
-otherwise unbounded detector shapes into explicit rejection boundaries rather
-than false-negative paths.
-
-### Detector retention inventory
-
-| Detector family | Evidence that must remain open | Closing evidence | Bound |
-| --- | --- | --- | --- |
-| AWS and fixed-width GitHub forms | Prefix, fixed body, and one boundary code unit on each side | Exact length plus a non-token right boundary or finalization | Fixed match plus lookaround reserve |
-| GitHub installation, GitLab, OpenAI, Anthropic, Shopify, Vault, and qualified additional provider tokens | Recognized prefix and the complete opaque or rollout-safe suffix | Non-token delimiter or finalization | `maxTokenCodeUnits` |
-| JWT | All three potentially growing segments and left/right token boundaries | Non-token delimiter or finalization | `maxTokenCodeUnits` |
-| Bearer, Basic, and Token authorization | Current logical line from the structural scheme through its credential | Credential delimiter, line end, or finalization | `maxTokenCodeUnits` |
-| Contextual assignment | Current logical line from the possible name through the bounded value | Assignment delimiter, line end, or finalization | `maxTokenCodeUnits`; the detector still rejects values above 4,096 code units |
-| Connection URL | Possible scheme boundary and complete authority through one host, a standard MongoDB seed list, or an optional Redis username | Authority delimiter or finalization | Existing 8,192-code-unit authority bound within `maxTokenCodeUnits` |
-| Private key | Possible delimiter suffix and the outermost open supported delimiter stack | The stack resolves, explicit finalization, or failure at the multiline limit | `maxMultilineCodeUnits` |
-
-The open-line rule is intentionally conservative. It covers unbounded whitespace
-and name portions in the current contextual regular expressions without
-changing their synchronous meaning. Custom synchronous detectors have no
-retention declaration and therefore are not accepted by the incremental API.
-A future custom incremental detector contract would need deterministic maximum
-lookbehind, match, and closing-bound declarations; adding it is not part of the
-approved implementation item.
-
-Incremental private-key retention uses the same delimiter transitions as the
-synchronous detector. It keeps only fixed delimiter-length lookbehind while
-advancing its parser state across appended text, so chunk boundaries and
-repeated headers do not cause prior retained prefixes to be rescanned. An open
-outermost structure remains retained until its stack resolves, finalization
-applies the synchronous end-of-input rule, or the multiline limit fails safely.
-
-### Equivalence boundary
-
-For built-in detectors, accepted input within all explicit limits, the default
-incremental policy, and the same placeholder formatter, concatenated incremental
-text and final findings must equal one `scanAndRedact` call over the concatenated
-logical input. This includes actions, ordering, IDs, absolute offsets, overlap
-resolution, and placeholder numbering. Chunk partitioning cannot affect the
-result or whether an otherwise identical logical input is accepted. In
-particular, finalized input processed within one `append` call does not
-accumulate against `maxBufferedCodeUnits`.
-
-The contract intentionally does not claim equivalence for malformed UTF-8,
-limit-exceeding input, aborted or failed sessions, custom synchronous detectors,
-or whole-input policies that depend on `PolicyContext.findingCount`. These cases
-fail or remain on the synchronous API rather than emitting potentially unsafe
-plaintext. The executable partition corpus covers every UTF-16 code-unit and
-UTF-8 byte boundary around representative synthetic matches and is the shared
-acceptance source for the core and future stream adapters.
-
-## Public result safety
-
-Public result shape:
-
-```ts
-interface ScanResult {
-  readonly text: string;
-  readonly findings: readonly SecretFinding[];
-}
-```
-
-```ts
-interface SecretFinding {
-  id: string;
-  type: string;
-  detector: string;
-  confidence: SecretConfidence;
-  action: SecretAction;
-  start: number;
-  end: number;
-}
-```
-
-Do not expose:
-
-```ts
-{ value: "actual-secret" }
-```
-
-Callers that need interactive review can use the returned offsets against the original input while it remains local to that process.
-
-## Package architecture
-
-The initial implementation should remain one package:
-
-```text
-@omiologic/secret-scan
-```
-
-Do not prematurely split browser and server packages because the scanning core should remain runtime-neutral.
-
-The accepted [Rust-core monorepo decision](./docs/decisions/2026-09-09-adopt-rust-core-monorepo.md)
-adds a Rust workspace alongside this package. Its crates, bindings, and
-boundaries are described in [docs/rust-workspace.md](./docs/rust-workspace.md);
-the TypeScript layout below remains the behavioral oracle until the Rust core
-passes the shared conformance corpus.
-
-Current layout:
-
-```text
-src/
-├── adapters/
-│   ├── node-stream.ts
-│   ├── shared.ts
-│   └── web-stream.ts
-├── detectors/
-│   ├── additional-providers.ts
-│   ├── anthropic.ts
-│   ├── aws.ts
-│   ├── bearer-token.ts
-│   ├── connection-string.ts
-│   ├── generic-token.ts
-│   ├── github.ts
-│   ├── gitlab.ts
-│   ├── jwt.ts
-│   ├── openai.ts
-│   ├── private-key.ts
-│   ├── shopify.ts
-│   └── vault.ts
-├── entropy.ts
-├── incremental.ts
-├── policy.ts
-├── redact.ts
-├── registry.ts
-├── scan.ts
-├── types.ts
-└── index.ts
-```
-
-The Node and Web adapters are thin wrappers around `incremental.ts`. Shared
-UTF-8 decoding and result aggregation remain runtime-neutral in
-`adapters/shared.ts`; only `node-stream.ts` imports `node:stream`. A Web Worker
-adapter remains a possible future extension rather than current scope.
-
-### Stream adapter boundary
-
-Both adapters accept `Uint8Array` chunks and keep one fatal `TextDecoder` for
-the complete stream. They pass decoded strings to one incremental sanitizer,
-emit only the sanitizer's finalized text, and expose accumulated immutable
-finding metadata. They do not rerun detectors or policy.
-
-The Node adapter subclasses `Transform`; `_flush` supplies the required final
-input boundary and `_destroy` aborts an accepting sanitizer. The Web adapter
-uses native readable and writable stream backpressure around a
-`TransformStream`; close flushes, readable cancellation and writable abort drop
-retained plaintext, and transform failures error both sides with sanitized
-library errors. Output already emitted before a later failure was previously
-finalized as safe; output retained at the failure boundary is never enqueued.
-
-Package subpath exports isolate these surfaces:
-
-```text
-@omiologic/secret-scan             runtime-neutral core
-@omiologic/secret-scan/node-stream Node Transform adapter
-@omiologic/secret-scan/web-stream  Web TransformStream adapter
-```
-
-The root and Web graphs cannot resolve `node:stream`. This keeps browser
-bundling independent of Node shims while preserving the whole-string entry
-point.
-
-Only the documented root values and types plus the Node and Web adapter
-subpath contracts are public. Detector-retention constants and candidate
-resolution machinery are implementation details, even when their source-level
-declarations are exported for use inside the package build.
-
-## Runtime constraints
-
-The core should prefer JavaScript and Web Platform primitives.
-
-Avoid coupling core logic to:
-
-- `fs`
-- browser storage
-- DOM APIs
-- server frameworks
-- Node-only crypto APIs unless isolated behind an adapter
-
-## Build strategy
-
-Current strategy:
-
-- TypeScript
-- ESM-first
-- declaration output
-- explicit package `exports`
-- tree-shakeable detectors
-- Node 20+ runtime support and Node 20/22 CI coverage
-- browser-compatible runtime code
-
-The current package intentionally has no CommonJS build. One should only be
-added if consumer demand justifies the additional compatibility surface.
-
-## Performance and regex safety
-
-The initial release should prioritize correctness while avoiding pathological regular expressions.
-
-Requirements:
-
-- no catastrophic regex backtracking
-- deterministic detector order
-- avoid unnecessary full-string copies
-- resolve candidate overlaps in `O(n log n)` time after prioritization
-- validate placeholders without a placeholder-by-finding cross-product
-- reconstruct redacted output in a single pass after findings are finalized
-- benchmark representative 1 KB, 100 KB, and 1 MB inputs
-
-Placeholder validation indexes only unique redacted or blocked matched values
-that are at most 256 UTF-16 code units; longer values cannot fit in a valid
-placeholder. Every normalized finding is non-empty, so the index covers every
-short range as well. Each formatter result is checked through bounded substring
-lookups against that index. This keeps the check exact while avoiding retention
-of duplicate or impossible-to-reproduce matched slices.
-
-The synchronous API deliberately has no implicit input or finding-count limit.
-Its accepted findings, public metadata, and output use memory proportional to
-the request. An authoritative server must bound transport bytes and decoded
-string code units before scanning, require each custom detector to reject
-rather than truncate above a declared candidate limit, bound accepted findings
-and sanitized output before downstream use, and constrain scan concurrency to
-its measured event-loop latency and memory budget. Incremental scanning uses
-its separately declared mandatory input, buffer, token, and multiline limits;
-output accumulation remains caller-owned.
-
-Every regex detector should include adversarial tests for ReDoS risk.
-
-## Testing strategy
-
-The library requires strong negative testing because false positives directly harm usability.
-
-### Positive fixtures
-
-Use synthetic examples only. Never commit active credentials.
-
-### Negative fixtures
-
-Include values that may look secret-like but should remain unchanged:
-
-- SHA hashes
-- UUIDs
-- Git commit IDs
-- model names
-- CSS hashes
-- random test IDs
-- long numeric IDs
-- source-map fragments
-
-### Core invariants
-
-1. Redacted output must not contain detected plaintext secrets.
-2. Public findings must not contain secret values.
-3. Identical input/configuration must produce identical findings.
-4. Findings must not overlap after conflict resolution.
-5. Offsets must refer to the original input.
-6. Scanning sanitized output must not rediscover the original secret.
-
-### Stable-release conformance qualification
-
-The conformance corpus organizes evidence into canonical, negative, malformed,
-contextual, adversarial, and regression tiers. Fixtures retain stable IDs,
-explicit host contexts, safe expected metadata, and—where applicable—fixed
-mutation provenance or resource caps. Deterministic grammar mutations exercise
-accepted shapes and immediate rejected neighbors without random seeds, network
-data, or implementation-derived expectations.
-
-The generated coverage matrix maps every built-in detector to positive,
-near-miss, false-positive, context, overlap, mutation, incremental, adversarial,
-and regression evidence. A missing applicable dimension fails qualification;
-an inapplicable dimension requires a written reason. The matrix is readiness
-evidence, not a claim of complete secret detection.
-
-Every confirmed false positive or false negative is converted to a permanent
-synthetic regression. Submitted credential material is discarded and is never
-copied, transformed, encoded, hashed, logged, or included in diagnostics.
-
-The top-level, language-neutral canonical fixture schema and its UTF-8 byte
-offset range model live in [`conformance/`](./conformance/README.md), per
-`decision-govern-cross-language-conformance`. `scripts/migrate-conformance-corpus.ts`
-is migration tooling that converts this TypeScript corpus into that canonical
-schema; it is not itself the canonical source.
-
-## Browser UX integration
-
-The initial core package should not provide UI components. Consumers can build
-review flows using findings and offsets.
-
-Example UX:
-
-```text
-Sensitive credential detected
-
-2 values will be removed before sending.
-
-[Send safely] [Review]
-```
-
-## Server integration
-
-Recommended request path:
-
-```text
-HTTP request
-   |
-   v
-parse request
-   |
-   v
-secret-scan
-   |
-   +--> policy block -> safe error
-   |
-   v
-sanitized text
-   |
-   +--> persistence
-   +--> logs/traces
-   +--> context construction
-   +--> model invocation
-```
-
-Applications should avoid logging raw request bodies before scanning.
-
-## MCP and agent integration
-
-Tool output is an important exfiltration path.
-
-```text
-Tool execution
+UTF-8 input
     |
     v
-Raw output
+Built-in Rust detector registry
     |
     v
-secret-scan
+Candidate validation and normalization
     |
     v
-Sanitized result
+Deterministic priority and overlap resolution
     |
     v
-Agent/model context
+Detected findings with stable IDs and source ranges
+    |
+    v
+Policy evaluation over safe metadata
+    |
+    v
+One-pass redaction
+    |
+    v
+Sanitized text + findings without matched values
 ```
 
-Framework-specific wrappers should remain outside core until common abstractions stabilize.
+The core does not normalize or decode the input before detection when doing so
+would change source coordinates or lexical meaning. Detectors inspect the
+original UTF-8 string and produce candidate ranges into it.
 
-## Error handling and telemetry
+Candidate validation rejects malformed, empty, out-of-bounds, or invalid UTF-8
+boundary ranges. Candidates are then ranked by specificity, confidence, span
+width, detector registration order, and detector emission order. A deterministic
+greedy pass accepts only mutually disjoint ranges. Final findings are ordered by
+their original-input position and assigned stable one-based IDs.
 
-Errors must not contain input fragments that could include secrets.
+Specific provider or structural evidence outranks broad contextual evidence.
+This favors precision and bounded redaction. The tradeoff is explicit: strict
+prefixes, length bounds, lexical grammars, and supported-format allowlists can
+miss truncated, new, malformed, or unsupported credential variants. Entropy is
+only a supporting signal and never sufficient by itself for aggressive
+classification.
 
-The core library should emit no telemetry.
+## Detection and policy separation
 
-Applications may record safe aggregate events such as:
+Detection answers what a range appears to be. Policy independently chooses one
+of `redact`, `block`, `warn`, or `allow` from immutable finding metadata.
+Policy callbacks never receive the input or matched value.
 
-```json
-{
-  "event": "secret.redacted",
-  "type": "api_key",
-  "count": 1,
-  "source": "conversation_input"
-}
-```
+The default policy blocks private-key material, redacts known provider,
+authorization, connection, and other high-confidence credentials, and warns on
+other medium- or low-confidence findings. A consumer may enforce a stricter
+server policy without changing detector behavior.
 
-They must never include plaintext secret values.
+The redactor replaces `redact` and `block` ranges in one ordered pass. `warn`
+and `allow` ranges remain unchanged. Default placeholders are stable,
+non-recoverable labels such as `<SECRET_1>`. A custom formatter receives safe
+metadata and a placeholder index only. The core rejects empty, oversized, or
+unsafe placeholders with fixed, input-free errors.
 
-## Extension model
+Findings supplied directly to a redaction API are trusted caller assertions.
+The core validates their metadata, bounds, ordering, overlap, and placeholder
+safety, but does not rerun detection or authenticate the classification.
 
-Public extension points are limited to:
+## Runtime surfaces and range units
 
-- custom detectors
-- detector registry
-- custom policy
-- custom incremental policy
-- placeholder formatter
+The Rust core uses UTF-8 byte offsets. Each binding converts ranges without
+changing the selected span:
 
-Internal candidate-resolution mechanics should remain private until the algorithm stabilizes.
+| Surface | Public range unit | Runtime contract |
+| --- | --- | --- |
+| Rust crate | UTF-8 bytes | Calls the core directly |
+| Node.js | UTF-16 code units | Loads the N-API addon |
+| Browser JavaScript | UTF-16 code units | Loads the WebAssembly module |
+| Python | Unicode code points | Loads the CPython abi3 extension |
+| CLI | UTF-8 bytes internally | Presents host input/output and exit behavior |
 
-All extensions are trusted in-process code. Custom detectors necessarily see
-the complete plaintext input and are responsible for plaintext-free candidate
-metadata, diagnostics, and failures. Policies and formatters are passed only
-immutable normalized metadata, but a consumer implementation can still access
-captured or global process state. Fixed library errors sanitize extension
-exceptions; they do not sandbox untrusted code. Findings supplied directly to
-`redact` are trusted assertions: the engine validates their shape, ranges,
-ordering, actions, and placeholder safety but does not rerun detection or
-authenticate the classification.
+The JavaScript package exposes one API across Node.js and browsers. Consumers
+call `await initialize()` before synchronous scan, redaction, incremental, or
+adapter operations. Node initialization may be a fast no-op, but it remains in
+the shared contract so application code is runtime-independent and loading
+failures are observable.
 
-## Initial readiness milestone
+Node-only and browser-only loading code stays behind package export boundaries.
+The browser graph must not resolve Node built-ins, and Node consumers are not
+forced through browser-oriented WebAssembly glue.
 
-The first publishable version should prove four things:
+Python uses PyO3 and maturin. Supported wheels target CPython 3.10+ through the
+abi3 contract on qualified Linux, macOS, and Windows targets; source installs
+require Rust when no wheel applies. Rust consumers use the library crate
+directly. The CLI is a host adapter over the same core, never another detector.
 
-1. Browser and server use the same core.
-2. High-confidence credentials can be detected without network calls.
-3. Sanitized output preserves enough semantic structure for downstream reasoning.
-4. False-positive behavior is testable and tunable.
+## Incremental and streaming behavior
 
-Implemented readiness criteria:
+Incremental sanitization is part of the Rust core. Independently scanning chunks
+is unsafe because a credential may cross any chunk boundary.
 
-- `scan`, `redact`, and `scanAndRedact`
-- typed detector interface
-- typed policy interface
-- semantic placeholders
-- private-key detector
-- bearer/JWT detector
-- GitHub detector
-- AWS detector
-- OpenAI/Anthropic detector strategy
-- generic key/value contextual detector
-- entropy helper
-- overlap resolver
-- Vitest suite
-- browser build test
-- Node build test
-- CI
-- README
-- ARCHITECTURE
-- SECURITY
-- MIT license
+An incremental session:
 
-## Future: Context Safety Gateway
+- requires explicit total-input, retained-plaintext, token, and multiline
+  limits;
+- retains every still-open lexical construct until it is safe to emit, reaches
+  a closing boundary, or fails at a declared limit;
+- evaluates policy exactly once after a finding becomes final;
+- preserves absolute ranges, deterministic ordering, IDs, actions, and
+  placeholder numbering; and
+- drops retained plaintext on abort, lifecycle misuse, callback failure, or
+  limit failure without attaching it to an error.
 
-`secret-scan` should stay focused even if it later becomes one component of a broader safety layer.
+For accepted input within the declared limits, concatenated incremental output
+and findings must equal a whole-input scan over the same logical string,
+regardless of chunk partitioning.
+
+Byte-stream adapters own one fatal, stateful UTF-8 decoder so a multibyte scalar
+may cross chunks without becoming a detection boundary. Node adapters integrate
+with `Transform`; browser adapters integrate with `TransformStream`. Bindings
+handle host backpressure, cancellation, destruction, and decoding, while the
+Rust core owns scan semantics and retained-plaintext safety.
+
+## Cross-language conformance
+
+The top-level [`conformance/`](./conformance/README.md) corpus is the single
+executable behavioral contract. Canonical fixture ranges use UTF-8 byte offsets.
+Binding runners convert them to native range units and verify that the converted
+span has the same meaning.
+
+The corpus covers:
+
+- positive, negative, malformed, contextual, and regression cases;
+- detector metadata and exclusions;
+- overlap precedence, policy, and redaction;
+- Unicode boundaries and offset conversion;
+- incremental partition equivalence and adversarial limits; and
+- fixed, input-free diagnostics.
+
+Fixtures contain only unmistakably synthetic or revoked inputs, and expected
+metadata never copies a matched value. Generated grammar mutations are
+deterministic and record their provenance. A schema change is a cross-language
+contract change.
+
+Release qualification requires the Rust core and every supported surface to run
+the applicable shared contract in one repository CI graph. Binding-local smoke,
+lifecycle, callback, packaging, and host-integration tests supplement the shared
+corpus; they do not replace or fork it.
+
+## Public API and extension boundary
+
+Every public surface returns sanitized text and finding metadata equivalent to:
 
 ```text
-Untrusted Context
-      |
-      v
-Context Safety Gateway
-      |
-      +--> secret-scan
-      +--> PII policy
-      +--> prompt-injection analysis
-      +--> organization data policy
-      +--> provenance checks
-      |
-      v
-Approved Context
+id, type, detector, confidence, action, start, end
 ```
 
-The scanner should remain independently publishable rather than absorbing every context-safety concern.
+It never returns a matched value. Callers may use offsets against plaintext only
+while that plaintext remains inside their own trusted process boundary.
+
+The first stable Rust-core extension surface supports custom policy and
+placeholder formatter callbacks. These callbacks receive normalized safe
+metadata. Custom detector callbacks are intentionally excluded because they
+would expose plaintext across the FFI boundary and could restore divergent
+detector behavior. The TypeScript oracle's custom-detector and registry APIs are
+legacy migration surfaces, not part of the accepted first stable cross-language
+contract.
+
+Extensions are trusted in-process code, not a sandbox. Fixed library errors can
+sanitize an exception crossing a callback boundary, but cannot prevent trusted
+application code from capturing plaintext through closures or global state.
+
+## Error and telemetry constraints
+
+Public errors use stable codes and fixed, input-free messages. Binding layers
+map core failures into idiomatic host exceptions without attaching the original
+input, matched substring, callback exception, or secret-bearing cause.
+
+The core and bindings emit no telemetry. Applications may record safe aggregate
+events such as a finding type and count, but never plaintext values or raw input
+fragments.
+
+## Build and dependency constraints
+
+The Rust core may use `std` and only explicitly allowlisted dependencies. Its
+normal and build dependency graph excludes runtime networking, filesystem and
+environment access, telemetry, secret storage, and UI behavior. Unsafe code is
+forbidden in the core and CLI. Any binding-local unsafe code must be scoped to a
+real FFI boundary and documented according to workspace policy.
+
+Core algorithms must be deterministic, avoid catastrophic regular-expression
+behavior, avoid unnecessary full-input copies, resolve overlaps in
+`O(n log n)` time after prioritization, and reconstruct redacted output in one
+pass after findings are finalized. Whole-input APIs have no implicit input or
+finding-count limit, so authoritative hosts must enforce transport, decoded
+input, accepted finding, sanitized output, concurrency, and memory limits.
+
+## Versioning, qualification, and release
+
+The Rust crate, npm package, Python package, and CLI are one product with one
+SemVer version and one `v{version}` Git tag. Binding-specific fixes still advance
+the shared version and qualify every required artifact from the same commit.
+
+A release candidate must pass the shared conformance contract plus all
+surface-specific build, test, type, package-content, platform, and smoke checks
+without publishing. The release process records the source commit, conformance
+revision, version, required artifacts, and observed registry state. Publication
+is not transactional; only an explicitly authorized reconcile operation may
+complete a partially published matching version without rebuilding artifacts
+that already succeeded.
+
+Release readiness does not authorize selecting a version, tagging, publishing,
+deploying, or archiving another repository. Those actions require the separate
+release approval defined by repository governance.
+
+## Deliberate exclusions
+
+The first stable architecture does not include:
+
+- a Go binding or stable C ABI;
+- a pure-Python, TypeScript, or Go detector fallback;
+- runtime provider lookups or network-assisted validation;
+- credential storage, credential management, or secret rotation;
+- UI components, server-framework integration, or model/tool invocation; or
+- PII detection, prompt-injection analysis, organization data policy, or other
+  broader context-safety functions.
+
+Those capabilities may wrap or follow `secret-scan`, but they must not weaken
+the deterministic core or create another authoritative detector implementation.
+
+## Decision sources
+
+The accepted records governing this architecture are:
+
+- [Adopt a Rust-core monorepo](./docs/decisions/2026-09-09-adopt-rust-core-monorepo.md)
+- [Define runtime bindings](./docs/decisions/2026-09-09-define-runtime-bindings.md)
+- [Govern cross-language conformance](./docs/decisions/2026-09-09-govern-cross-language-conformance.md)
+- [Release bindings in lockstep](./docs/decisions/2026-09-09-release-bindings-in-lockstep.md)

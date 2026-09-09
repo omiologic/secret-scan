@@ -1,35 +1,84 @@
 # secret-scan
 
-Deterministic secret detection and redaction for browser and server
-JavaScript/TypeScript applications.
+Deterministic secret detection and redaction for JavaScript, Python, Rust, and
+command-line applications.
 
 `secret-scan` inspects untrusted text before it is logged, persisted, indexed,
-sent to a tool, or added to model context. The core is runtime-neutral,
-side-effect free, and performs no network requests, telemetry, secret storage,
-or environment-dependent lookup.
+sent to a tool, or added to model context. One side-effect-free Rust core owns
+built-in detection, overlap resolution, policy, redaction, and bounded
+incremental sanitization. Runtime bindings adapt that behavior without
+reimplementing it.
 
 > Client-side scanning is preventive UX. Server-side scanning is the
 > authoritative enforcement boundary.
 
-## Release status
+## Migration and release status
 
-The intended package name is `@omiologic/secret-scan`. The package is currently
-pre-release: no version has been selected or approved. The changelog contains
-only a version-neutral `Unreleased` draft for human review. Installation from
-npm applies only after a separately approved release:
+The repository is migrating from its TypeScript implementation to the
+[Rust-core monorepo architecture](./ARCHITECTURE.md). Progress is tracked by
+[issue #3](https://github.com/omiologic/secret-scan/issues/3) and its linked
+sub-issues.
 
-```bash
-npm install @omiologic/secret-scan
+During the migration, the repository-root `src/` implementation remains the
+behavioral oracle and root npm package. The replacement JavaScript package
+lives in `packages/javascript` and loads the Rust core through Node N-API or
+browser WebAssembly. The TypeScript detector core will be removed only after
+cross-language parity and release qualification are complete.
+
+No release is authorized by the version values currently present in development
+manifests. Installation from npm, PyPI, crates.io, or binary distribution
+channels applies only after a separately approved release.
+
+For repository development, run `npm ci` followed by the checks in
+[Development](#development).
+
+## Architecture at a glance
+
+```text
+JavaScript       Python        Rust          CLI
+    |               |            |             |
+ N-API / wasm     PyO3           |             |
+    |               |            |             |
+    +---------------+------------+-------------+
+                    |
+                    v
+          deterministic Rust core
+                    |
+       detect -> resolve -> policy -> redact
+                    |
+                    v
+          safe text + safe metadata
+
+       conformance/ is the shared contract
 ```
 
-For repository development, use `npm ci` followed by `npm run ci`.
+The core performs no runtime network or filesystem access, environment lookup,
+telemetry, secret storage, model invocation, or UI work. Bindings translate
+host callbacks, errors, and string ranges while preserving the selected spans.
 
-## Quick start
+| Surface | Binding | Public range unit |
+| --- | --- | --- |
+| JavaScript on Node.js | N-API | UTF-16 code units |
+| JavaScript in browsers | `wasm-bindgen` WebAssembly | UTF-16 code units |
+| Python | PyO3 | Unicode code points |
+| Rust | Direct library crate | UTF-8 bytes |
+| CLI | Direct core integration | UTF-8 bytes internally |
 
-All examples use unmistakably synthetic, revoked values.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for processing, trust boundaries,
+incremental safety, package ownership, conformance, and release design. See
+[docs/rust-workspace.md](./docs/rust-workspace.md) for workspace dependency,
+lint, unsafe-code, MSRV, and registry-name policies.
+
+## JavaScript quick start
+
+The replacement JavaScript package presents one typed API across Node.js and
+modern browsers. Its explicit initialization contract makes native or
+WebAssembly loading failures observable without making every scan asynchronous.
 
 ```ts
-import { scanAndRedact } from "@omiologic/secret-scan";
+import { initialize, scanAndRedact } from "@omiologic/secret-scan";
+
+await initialize();
 
 const input = "API_KEY=SYNTHETIC_REVOKED_CONTEXT_VALUE";
 const result = scanAndRedact(input);
@@ -38,8 +87,9 @@ console.log(result.text);
 // API_KEY=<SECRET_1>
 ```
 
-Findings contain classification, action, and original-input offsets. They never
-contain the matched plaintext value.
+All examples use unmistakably synthetic, revoked values. Findings contain
+classification, action, and original-input offsets, never the matched plaintext
+value.
 
 ```ts
 result.findings[0];
@@ -54,86 +104,55 @@ result.findings[0];
 // }
 ```
 
-Offsets are JavaScript string offsets into the original input, including when
-the sanitized text has a different length.
+JavaScript offsets are half-open UTF-16 code-unit ranges into the original
+input, even when the sanitized output has a different length.
 
-## Public API
+## Core operations
 
-### `scan(input, options?)`
+Every supported language surface provides equivalent whole-input behavior:
 
-Runs the built-in detectors plus any detectors supplied in `options.detectors`,
-resolves overlaps, evaluates policy, and returns immutable findings.
+- `scan` runs the built-in Rust detectors, resolves overlaps, evaluates policy,
+  and returns immutable findings;
+- `redact` validates caller-supplied findings and replaces `redact` and `block`
+  ranges while leaving `warn` and `allow` ranges unchanged; and
+- `scanAndRedact` performs both operations once and returns sanitized text with
+  the corresponding findings.
 
-```ts
-import { scan } from "@omiologic/secret-scan";
+Default placeholders are `<SECRET_1>`, `<SECRET_2>`, and so on. A custom
+formatter receives only safe finding metadata and a one-based placeholder
+index. Empty, oversized, or unsafe placeholders fail with a fixed, input-free
+error.
 
-const findings = scan("password=SYNTHETIC_REVOKED_PASSPHRASE");
-```
+Detection and enforcement remain separate. A policy receives immutable
+metadata without plaintext and chooses `redact`, `block`, `warn`, or `allow`.
+The default policy is:
 
-### `redact(input, findings, options?)`
+| Detection | Default action |
+| --- | --- |
+| Private-key material | `block` |
+| Known provider, bearer/JWT, authorization, or connection credential | `redact` |
+| Other high-confidence secret | `redact` |
+| Other medium- or low-confidence secret | `warn` |
 
-Reconstructs text in one ordered pass. Findings with `redact` or `block`
-actions are replaced. Findings with `warn` or `allow` remain unchanged.
+The first stable cross-language extension surface includes custom policy and
+placeholder formatter callbacks. Custom detector callbacks are excluded: all
+built-in detectors run in Rust, and bindings must not create another detector
+implementation.
 
-```ts
-import { redact, scan } from "@omiologic/secret-scan";
+## Incremental sanitization
 
-const input = "client_secret=SYNTHETIC_REVOKED_CLIENT_VALUE";
-const findings = scan(input);
-const safeText = redact(input, findings);
-```
-
-The default placeholders are `<SECRET_1>`, `<SECRET_2>`, and so on. A typed
-formatter is included:
+Independently scanning chunks is unsafe because a credential can cross any
+chunk boundary. The bounded incremental API retains unresolved plaintext until
+a detector window closes, finalization supplies the end-of-input boundary, or a
+declared limit fails.
 
 ```ts
 import {
-  scanAndRedact,
-  typedPlaceholderFormatter,
+  createIncrementalSanitizer,
+  initialize,
 } from "@omiologic/secret-scan";
 
-const result = scanAndRedact(
-  "api_key=SYNTHETIC_REVOKED_TYPED_VALUE",
-  { placeholderFormatter: typedPlaceholderFormatter },
-);
-// api_key=<CONTEXTUAL_SECRET_1>
-```
-
-A custom formatter receives only normalized finding metadata and a one-based
-placeholder index—not the input or matched value. It must return a non-empty
-string of at most 256 characters and must not contain any redacted or blocked
-matched value that can fit in the placeholder. This rule includes one-, two-,
-and three-code-unit caller-supplied findings; a coincidental reproduction fails
-with a fixed `SecretRedactionError` instead of returning the placeholder.
-
-```ts
-const result = scanAndRedact(input, {
-  placeholderFormatter(finding, { placeholderIndex }) {
-    return `<REMOVED_${finding.type}_${placeholderIndex}>`;
-  },
-});
-```
-
-### `scanAndRedact(input, options?)`
-
-Scans once, evaluates policy once, and returns:
-
-```ts
-interface ScanResult {
-  readonly text: string;
-  readonly findings: readonly SecretFinding[];
-}
-```
-
-### `createIncrementalSanitizer(options)`
-
-Incrementally sanitizes chunked strings without treating chunk boundaries as
-detection boundaries. Every session requires explicit input and plaintext
-retention limits. Concatenate the `text` and `findings` returned by each
-`append` call and the required final `finalize` call.
-
-```ts
-import { createIncrementalSanitizer } from "@omiologic/secret-scan";
+await initialize();
 
 const session = createIncrementalSanitizer({
   limits: {
@@ -152,231 +171,49 @@ const safeText = first.text + second.text + final.text;
 // api_key=<SECRET_1>\nordinary text
 ```
 
-`abort()` discards retained plaintext. Any limit, lifecycle, policy, detector,
-or formatter failure also discards retained plaintext and throws a fixed,
-input-free `IncrementalSanitizerError`. Custom synchronous detectors are not
-accepted because they do not declare deterministic retention bounds. A custom
-incremental policy receives `{ findingIndex }`, not the unknowable final
-whole-input finding count. `maxBufferedCodeUnits` applies only to unresolved
-plaintext still held by the session; finalized safe output does not accumulate
-against it, so transport chunk partitioning does not change acceptance.
+Every session requires explicit total-input, retained-plaintext, token, and
+multiline limits. Abort, lifecycle misuse, callback failure, and limit failure
+drop retained plaintext and return only fixed, input-free errors. For accepted
+input, concatenated incremental results must equal one whole-input operation
+regardless of chunk partitioning.
 
-### Stream adapters
-
-Runtime adapters are isolated package subpaths and accept UTF-8 byte chunks.
-Each uses one fatal, stateful decoder, so a multibyte character may safely span
-chunks and malformed UTF-8 fails without releasing buffered plaintext.
-
-Node.js consumers receive a native `Transform` whose output is UTF-8 bytes:
-
-```ts
-import { Readable } from "node:stream";
-import { createNodeStreamSanitizer } from "@omiologic/secret-scan/node-stream";
-
-const adapter = createNodeStreamSanitizer({
-  limits: {
-    maxInputCodeUnits: 1_000_000,
-    maxBufferedCodeUnits: 32_896,
-    maxTokenCodeUnits: 8_192,
-    maxMultilineCodeUnits: 32_768,
-  },
-});
-const output = Readable.from([inputBytes]).pipe(adapter);
-```
-
-Modern browsers receive a `TransformStream<Uint8Array, string>`:
-
-```ts
-import { createWebStreamSanitizer } from "@omiologic/secret-scan/web-stream";
-
-const adapter = createWebStreamSanitizer({
-  limits: {
-    maxInputCodeUnits: 1_000_000,
-    maxBufferedCodeUnits: 32_896,
-    maxTokenCodeUnits: 8_192,
-    maxMultilineCodeUnits: 32_768,
-  },
-});
-const safeStrings = response.body.pipeThrough(adapter);
-```
-
-After normal finalization, `adapter.findings` contains immutable findings with
-absolute offsets. Node destruction and Web readable cancellation or writable
-abort discard retained plaintext. The Web adapter also exposes `abort()` for
-explicit early termination. Adapter and decoder failures use fixed,
-input-free errors. Importing the root or Web subpath never resolves Node-only
-modules.
-
-### Core types
-
-```ts
-type SecretConfidence = "high" | "medium" | "low";
-type SecretAction = "redact" | "block" | "warn" | "allow";
-
-interface SecretFinding {
-  readonly id: string;
-  readonly type: string;
-  readonly detector: string;
-  readonly confidence: SecretConfidence;
-  readonly action: SecretAction;
-  readonly start: number;
-  readonly end: number;
-}
-```
-
-The package also exports the detector registry, built-in detector instances,
-the entropy helper, default policy, placeholder formatters, extension types,
-and sanitized `SecretScanError` and `SecretRedactionError` classes.
-
-### Supported package surface
-
-The root entry point deliberately supports these runtime values:
-
-- `scan`, `redact`, `scanAndRedact`, and `createIncrementalSanitizer`;
-- `DetectorRegistry`, `createDetectorRegistry`, and the documented built-in
-  detector instances and `builtInDetectors`;
-- `defaultSecretPolicy`, `defaultIncrementalSecretPolicy`,
-  `defaultPlaceholderFormatter`, and `typedPlaceholderFormatter`;
-- `calculateShannonEntropy`; and
-- `SecretScanError`, `SecretRedactionError`, and
-  `IncrementalSanitizerError`.
-
-The root also exports the TypeScript contracts used by those values, including
-detector, candidate, finding, policy, formatter, scan, redaction, and
-incremental-session types and the three public error-code unions. Retention
-tuning constants and candidate-resolution internals are not public API.
-
-The `./node-stream` and `./web-stream` subpaths expose only their corresponding
-adapter class, factory, sanitized stream error, relevant error-code union, and
-shared option/finding types. Other package-internal paths are unsupported.
-
-### Extension trust boundary
-
-Extensions are trusted in-process code, not a sandbox. A custom detector
-receives the complete plaintext input and must not return, log, persist, or
-attach matched text to candidates or errors. Policies and placeholder
-formatters receive only immutable normalized metadata, but application code can
-still capture plaintext through closures or other process state; use only
-reviewed implementations.
-
-Caller-supplied findings passed directly to `redact` are also trusted claims
-about the original input. The redactor validates metadata, bounds, ordering,
-overlap, and placeholder safety, but it does not rerun detection or decide
-whether a range is truly a credential. The caller owns those ranges and
-actions. Fixed library errors sanitize thrown extension exceptions but cannot
-make a malicious extension safe.
-
-## Policy
-
-Detection and enforcement are separate. A policy receives immutable detection
-metadata without plaintext and returns one action.
-
-The default policy is:
-
-| Detection | Default action |
-| --- | --- |
-| Private-key block | `block` |
-| Known provider, bearer/JWT, authorization, or connection credential | `redact` |
-| Other high-confidence secret | `redact` |
-| Other medium- or low-confidence secret | `warn` |
-
-Consumers can supply a stricter server policy without changing detection:
-
-```ts
-import type { SecretPolicy } from "@omiologic/secret-scan";
-
-const serverPolicy: SecretPolicy = {
-  evaluate(finding) {
-    return finding.confidence === "high" ? "block" : "warn";
-  },
-};
-
-const result = scanAndRedact(request.content, { policy: serverPolicy });
-if (result.findings.some((finding) => finding.action === "block")) {
-  throw new Error("Blocked sensitive input");
-}
-```
-
-Policy and formatter exceptions are replaced with fixed, input-free library
-errors. The original exception is not attached as a cause.
+Byte-stream adapters use one fatal, stateful UTF-8 decoder so multibyte
+characters may safely cross chunks. Host adapters own backpressure,
+cancellation, and destruction; the Rust core owns scan semantics and retained
+plaintext safety.
 
 ## Detection coverage
 
-Built-in detection includes:
+Built-in Rust detection covers:
 
 - PEM-style private-key blocks;
 - AWS access-key IDs;
-- GitHub classic, fine-grained, OAuth, App user/refresh, and both opaque and
-  stateless App installation-token shapes;
-- GitLab tokens with the documented `glpat`, `gloas`, `gldt`, `glrt`, `glrtr`,
-  `glcbt`, `glptt`, `glft`, `glimt`, `glagent`, and `glwt` prefixes;
-- JWT structure and bearer credentials;
-- OpenAI and Anthropic API-key shapes;
-- Shopify Admin and delegate access tokens;
-- modern HashiCorp Vault service, batch, and recovery tokens;
-- Stripe secret, restricted, organization, and webhook-signing credentials;
-- Slack bot, user, app, workflow, rotating, and refresh tokens;
-- PyPI API tokens, Hugging Face user tokens, and Docker Hub personal and
-  organization tokens;
-- Cloudflare's current scannable API tokens and DigitalOcean personal, OAuth
-  access, and OAuth refresh tokens;
-- Linear API/OAuth tokens, Supabase elevated secret keys, and Vercel personal,
-  integration, app, refresh, and API-key credentials;
+- GitHub and GitLab token families;
+- JWTs and bearer, Basic, and Token authorization credentials;
+- OpenAI, Anthropic, Shopify, and modern HashiCorp Vault credentials;
+- qualified Stripe, Slack, PyPI, Hugging Face, Docker Hub, Cloudflare,
+  DigitalOcean, Linear, Supabase, and Vercel credentials;
 - contextual credential assignments, including AWS secret-access-key and
-  session-token setting names;
-- Basic and Token authorization headers; and
-- credential-bearing PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and AMQP URLs,
-  including standard MongoDB seed lists and Redis password-only authorities.
+  session-token setting names; and
+- credential-bearing PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and AMQP URLs.
 
 Entropy is only a supporting signal. Random-looking text is not classified
 without structural or contextual evidence, and the generic name `token` alone
 is deliberately ignored.
 
 Strict prefixes, supported URI schemes, minimum lengths, bounded values, and
-placeholder exclusions favor precision. The tradeoff is that truncated,
-short, newly introduced, or unsupported credential formats can be missed.
-Provider formats are rechecked before each public release and when an upstream
-format announcement is identified; the core never performs runtime lookups.
-Server applications should combine this library with appropriate request
-limits and other security controls; it is not a complete DLP system.
+placeholder exclusions favor precision. The tradeoff is that truncated, short,
+new, or unsupported credential formats can be missed. The core never performs
+runtime provider lookups, and `secret-scan` is not a complete DLP system.
 
-Intentional exclusions include:
+Whole-input operations have no implicit input-size or finding-count limit.
+Authoritative servers must bound transport bytes, decoded input, accepted
+findings, sanitized output, concurrency, and memory before downstream use.
 
-- JWT spellings that do not use the accepted three base64url-looking segments
-  with encoded JSON-object-style header and payload prefixes, including other
-  encodings and encrypted or differently serialized token forms;
-- lone truncated private-key headers, unsupported PEM labels, malformed PEM
-  delimiter spellings, public keys, and certificates (exact nested, repeated,
-  out-of-order, or mismatched supported private-key delimiters are instead
-  detected conservatively as one outermost finding);
-- legacy Vault `s.`, `b.`, and `r.` forms;
-- public Stripe and Supabase keys; npm, Twilio, and Datadog's unprefixed or
-  identifier-like values; standalone Discord, SendGrid, Azure, and Notion
-  opaque values; legacy Cloudflare tokens; and provider variants outside the
-  qualified prefixes and conservative suffix bounds;
-- URI schemes outside the documented allowlist and unsupported authority forms
-  such as Unix sockets, non-ASCII userinfo/hosts, malformed escapes, and SRV
-  seed lists or explicit SRV ports; and
-- automatic replacement of `warn` or `allow` findings: their text remains
-  unchanged unless the consumer chooses a policy action that replaces it.
+## Browser and server boundaries
 
-Whole-input scanning has no built-in input-size or finding-count limit. The
-overlap and placeholder-safety algorithms scale with candidate and finding
-counts, but metadata and sanitized output still require memory proportional to
-the accepted findings. Before scanning, an authoritative server should enforce
-transport-byte and decoded-string code-unit limits. Every custom detector
-should reject rather than truncate when its documented per-request candidate
-limit would be exceeded, and the server should also bound total accepted
-findings and sanitized output before downstream persistence or context use.
-Choose these limits from measured event-loop latency and memory budgets, and
-bound concurrent scans at the application layer. The incremental API separately
-requires explicit total-input, retained-plaintext, token, and multiline limits;
-callers that accumulate its output must impose their own output limit.
-
-## Browser boundary
-
-Scan before constructing the request body so the original value does not leave
-the device:
+Scan in the browser before constructing a request body so preventive UX can
+keep a high-confidence credential on the device:
 
 ```ts
 const result = scanAndRedact(userInput);
@@ -388,11 +225,8 @@ await fetch("/api/conversation", {
 });
 ```
 
-## Server boundary
-
-Scan again before logging, persistence, context construction, or model/tool
-invocation. This protects direct API clients, older or modified clients, CLIs,
-SDKs, MCP integrations, and agents.
+Scan again on the server before logging, persistence, context construction, or
+model and tool invocation:
 
 ```ts
 const result = scanAndRedact(request.content, { policy: serverPolicy });
@@ -405,82 +239,71 @@ await conversationStore.save(result.text);
 return modelGateway.respond({ input: result.text });
 ```
 
-Avoid logging raw request or tool bodies before scanning.
+Never log raw request or tool bodies before authoritative scanning.
 
-## Runtime and package compatibility
+## Conformance
 
-- ESM package with explicit root, `./node-stream`, and `./web-stream` exports.
-- Node.js 20 or newer.
-- Modern browsers capable of running ES2022 output.
-- No Node-only or DOM dependency in the runtime core; Node stream imports are
-  isolated to `./node-stream`.
-- No CommonJS build.
-- Incremental core accepts JavaScript strings; stream adapters accept UTF-8
-  bytes and own their stateful decoding.
+[`conformance/`](./conformance/README.md) is the single language-neutral,
+executable behavioral contract for the Rust core and every supported binding.
+Canonical fixtures use UTF-8 byte offsets; JavaScript and Python runners convert
+them to their native units and verify that the selected span is unchanged.
 
-Once a public version is approved, the documented root exports and their
-TypeScript contracts constitute the SemVer public API. Files under internal
-package paths are not public API. Published version identifiers are immutable.
+The corpus covers detector results, exclusions, overlap precedence, policy,
+redaction, Unicode boundaries, incremental partition equivalence, adversarial
+limits, and input-free diagnostics. Fixtures contain only unmistakably
+synthetic or revoked values, and expected metadata never copies matched text.
 
-## User guides
-
-This README is the package landing page and remains sufficient for installation,
-first use, supported APIs, and trust-boundary decisions. The
-[GitHub Wiki](https://github.com/omiologic/secret-scan/wiki) provides deeper,
-task-oriented guidance:
-
-- [whole-input scanning](https://github.com/omiologic/secret-scan/wiki/Whole-Input-Scanning);
-- [bounded incremental sanitization](https://github.com/omiologic/secret-scan/wiki/Incremental-Sanitization);
-- [Node stream integration](https://github.com/omiologic/secret-scan/wiki/Node-Stream-Integration)
-  and [Web stream integration](https://github.com/omiologic/secret-scan/wiki/Web-Stream-Integration);
-- [browser prevention and server enforcement](https://github.com/omiologic/secret-scan/wiki/Browser-and-Server-Enforcement); and
-- [detector extensions](https://github.com/omiologic/secret-scan/wiki/Deterministic-Scanning-and-Detector-Extensions)
-  and the supported detection families.
-
-The repository's `ARCHITECTURE.md`, `SECURITY.md`, and `CHANGELOG.md` remain the
-authoritative contributor design, security, and release-history contracts.
+Binding-local lifecycle, callback, packaging, and host-integration tests add
+surface-specific evidence without copying or replacing the shared corpus.
 
 ## Development
 
+Install JavaScript tooling and run the main repository checks:
+
 ```bash
 npm ci
-npm run typecheck
-npm test
 npm run ci
 ```
 
-The repository also contains the Rust workspace that will replace the
-TypeScript core: `crates/secret-scan-core`, `crates/secret-scan-cli`,
-`bindings/node`, `bindings/wasm`, `bindings/python`, and
-`packages/javascript`. Its ownership boundaries, format, lint, test,
-dependency, unsafe-code, and MSRV policies are recorded in
-[docs/rust-workspace.md](./docs/rust-workspace.md); run `npm run rust:check`
-to enforce them locally.
+Validate workspace policy and the Rust surfaces:
 
-The test suite covers deterministic detection, false positives, overlap
-resolution, redaction and policy invariants, error safety, browser bundling,
-Node import, representative 1 KB/100 KB/1 MB performance thresholds, and
-dry-run package contents. The repository's stable-release [conformance coverage
-matrix](https://github.com/omiologic/secret-scan/blob/main/test/conformance/COVERAGE.md) tracks evidence by detector and records
-explicitly inapplicable gaps without treating fixture count as completeness.
-Package inspection uses `0.0.0-inspection` only
-inside a temporary directory because selecting a release version requires
-explicit approval.
+```bash
+npm run rust:check
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+```
+
+The repository layout is:
+
+```text
+conformance/             shared cross-language contract
+crates/secret-scan-core canonical Rust implementation
+crates/secret-scan-cli  CLI host adapter
+bindings/node           Node N-API binding
+bindings/wasm           browser WebAssembly binding
+bindings/python         Python PyO3 binding and package
+packages/javascript     unified JavaScript package
+src/ and test/          temporary TypeScript oracle
+```
+
+Release qualification must build and test the Rust crate, npm package, Python
+package, and CLI from the same commit without publishing. The artifacts share
+one SemVer version and one eventual `v{version}` tag.
 
 ## Security and release process
 
 See [SECURITY.md](./SECURITY.md) for private vulnerability reporting and the
-security model. Never submit active credentials in a report or fixture.
+security model. Never submit active credentials in a report, issue, fixture,
+snapshot, log, or diagnostic.
 
-A release requires explicit user approval after tests pass and the public API
-and required changelog entry have been reviewed. Readiness checks do not choose
-a version or authorize a tag, package publication, deployment, or release.
-See the version-neutral [Unreleased changelog](./CHANGELOG.md).
+A release requires explicit approval after tests pass and the public API and
+changelog have been reviewed. Readiness checks do not authorize selecting a
+version, creating a tag, publishing a package, deploying, or archiving another
+repository. See the version-neutral [Unreleased changelog](./CHANGELOG.md).
 
-## Architecture
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for processing, trust boundaries,
-overlap resolution, and extension constraints.
+The accepted architectural decisions are indexed in
+[docs/decisions/DECISIONS.md](./docs/decisions/DECISIONS.md).
 
 ## License
 
