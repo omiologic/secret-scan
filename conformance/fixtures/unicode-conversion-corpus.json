@@ -1,0 +1,72 @@
+{
+  "offsetUnit": "utf8-byte",
+  "fixtureCount": 3,
+  "fixtures": [
+    {
+      "id": "unicode-conversion-astral-before",
+      "detector": "unicode-conversion",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "🔑 TOKEN_SYNTHETIC_REVOKED_VALUE",
+      "expected": [
+        {
+          "detector": "unicode-conversion",
+          "type": "synthetic_token",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 5,
+          "end": 34
+        }
+      ],
+      "note": "A 4-byte astral character (U+1F511, a surrogate pair in UTF-16) precedes the finding; its UTF-8 byte offset must advance by 4 bytes for 2 UTF-16 code units, not 2."
+    },
+    {
+      "id": "unicode-conversion-astral-within",
+      "detector": "unicode-conversion",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "TOKEN_🔑_SYNTHETIC_REVOKED",
+      "expected": [
+        {
+          "detector": "unicode-conversion",
+          "type": "synthetic_token",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 0,
+          "end": 28
+        }
+      ],
+      "note": "The finding span itself contains a 4-byte astral character; the converted span must widen by the astral character's extra UTF-8 bytes without splitting the surrogate pair or the encoded code point."
+    },
+    {
+      "id": "unicode-conversion-astral-after",
+      "detector": "unicode-conversion",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "TOKEN_SYNTHETIC_REVOKED_VALUE 🔑",
+      "expected": [
+        {
+          "detector": "unicode-conversion",
+          "type": "synthetic_token",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 0,
+          "end": 29
+        }
+      ],
+      "note": "A 4-byte astral character follows the finding; the finding's own converted end offset must be unaffected by text after it."
+    }
+  ]
+}

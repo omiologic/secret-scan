@@ -1,0 +1,347 @@
+{
+  "offsetUnit": "utf8-byte",
+  "fixtureCount": 16,
+  "fixtures": [
+    {
+      "id": "synthetic-regression-malformed-authority",
+      "input": "postgres://fixture:SYNTHETIC%GGREVOKED@example.test/db",
+      "text": "postgres://fixture:SYNTHETIC%GGREVOKED@example.test/db",
+      "expected": [],
+      "note": "The permanent malformed-percent regression remains unchanged through core and stream partitions."
+    },
+    {
+      "id": "legacy-variable-detector-families",
+      "input": "sk-proj-SYNTHETIC_REVOKED_INCREMENTAL_KEY\nsk-ant-api03-SYNTHETIC_REVOKED_INCREMENTAL_KEY\nshpat_SYNTHETIC_REVOKED_INCREMENTAL_TOKEN\nhvs.SYNTHETIC_REVOKED_INCREMENTAL_TOKEN\nBearer SYNTHETIC_REVOKED_INCREMENTAL_BEARER",
+      "text": "<SECRET_1>\n<SECRET_2>\n<SECRET_3>\n<SECRET_4>\nBearer <SECRET_5>",
+      "expected": [
+        {
+          "detector": "openai-token",
+          "type": "openai_api_key",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 41
+        },
+        {
+          "detector": "anthropic-token",
+          "type": "anthropic_api_key",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 42,
+          "end": 88
+        },
+        {
+          "detector": "shopify-token",
+          "type": "shopify_access_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 89,
+          "end": 130
+        },
+        {
+          "detector": "vault-token",
+          "type": "vault_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 131,
+          "end": 170
+        },
+        {
+          "detector": "bearer-token",
+          "type": "bearer_token",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 178,
+          "end": 214
+        }
+      ],
+      "note": "Every pre-expansion variable-length detector family remains whole across UTF-16 and UTF-8 partitions."
+    },
+    {
+      "id": "additional-provider-families",
+      "input": "sk_live_SYNTHETICREVOKEDSYNTHETICREVOKED\nxoxb-SYNTHETIC-REVOKED-SYNTHETIC-REVOKED-\npypi-SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_\nhf_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_\ndckr_pat_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_\ncfut_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_\ndop_v1_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_\nlin_api_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_\nsb_secret_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_\nvcp_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_",
+      "text": "<SECRET_1>\n<SECRET_2>\n<SECRET_3>\n<SECRET_4>\n<SECRET_5>\n<SECRET_6>\n<SECRET_7>\n<SECRET_8>\n<SECRET_9>\n<SECRET_10>",
+      "expected": [
+        {
+          "detector": "stripe-token",
+          "type": "stripe_credential",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 40
+        },
+        {
+          "detector": "slack-token",
+          "type": "slack_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 41,
+          "end": 82
+        },
+        {
+          "detector": "pypi-token",
+          "type": "pypi_api_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 83,
+          "end": 178
+        },
+        {
+          "detector": "huggingface-token",
+          "type": "huggingface_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 179,
+          "end": 218
+        },
+        {
+          "detector": "docker-token",
+          "type": "docker_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 219,
+          "end": 264
+        },
+        {
+          "detector": "cloudflare-token",
+          "type": "cloudflare_api_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 265,
+          "end": 306
+        },
+        {
+          "detector": "digitalocean-token",
+          "type": "digitalocean_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 307,
+          "end": 350
+        },
+        {
+          "detector": "linear-token",
+          "type": "linear_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 351,
+          "end": 395
+        },
+        {
+          "detector": "supabase-token",
+          "type": "supabase_secret_key",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 396,
+          "end": 442
+        },
+        {
+          "detector": "vercel-token",
+          "type": "vercel_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 443,
+          "end": 483
+        }
+      ],
+      "note": "Every newly qualified variable-length provider family remains whole across partitions."
+    },
+    {
+      "id": "fixed-width-unicode",
+      "input": "before 🧪 AKIASYNTHETICEXAMPLE after",
+      "text": "before 🧪 <SECRET_1> after",
+      "expected": [
+        {
+          "detector": "aws-access-key",
+          "type": "aws_access_key_id",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 12,
+          "end": 32
+        }
+      ],
+      "note": "Covers fixed-width detection and a surrogate pair outside the match."
+    },
+    {
+      "id": "variable-provider",
+      "input": "glpat-SYNTHETIC_REVOKED_INCREMENTAL",
+      "text": "<SECRET_1>",
+      "expected": [
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 35
+        }
+      ],
+      "note": "A delimiter or finalization closes an open-ended provider suffix."
+    },
+    {
+      "id": "github-installation-stateless",
+      "input": "ghs_SYNTHETIC_APP_ID.eyJTWU5USEVUSUNfUkVWT0tFRF9IRUFERVI.SYNTHETIC_REVOKED_SIGNATURE",
+      "text": "<SECRET_1>",
+      "expected": [
+        {
+          "detector": "github-token",
+          "type": "github_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 84
+        }
+      ],
+      "note": "The variable-length GitHub installation shape remains whole across partitions."
+    },
+    {
+      "id": "structural-overlap",
+      "input": "Authorization: Bearer eyJTWU5USEVUSUNfSEVBREVS.eyJTWU5USEVUSUNfUEFZTE9BRA.SYNTHETIC_REVOKED_SIGNATURE",
+      "text": "Authorization: Bearer <SECRET_1>",
+      "expected": [
+        {
+          "detector": "jwt",
+          "type": "jwt",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 22,
+          "end": 101
+        }
+      ],
+      "note": "JWT specificity and offsets remain stable across Bearer overlap."
+    },
+    {
+      "id": "contextual-assignment",
+      "input": "api_key=SYNTHETIC_REVOKED_INCREMENTAL_VALUE",
+      "text": "api_key=<SECRET_1>",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 8,
+          "end": 43
+        }
+      ],
+      "note": "Finalization closes an assignment that ends with the input."
+    },
+    {
+      "id": "encoded-connection",
+      "input": "postgres://fixture:SYNTHETIC%40REVOKED%3AINCREMENTAL@localhost:5432/db",
+      "text": "postgres://fixture:<SECRET_1>@localhost:5432/db",
+      "expected": [
+        {
+          "detector": "connection-string",
+          "type": "connection_string_password",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 19,
+          "end": 52
+        }
+      ],
+      "note": "Encoded userinfo and the complete authority may span chunks."
+    },
+    {
+      "id": "mongodb-seed-list-connection",
+      "input": "mongodb://fixture:SYNTHETIC%40REVOKED%3AINCREMENTAL@db0.example.test:27017,db1.example.test:27018/db",
+      "text": "mongodb://fixture:<SECRET_1>@db0.example.test:27017,db1.example.test:27018/db",
+      "expected": [
+        {
+          "detector": "connection-string",
+          "type": "connection_string_password",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 18,
+          "end": 51
+        }
+      ],
+      "note": "A comma-separated MongoDB authority may be divided at every boundary."
+    },
+    {
+      "id": "redis-password-only-connection",
+      "input": "redis://:SYNTHETIC%40REVOKED%3AINCREMENTAL@cache.example.test:6379/0",
+      "text": "redis://:<SECRET_1>@cache.example.test:6379/0",
+      "expected": [
+        {
+          "detector": "connection-string",
+          "type": "connection_string_password",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 9,
+          "end": 42
+        }
+      ],
+      "note": "Password-only Redis userinfo remains unresolved until the authority closes."
+    },
+    {
+      "id": "aws-contextual-assignment",
+      "input": "AWS_SESSION_TOKEN=SYNTHETIC_REVOKED_INCREMENTAL_VALUE",
+      "text": "AWS_SESSION_TOKEN=<SECRET_1>",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 18,
+          "end": 53
+        }
+      ],
+      "note": "An AWS-specific high-signal name remains open across assignment partitions."
+    },
+    {
+      "id": "multiline-private-key",
+      "input": "-----BEGIN PRIVATE KEY-----\nU1lOVEhFVElDX1JFVk9LRURfSU5DUkVNRU5UQUw=\n-----END PRIVATE KEY-----",
+      "text": "<SECRET_1>",
+      "expected": [
+        {
+          "detector": "private-key",
+          "type": "private_key",
+          "confidence": "high",
+          "specificity": "private-key",
+          "start": 0,
+          "end": 94
+        }
+      ],
+      "note": "No part of an open PEM block becomes emit-safe before its footer."
+    },
+    {
+      "id": "adjacent-findings",
+      "input": "AKIASYNTHETICEXAMPLE glpat-SYNTHETIC_REVOKED_INCREMENTAL",
+      "text": "<SECRET_1> <SECRET_2>",
+      "expected": [
+        {
+          "detector": "aws-access-key",
+          "type": "aws_access_key_id",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 20
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 21,
+          "end": 56
+        }
+      ],
+      "note": "Finding order and placeholder numbering follow absolute offsets."
+    },
+    {
+      "id": "negative-end-of-stream",
+      "input": "api_key=SHORT7",
+      "text": "api_key=SHORT7",
+      "expected": [],
+      "note": "Finalization resolves an incomplete-looking negative without redaction."
+    },
+    {
+      "id": "truncated-private-key",
+      "input": "-----BEGIN PRIVATE KEY-----\nSYNTHETIC_TRUNCATED",
+      "text": "-----BEGIN PRIVATE KEY-----\nSYNTHETIC_TRUNCATED",
+      "expected": [],
+      "note": "A bounded incomplete block is released only by explicit finalization."
+    }
+  ]
+}

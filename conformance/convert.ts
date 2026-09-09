@@ -13,6 +13,7 @@
 import type {
   CanonicalExpectation,
   CanonicalFixture,
+  CanonicalIncrementalFixture,
   CanonicalResourceExpectation,
 } from "./schema.js";
 
@@ -172,4 +173,61 @@ export function convertCorpusToCanonical(
   fixtures: readonly Utf16Fixture[],
 ): readonly CanonicalFixture[] {
   return fixtures.map(convertFixtureToCanonical);
+}
+
+/**
+ * A structural subset of the incremental oracle's whole-input finding shape.
+ * `specificity` is not part of the oracle's public `SecretFinding` (it is
+ * resolved and dropped before a finding becomes public); migration tooling
+ * supplies it by cross-referencing the synchronous corpus for the same
+ * `type`, so this module stays a mechanical converter rather than a source
+ * of classification defaults.
+ */
+export interface Utf16IncrementalExpectation {
+  readonly detector: string;
+  readonly type: string;
+  readonly confidence: CanonicalExpectation["confidence"];
+  readonly specificity: CanonicalExpectation["specificity"];
+  readonly start: number;
+  readonly end: number;
+}
+
+/** A structural subset of `test/conformance/incremental-partitions.ts`'s
+ * `IncrementalPartitionCase`, kept local so this module stays independent of
+ * `test/` and `src/` types. */
+export interface Utf16IncrementalFixture {
+  readonly id: string;
+  readonly input: string;
+  readonly expected: {
+    readonly text: string;
+    readonly findings: readonly Utf16IncrementalExpectation[];
+  };
+  readonly note: string;
+}
+
+/** Converts one whole-input incremental reference into its canonical form. */
+export function convertIncrementalFixtureToCanonical(
+  fixture: Utf16IncrementalFixture,
+): CanonicalIncrementalFixture {
+  return {
+    id: fixture.id,
+    input: fixture.input,
+    text: fixture.expected.text,
+    expected: fixture.expected.findings.map((finding) => ({
+      detector: finding.detector,
+      type: finding.type,
+      confidence: finding.confidence,
+      specificity: finding.specificity,
+      start: utf16OffsetToUtf8ByteOffset(fixture.input, finding.start),
+      end: utf16OffsetToUtf8ByteOffset(fixture.input, finding.end),
+    })),
+    note: fixture.note,
+  };
+}
+
+/** Converts a whole incremental-reference corpus into its canonical form. */
+export function convertIncrementalCorpusToCanonical(
+  fixtures: readonly Utf16IncrementalFixture[],
+): readonly CanonicalIncrementalFixture[] {
+  return fixtures.map(convertIncrementalFixtureToCanonical);
 }
