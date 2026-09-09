@@ -1,0 +1,22 @@
+
+
+[tiers.cheap]
+vendor    = "google"                            # who made it
+adapter   = "langchain-google-genai"            # how we call it
+model     = "gemini-3.5-flash-lite"             # a release, not a pointer (ADR-017)
+price_in  = 0.30                                # USD per 1M input tokens
+price_out = 2.50
+
+[tiers.frontier]
+vendor    = "anthropic"
+adapter   = "langchain-anthropic"
+model     = "claude-sonnet-4-5-20250929"
+price_in  = 3.00
+price_out = 15.00
+
+[routing]
+max_run_cost_usd = 0.50
+
+
+[verify]
+command = "true"
