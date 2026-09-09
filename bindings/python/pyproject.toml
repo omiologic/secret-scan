@@ -1,0 +1,25 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+# Provisional distribution name. `secret-scan` on PyPI belongs to an unrelated
+# project (checked 2026-09-09), so the Python distribution name is selected by
+# the binding implementation issue; the product name stays `secret-scan`.
+name = "omiologic-secret-scan"
+description = "Deterministic secret detection and redaction (CPython binding for the secret-scan core)."
+requires-python = ">=3.10"
+license = "MIT"
+dynamic = ["version"]
+classifiers = [
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[project.urls]
+Repository = "https://github.com/omiologic/secret-scan"
+
+[tool.maturin]
+# Version comes from Cargo.toml (workspace version) to keep lockstep releases.
+features = ["extension-module"]
+module-name = "secret_scan._native"

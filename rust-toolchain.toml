@@ -1,0 +1,6 @@
+# Day-to-day development uses the current stable channel. CI also exercises the
+# pinned MSRV in [workspace.package] rust-version with an explicit toolchain.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]

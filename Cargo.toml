@@ -1,0 +1,85 @@
+# Workspace root for the Rust core, the CLI, and the runtime bindings.
+#
+# Policy summary (details in docs/rust-workspace.md):
+# - One product version shared with package.json (decision-release-bindings-in-lockstep).
+# - MSRV is derived from the selected binding dependencies and pinned here;
+#   `scripts/check-rust-workspace.py` fails when a resolved dependency needs more.
+# - Every member inherits `[workspace.lints]`; unsafe code is denied workspace-wide
+#   and forbidden in the core and CLI crates.
+
+[workspace]
+resolver = "3"
+members = [
+  "crates/secret-scan-core",
+  "crates/secret-scan-cli",
+  "bindings/node",
+  "bindings/wasm",
+  "bindings/python",
+]
+
+[workspace.package]
+version = "0.1.0-beta.1"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+repository = "https://github.com/omiologic/secret-scan"
+homepage = "https://github.com/omiologic/secret-scan#readme"
+authors = ["omiologic"]
+publish = false
+
+[workspace.dependencies]
+# Internal crates.
+secret-scan = { path = "crates/secret-scan-core", version = "=0.1.0-beta.1" }
+
+# Binding dependencies. The MSRV above is the maximum `rust-version` among the
+# packages selected by these requirements; see docs/rust-workspace.md#msrv.
+napi = "3.12"
+napi-derive = "3.6"
+napi-build = "2.4"
+wasm-bindgen = "0.2.128"
+pyo3 = "0.29"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+undocumented_unsafe_blocks = "deny"
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+
+# Dependency boundary policy consumed by scripts/check-rust-workspace.py.
+# The core crate may only depend (transitively, in normal and build
+# dependency graphs) on packages listed in `allowed-dependencies`. The
+# `forbidden-dependencies` list guards the whole workspace: it names crates that
+# would introduce runtime network, filesystem, environment, telemetry, secret
+# storage, or UI behavior into a library boundary. Bindings and the CLI may
+# add entries to `binding-allowed-dependencies` when a host integration
+# requires them; the core never may.
+[workspace.metadata.secret-scan]
+core-package = "secret-scan"
+product-name = "secret-scan"
+allowed-dependencies = []
+forbidden-dependencies = [
+  # network
+  "reqwest", "hyper", "ureq", "curl", "tokio", "async-std", "mio", "socket2",
+  # filesystem and process environment
+  "walkdir", "notify", "dotenv", "dotenvy", "dirs", "directories", "home",
+  # telemetry and logging sinks
+  "tracing", "tracing-subscriber", "log", "env_logger", "opentelemetry", "sentry",
+  # secret storage
+  "keyring", "secret-service", "security-framework",
+  # user interfaces
+  "crossterm", "ratatui", "dialoguer", "indicatif", "console",
+]
+
+[profile.release]
+codegen-units = 1
+lto = "fat"

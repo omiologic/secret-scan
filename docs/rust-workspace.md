@@ -1,0 +1,137 @@
+# Rust workspace
+
+This page records the ownership boundaries and the explicit policies of the
+Rust and binding workspace introduced by
+`decision-adopt-rust-core-monorepo` and `decision-define-runtime-bindings`.
+The TypeScript implementation in the repository root remains the behavioral
+oracle until the Rust core passes the shared conformance corpus; nothing here
+moves or removes it.
+
+## Layout and ownership
+
+| Path | Cargo package | Role | May depend on | Publishes as |
+| --- | --- | --- | --- | --- |
+| `crates/secret-scan-core` | `secret-scan` (lib `secret_scan`) | Canonical detection, overlap resolution, policy, redaction, incremental sanitization. UTF-8 byte offsets. | `std` and the allowlist in `[workspace.metadata.secret-scan]` (currently empty) | crates.io `secret-scan` |
+| `crates/secret-scan-cli` | `secret-scan-cli` (bin `secret-scan`) | Host adapter for process arguments, standard streams, exit codes, and files. | core, host crates | CLI artifact of the same version |
+| `bindings/node` | `secret-scan-node` (cdylib) | N-API addon; UTF-16 code unit ranges. | core, `napi`, `napi-derive`, `napi-build` | Consumed by `packages/javascript`; never on its own |
+| `bindings/wasm` | `secret-scan-wasm` (cdylib) | `wasm-bindgen` browser build; UTF-16 code unit ranges. | core, `wasm-bindgen` | Consumed by `packages/javascript`; never on its own |
+| `bindings/python` | `secret-scan-python` (cdylib, module `secret_scan._native`) | PyO3 extension built by maturin; Unicode code point ranges. | core, `pyo3` | PyPI distribution selected by the binding issue |
+| `packages/javascript` | none | Future home of the `@omiologic/secret-scan` npm package that loads the Node and wasm bindings. | Node and wasm bindings | npm `@omiologic/secret-scan` |
+
+Bindings and the CLI translate host APIs to the core. They never reimplement
+detector behavior, and they convert ranges without changing the selected span.
+
+## Policies
+
+### Format
+
+`rustfmt.toml` uses only stable options so `cargo fmt --all --check` gives
+the same answer on the MSRV and on current stable. CI fails on any diff.
+
+### Lint
+
+`[workspace.lints]` in the root `Cargo.toml` is inherited by every member
+through `[lints] workspace = true`. Clippy pedantic is a warning, and
+`unwrap_used`, `expect_used`, `panic`, `dbg_macro`, `todo`, `unimplemented`,
+and `undocumented_unsafe_blocks` are errors. `clippy.toml` relaxes `unwrap`
+and `expect` in tests. CI runs `cargo clippy --workspace --all-targets` with
+`-D warnings` and builds with `RUSTFLAGS=-D warnings`, so `missing_docs` and
+other warning-level lints also fail the build there.
+
+### Test
+
+`cargo test --workspace --locked` runs on Linux, macOS, and Windows. Tests
+must be deterministic and must not embed real credentials; the same fixture
+rules as the TypeScript suite apply. Cross-language behavior is exercised by
+the conformance corpus once it exists, not by per-binding copies.
+
+### Dependency
+
+Two layers apply:
+
+- `deny.toml` (`cargo deny check`) allows only crates.io as a source,
+  restricts licenses to the listed permissive set, denies yanked crates and
+  known advisories, and denies wildcard requirements.
+- `[workspace.metadata.secret-scan]` in the root `Cargo.toml` declares the
+  core boundary. `npm run rust:check` walks the core's transitive normal and
+  build dependency graph from `cargo metadata` and fails when a package is
+  missing from `allowed-dependencies` or present in
+  `forbidden-dependencies`. The forbidden list names crates that provide
+  runtime network, filesystem, environment, telemetry, secret-storage, or UI
+  behavior and cannot be allowlisted. Dev-dependencies are outside the
+  boundary because they never ship.
+
+To add a core dependency, add it and each of its transitive dependencies to
+`allowed-dependencies` in the same change, and state in the pull request why
+the dependency keeps the core deterministic and side-effect free.
+
+### Unsafe code
+
+`[workspace.lints.rust] unsafe_code = "deny"` applies to every member, and
+`crates/secret-scan-core/src/lib.rs` and `crates/secret-scan-cli/src/main.rs`
+carry `#![forbid(unsafe_code)]`; `npm run rust:check` fails if either is
+removed. A binding may add an item-scoped `#[allow(unsafe_code)]` only at a
+real FFI boundary, with a `// SAFETY:` comment that
+`clippy::undocumented_unsafe_blocks` requires, and the review must record why
+the binding macros were insufficient.
+
+### MSRV
+
+The supported minimum Rust version is the highest `rust-version` required by
+the binding dependencies selected in the root `Cargo.toml`:
+
+| Dependency | Version | `rust-version` |
+| --- | --- | --- |
+| `napi` (with `napi-sys`, `libloading`) | 3.12.2 | 1.88 |
+| `napi-derive`, `napi-build` | 3.6.3, 2.4.1 | 1.88 |
+| `pyo3` | 0.29.2 | 1.83 |
+| `wasm-bindgen` | 0.2.128 | 1.77 |
+
+Derived and pinned MSRV: **1.88** (Rust 2024 edition), recorded on
+2026-09-09. It is pinned once in `[workspace.package] rust-version` and
+inherited by every member, mirrored by the `MSRV` value in
+`.github/workflows/ci.yml`, and exercised by the `Rust MSRV` job with
+`cargo check --workspace --all-targets --locked` on that toolchain.
+`npm run rust:check` fails when a member drifts, when the workflow value
+differs, or when any resolved dependency requires a newer compiler than the
+pin.
+
+To raise the MSRV, update `rust-version`, the workflow `MSRV` value, and this
+table together, and note the change in the changelog.
+
+## Registry names
+
+The product name is `secret-scan` for every artifact. Registry names may
+differ (`decision-release-bindings-in-lockstep`).
+
+- crates.io: the preferred crate name `secret-scan` was rechecked on
+  2026-09-09 and is available; so is `secret_scan`, which crates.io treats as
+  the same name. `secret-scan-cli` is also available. If `secret-scan` is
+  taken before the first publication, the registry fallback is
+  `omiologic-secret-scan` for the core and `omiologic-secret-scan-cli` for the
+  CLI; the product name, binary name, and library path `secret_scan` do not
+  change. Recheck before publication with
+  `python3 scripts/check-rust-workspace.py --recheck-crate-name`.
+- npm: `@omiologic/secret-scan` is the existing package name.
+- PyPI: `secret-scan` belongs to an unrelated project as of 2026-09-09.
+  `bindings/python/pyproject.toml` carries the provisional name
+  `omiologic-secret-scan`; the binding implementation issue selects the final
+  distribution name.
+
+## Verification
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+cargo run --quiet --locked -p secret-scan-cli -- --version
+cargo check -p secret-scan -p secret-scan-wasm --target wasm32-unknown-unknown --locked
+cargo +1.88 check --workspace --all-targets --locked
+cargo deny check
+npm run rust:check
+```
+
+Toolchain setup: `rustup toolchain install 1.88 --profile minimal`,
+`rustup target add wasm32-unknown-unknown`, and `cargo install cargo-deny`.
+The CI jobs `rust-policy`, `rust-native`, `rust-msrv`, and `rust-wasm` run
+the same commands.

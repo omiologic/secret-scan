@@ -1,0 +1,26 @@
+{
+  "name": "@omiologic/secret-scan-node",
+  "version": "0.1.0-beta.1",
+  "private": true,
+  "description": "N-API native addon for @omiologic/secret-scan. Built with @napi-rs/cli; not published on its own.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omiologic/secret-scan.git",
+    "directory": "bindings/node"
+  },
+  "napi": {
+    "binaryName": "secret-scan",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc"
+    ]
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

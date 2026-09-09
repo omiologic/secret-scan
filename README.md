@@ -449,6 +449,14 @@ npm test
 npm run ci
 ```
 
+The repository also contains the Rust workspace that will replace the
+TypeScript core: `crates/secret-scan-core`, `crates/secret-scan-cli`,
+`bindings/node`, `bindings/wasm`, `bindings/python`, and
+`packages/javascript`. Its ownership boundaries, format, lint, test,
+dependency, unsafe-code, and MSRV policies are recorded in
+[docs/rust-workspace.md](./docs/rust-workspace.md); run `npm run rust:check`
+to enforce them locally.
+
 The test suite covers deterministic detection, false positives, overlap
 resolution, redaction and policy invariants, error safety, browser bundling,
 Node import, representative 1 KB/100 KB/1 MB performance thresholds, and

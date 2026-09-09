@@ -2,7 +2,7 @@
 
 ## Required context
 
-1. Read `README.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, and `docs/decisions/DECISIONS.md` before making material changes. Read `_notes/GOVERNANCE.md` as additional local policy when it exists.
+1. Read `README.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `docs/decisions/DECISIONS.md`, and `docs/rust-workspace.md` before making material changes. Read `_notes/GOVERNANCE.md` as additional local policy when it exists.
 2. When the temporary local `.agents/skills/context-governance/SKILL.md` is installed, use it for governed planning, Decisions, Conventions, Constraints, Git policy, and Version policy.
 3. Keep changes within the deterministic secret-detection and redaction boundary described by the architecture.
 

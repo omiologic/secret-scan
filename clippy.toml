@@ -1,0 +1,4 @@
+# Clippy reads the MSRV from `rust-version` in the manifests. Test code may use
+# `unwrap`/`expect`; library and binary code may not (see [workspace.lints]).
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

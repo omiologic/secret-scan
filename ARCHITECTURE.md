@@ -537,6 +537,12 @@ The initial implementation should remain one package:
 
 Do not prematurely split browser and server packages because the scanning core should remain runtime-neutral.
 
+The accepted [Rust-core monorepo decision](./docs/decisions/2026-09-09-adopt-rust-core-monorepo.md)
+adds a Rust workspace alongside this package. Its crates, bindings, and
+boundaries are described in [docs/rust-workspace.md](./docs/rust-workspace.md);
+the TypeScript layout below remains the behavioral oracle until the Rust core
+passes the shared conformance corpus.
+
 Current layout:
 
 ```text
