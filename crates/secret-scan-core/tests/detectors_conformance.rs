@@ -62,16 +62,7 @@ fn contextual_candidate_yields_to_a_higher_specificity_provider_candidate() {
     let input = "client_secret=sk-proj-SYNTHETIC_REVOKED_CONFORMANCE_KEY";
     let provider_range = range(14, input.len());
 
-    let mut registry = DetectorRegistry::with_built_in([]).unwrap();
-    registry
-        .register(Box::new(Fixed {
-            id: "openai-token",
-            candidates: vec![
-                Candidate::new("openai_api_key", Confidence::High, provider_range)
-                    .with_specificity(Specificity::Provider),
-            ],
-        }))
-        .unwrap();
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
 
     let findings = run_detector_pipeline(input, &registry).unwrap();
 
