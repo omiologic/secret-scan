@@ -24,6 +24,10 @@ use crate::types::Detector;
 use connection_string::ConnectionStringDetector;
 use private_key::PrivateKeyDetector;
 
+pub(crate) use bearer_token::has_open_bearer_authorization;
+pub(crate) use generic_token::has_open_contextual_assignment;
+pub(crate) use private_key::PrivateKeyRetentionTracker;
+
 /// Every built-in detector, in canonical registration order.
 #[must_use]
 pub fn built_in_detectors() -> Vec<Box<dyn Detector>> {

@@ -41,11 +41,29 @@ pub enum SecretScanErrorCode {
     /// The placeholder formatter returned an empty, oversized, or
     /// matched-value-reproducing placeholder.
     InvalidPlaceholder,
+    /// An incremental session's limits were missing, non-positive, or did
+    /// not satisfy the documented relationship between them.
+    InvalidLimits,
+    /// An incremental session's total accepted input would exceed
+    /// `max_input_bytes`.
+    InputLimitExceeded,
+    /// An incremental session's retained, unresolved plaintext would exceed
+    /// `max_buffered_bytes`.
+    BufferLimitExceeded,
+    /// An incremental session's open single-line construct would exceed
+    /// `max_token_bytes` without closing.
+    TokenLimitExceeded,
+    /// An incremental session's open PEM-style private-key block would
+    /// exceed `max_multiline_bytes` without closing.
+    MultilineLimitExceeded,
+    /// An incremental session received `append`, `finalize`, or `abort`
+    /// after it left the accepting state.
+    InvalidState,
 }
 
 impl SecretScanErrorCode {
     /// Every code, in declaration order.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 16] = [
         Self::InvalidInput,
         Self::InvalidOptions,
         Self::InvalidDetector,
@@ -56,6 +74,12 @@ impl SecretScanErrorCode {
         Self::InvalidFindings,
         Self::PlaceholderFailure,
         Self::InvalidPlaceholder,
+        Self::InvalidLimits,
+        Self::InputLimitExceeded,
+        Self::BufferLimitExceeded,
+        Self::TokenLimitExceeded,
+        Self::MultilineLimitExceeded,
+        Self::InvalidState,
     ];
 
     /// The stable `SCREAMING_SNAKE_CASE` code string.
@@ -72,6 +96,12 @@ impl SecretScanErrorCode {
             Self::InvalidFindings => "INVALID_FINDINGS",
             Self::PlaceholderFailure => "PLACEHOLDER_FAILURE",
             Self::InvalidPlaceholder => "INVALID_PLACEHOLDER",
+            Self::InvalidLimits => "INVALID_LIMITS",
+            Self::InputLimitExceeded => "INPUT_LIMIT_EXCEEDED",
+            Self::BufferLimitExceeded => "BUFFER_LIMIT_EXCEEDED",
+            Self::TokenLimitExceeded => "TOKEN_LIMIT_EXCEEDED",
+            Self::MultilineLimitExceeded => "MULTILINE_LIMIT_EXCEEDED",
+            Self::InvalidState => "INVALID_STATE",
         }
     }
 
@@ -89,6 +119,12 @@ impl SecretScanErrorCode {
             Self::InvalidFindings => "Redaction findings are invalid.",
             Self::PlaceholderFailure => "The placeholder formatter failed.",
             Self::InvalidPlaceholder => "The placeholder formatter returned an invalid value.",
+            Self::InvalidLimits => "Incremental sanitizer limits are invalid.",
+            Self::InputLimitExceeded => "Incremental sanitizer input limit exceeded.",
+            Self::BufferLimitExceeded => "Incremental sanitizer buffer limit exceeded.",
+            Self::TokenLimitExceeded => "Incremental sanitizer token limit exceeded.",
+            Self::MultilineLimitExceeded => "Incremental sanitizer multiline limit exceeded.",
+            Self::InvalidState => "The incremental sanitizer is no longer accepting input.",
         }
     }
 }
@@ -184,6 +220,30 @@ mod tests {
             (
                 "INVALID_PLACEHOLDER",
                 "The placeholder formatter returned an invalid value.",
+            ),
+            (
+                "INVALID_LIMITS",
+                "Incremental sanitizer limits are invalid.",
+            ),
+            (
+                "INPUT_LIMIT_EXCEEDED",
+                "Incremental sanitizer input limit exceeded.",
+            ),
+            (
+                "BUFFER_LIMIT_EXCEEDED",
+                "Incremental sanitizer buffer limit exceeded.",
+            ),
+            (
+                "TOKEN_LIMIT_EXCEEDED",
+                "Incremental sanitizer token limit exceeded.",
+            ),
+            (
+                "MULTILINE_LIMIT_EXCEEDED",
+                "Incremental sanitizer multiline limit exceeded.",
+            ),
+            (
+                "INVALID_STATE",
+                "The incremental sanitizer is no longer accepting input.",
             ),
         ];
         for (code, (name, message)) in SecretScanErrorCode::ALL.into_iter().zip(expected) {

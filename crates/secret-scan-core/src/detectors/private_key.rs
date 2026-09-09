@@ -76,6 +76,12 @@ fn find_next_delimiter(input: &str, from: usize) -> Option<Delimiter> {
 /// Delimiter-stack state carried across a full scan of the input.
 struct ParserState {
     stack: Vec<usize>,
+    /// `true` once any `BEGIN` delimiter has been seen. Unused by
+    /// [`PrivateKeyDetector::detect`], which discards its state after one
+    /// scan; read by [`PrivateKeyRetentionTracker`] to decide whether
+    /// retained plaintext is bound by the multiline limit instead of the
+    /// token limit.
+    has_begin: bool,
     malformed: bool,
     outer_start: Option<usize>,
     outer_body_start: Option<usize>,
@@ -85,6 +91,7 @@ impl ParserState {
     const fn new() -> Self {
         Self {
             stack: Vec::new(),
+            has_begin: false,
             malformed: false,
             outer_start: None,
             outer_body_start: None,
@@ -104,6 +111,7 @@ struct CompletedSpan {
 /// stack unwinds back to empty.
 fn process_delimiter(state: &mut ParserState, delimiter: &Delimiter) -> Option<CompletedSpan> {
     if delimiter.kind == DelimiterKind::Begin {
+        state.has_begin = true;
         if state.stack.is_empty() {
             state.outer_start = Some(delimiter.start);
             state.outer_body_start = Some(delimiter.end);
@@ -174,6 +182,117 @@ fn candidate(start: usize, end: usize, malformed: bool) -> Option<Candidate> {
             .with_specificity(Specificity::PrivateKey)
             .with_signals(signals),
     )
+}
+
+/// `"-----BEGIN ".len() + longest label + "-----".len()"`: the longest
+/// possible supported delimiter.
+const fn max_label_len() -> usize {
+    let mut max = 0;
+    let mut index = 0;
+    while index < LABELS.len() {
+        let len = LABELS[index].len();
+        if len > max {
+            max = len;
+        }
+        index += 1;
+    }
+    max
+}
+
+const MAX_DELIMITER_LEN: usize = "-----BEGIN ".len() + max_label_len() + "-----".len();
+
+/// The longest suffix of `input` that is at most `max_bytes` long and starts
+/// on a UTF-8 character boundary. The returned suffix may be shorter than
+/// `max_bytes` when the exact cut point falls inside a multi-byte character;
+/// every supported delimiter is pure ASCII, so trimming a little further
+/// into an unrelated character never drops part of a delimiter.
+fn byte_suffix(input: &str, max_bytes: usize) -> &str {
+    if input.len() <= max_bytes {
+        return input;
+    }
+    let mut start = input.len() - max_bytes;
+    while !input.is_char_boundary(start) {
+        start += 1;
+    }
+    &input[start..]
+}
+
+/// Scans `input` for delimiters, advancing `state` and reporting completed
+/// spans, while skipping any delimiter already accounted for by
+/// `processed_bytes` (one already scanned in an earlier call whose text was
+/// carried forward only as lookbehind). `input_offset` converts positions
+/// local to `input` to positions absolute in the logical session input.
+fn scan_delimiters(
+    input: &str,
+    state: &mut ParserState,
+    processed_bytes: usize,
+    input_offset: usize,
+    mut on_complete: impl FnMut(CompletedSpan),
+) {
+    let mut position = 0;
+    while let Some(delimiter) = find_next_delimiter(input, position) {
+        position = delimiter.end;
+        let absolute_end = input_offset + delimiter.end;
+        if absolute_end <= processed_bytes {
+            continue;
+        }
+        let absolute = Delimiter {
+            start: input_offset + delimiter.start,
+            end: absolute_end,
+            kind: delimiter.kind,
+            label: delimiter.label,
+        };
+        if let Some(span) = process_delimiter(state, &absolute) {
+            on_complete(span);
+        }
+    }
+}
+
+/// Tracks the supported PEM delimiter grammar incrementally for the
+/// built-in incremental scanner. Each [`append`](Self::append) rescans only
+/// a bounded lookbehind window plus the newly appended text, so chunk
+/// boundaries and repeated headers never cause previously retained prefixes
+/// to be rescanned. Mirrors `createPrivateKeyRetentionTracker` in
+/// `src/detectors/private-key.ts` (`decision-govern-cross-language-conformance`).
+pub(crate) struct PrivateKeyRetentionTracker {
+    state: ParserState,
+    processed_bytes: usize,
+    lookbehind: String,
+}
+
+impl PrivateKeyRetentionTracker {
+    /// Creates a tracker with no retained state.
+    pub(crate) const fn new() -> Self {
+        Self {
+            state: ParserState::new(),
+            processed_bytes: 0,
+            lookbehind: String::new(),
+        }
+    }
+
+    /// Advances past `piece`. Returns `(has_begin, has_open)`: whether any
+    /// `BEGIN` delimiter has been seen since the last [`reset`](Self::reset),
+    /// and whether a block is currently open (an unresolved `BEGIN` remains
+    /// on the delimiter stack).
+    pub(crate) fn append(&mut self, piece: &str) -> (bool, bool) {
+        let input = format!("{}{piece}", self.lookbehind);
+        let input_offset = self.processed_bytes - self.lookbehind.len();
+        scan_delimiters(
+            &input,
+            &mut self.state,
+            self.processed_bytes,
+            input_offset,
+            |_| {},
+        );
+        self.processed_bytes += piece.len();
+        self.lookbehind = byte_suffix(&input, MAX_DELIMITER_LEN.saturating_sub(1)).to_string();
+        (self.state.has_begin, !self.state.stack.is_empty())
+    }
+
+    /// Discards all retained parser state.
+    pub(crate) fn reset(&mut self) {
+        *self = Self::new();
+    }
 }
 
 /// Recognizes complete and fail-safe malformed PEM private-key blocks.
@@ -372,5 +491,46 @@ mod tests {
     #[test]
     fn id_is_stable() {
         assert_eq!(PrivateKeyDetector.id(), "private-key");
+    }
+
+    #[test]
+    fn retention_tracker_reports_open_only_between_begin_and_end() {
+        let mut tracker = PrivateKeyRetentionTracker::new();
+        assert_eq!(tracker.append("no header here\n"), (false, false));
+        assert_eq!(
+            tracker.append("-----BEGIN PRIVATE KEY-----\n"),
+            (true, true)
+        );
+        assert_eq!(tracker.append("U1lOVEhFVElDX1JFVk9LRUQ=\n"), (true, true));
+        assert_eq!(tracker.append("-----END PRIVATE KEY-----"), (true, false));
+    }
+
+    #[test]
+    fn retention_tracker_detects_a_delimiter_split_across_appended_pieces() {
+        let mut tracker = PrivateKeyRetentionTracker::new();
+        let whole = "-----BEGIN PRIVATE KEY-----";
+        let split = whole.len() / 2;
+        assert_eq!(tracker.append(&whole[..split]), (false, false));
+        assert_eq!(tracker.append(&whole[split..]), (true, true));
+    }
+
+    #[test]
+    fn retention_tracker_reset_discards_state() {
+        let mut tracker = PrivateKeyRetentionTracker::new();
+        tracker.append("-----BEGIN PRIVATE KEY-----\n");
+        tracker.reset();
+        assert_eq!(tracker.append("ordinary text"), (false, false));
+    }
+
+    #[test]
+    fn retention_tracker_does_not_reprocess_a_delimiter_carried_in_the_lookbehind() {
+        // The lookbehind window is at most MAX_DELIMITER_LEN - 1 bytes, so a
+        // short first piece is carried forward whole; appending more text
+        // must not re-trigger `has_begin`/`has_open` bookkeeping for the same
+        // delimiter twice in a way that would misreport state.
+        let mut tracker = PrivateKeyRetentionTracker::new();
+        assert_eq!(tracker.append("-----BEGIN PRIVATE KEY-----"), (true, true));
+        assert_eq!(tracker.append("\nbody\n"), (true, true));
+        assert_eq!(tracker.append("-----END PRIVATE KEY-----"), (true, false));
     }
 }
