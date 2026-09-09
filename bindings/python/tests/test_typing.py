@@ -57,6 +57,7 @@ def test_functions_carry_introspectable_signatures() -> None:
         "default_policy": {"finding", "context"},
         "default_placeholder_formatter": {"finding", "context"},
         "typed_placeholder_formatter": {"finding", "context"},
+        "default_incremental_policy": {"finding", "context"},
     }
     for name, params in expected.items():
         signature = inspect.signature(getattr(secret_scan, name))
@@ -75,3 +76,42 @@ def test_finding_and_context_types_expose_documented_attributes() -> None:
     assert isinstance(finding.end, int)
     assert isinstance(finding.confidence, str)
     assert isinstance(finding.action, str)
+
+
+def test_incremental_session_methods_carry_introspectable_signatures() -> None:
+    expected = {
+        "append": {"self", "chunk"},
+        "finalize": {"self"},
+        "abort": {"self"},
+    }
+    for name, params in expected.items():
+        signature = inspect.signature(
+            getattr(secret_scan.IncrementalSanitizer, name)
+        )
+        assert set(signature.parameters) == params, name
+
+
+def test_incremental_types_expose_documented_attributes() -> None:
+    limits = secret_scan.IncrementalLimits(
+        max_input_bytes=1_000_000,
+        max_buffered_bytes=16_512,
+        max_token_bytes=8_192,
+        max_multiline_bytes=16_384,
+    )
+    for attribute in (
+        "max_input_bytes",
+        "max_buffered_bytes",
+        "max_token_bytes",
+        "max_multiline_bytes",
+    ):
+        assert isinstance(getattr(limits, attribute), int)
+
+    session = secret_scan.IncrementalSanitizer(limits)
+    assert isinstance(session.state, str)
+    assert session.limits.max_input_bytes == limits.max_input_bytes
+
+    result = session.append("api_key=ghp_SYNTHETICREVOKED00000000000000000000\n")
+    assert isinstance(result.text, str)
+    assert isinstance(result.findings, list)
+    assert isinstance(result.findings[0].start, int)
+    session.abort()

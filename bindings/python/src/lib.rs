@@ -3,8 +3,9 @@
 //!
 //! Exposes an idiomatic synchronous `secret_scan` module: immutable finding
 //! and result types, sanitized exceptions, `scan`, `redact`,
-//! `scan_and_redact`, and the default policy and formatter helpers. Every
-//! built-in detector runs; there is no custom detector callback surface
+//! `scan_and_redact`, the default policy and formatter helpers, and the
+//! bounded incremental session in [`incremental`]. Every built-in detector
+//! runs; there is no custom detector callback surface
 //! (`decision-define-runtime-bindings`). A Python `policy` or `formatter`
 //! callback only ever receives safe metadata objects defined in this crate,
 //! never the input or a matched value, and any callback failure (an
@@ -14,6 +15,8 @@
 //! Ranges exposed here use Unicode code points; conversion from the core's
 //! UTF-8 byte offsets happens in this crate without changing the selected
 //! span (`decision-govern-cross-language-conformance`).
+
+mod incremental;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -107,10 +110,9 @@ create_exception!(
     "The placeholder formatter returned an empty, oversized, or matched-value-reproducing placeholder."
 );
 // The six codes below belong to the incremental sanitizer
-// (`decision-define-runtime-bindings`), which this module's synchronous
-// `scan`/`redact`/`scan_and_redact` never triggers. Their exception classes
-// are still declared here to keep this module's exception hierarchy a
-// complete, future-proof mirror of `SecretScanErrorCode::ALL`.
+// (`decision-define-runtime-bindings`). This module's synchronous
+// `scan`/`redact`/`scan_and_redact` never trigger them; a session created
+// by `incremental::PyIncrementalSanitizer` does.
 create_exception!(
     secret_scan._native,
     InvalidLimitsError,
@@ -149,7 +151,7 @@ create_exception!(
 );
 
 /// Maps a fixed core error code to its exception type and fixed message.
-fn map_error_code(code: SecretScanErrorCode) -> PyErr {
+pub(crate) fn map_error_code(code: SecretScanErrorCode) -> PyErr {
     let message = code.message();
     match code {
         SecretScanErrorCode::InvalidInput => PyErr::new::<InvalidInputError, _>(message),
@@ -186,7 +188,7 @@ fn map_error_code(code: SecretScanErrorCode) -> PyErr {
 }
 
 /// Maps a core error to its sanitized Python exception.
-fn map_core_error(error: CoreError) -> PyErr {
+pub(crate) fn map_core_error(error: CoreError) -> PyErr {
     map_error_code(error.code())
 }
 
@@ -336,7 +338,7 @@ fn byte_offset_to_char_offset(text: &str, byte_offset: usize) -> PyResult<usize>
 /// instead of a generic `TypeError`, matching the cross-language contract:
 /// `SecretScanErrorCode::InvalidInput` is "produced by bindings" for this
 /// exact case.
-fn extract_text(value: &Bound<'_, PyAny>) -> PyResult<String> {
+pub(crate) fn extract_text(value: &Bound<'_, PyAny>) -> PyResult<String> {
     let text = value
         .cast::<PyString>()
         .map_err(|_| map_error_code(SecretScanErrorCode::InvalidInput))?;
@@ -356,7 +358,7 @@ fn extract_text(value: &Bound<'_, PyAny>) -> PyResult<String> {
 /// Never constructed from Python; only produced by `scan` and
 /// `scan_and_redact` for their policy callback.
 #[pyclass(module = "secret_scan._native", name = "DetectedFinding")]
-struct PyDetectedFinding {
+pub(crate) struct PyDetectedFinding {
     /// Deterministic finding id (`finding-1`, `finding-2`, ...).
     #[pyo3(get)]
     id: String,
@@ -380,7 +382,7 @@ struct PyDetectedFinding {
 }
 
 impl PyDetectedFinding {
-    fn from_core(finding: &DetectedFinding, start: usize, end: usize) -> Self {
+    pub(crate) fn from_core(finding: &DetectedFinding, start: usize, end: usize) -> Self {
         Self {
             id: finding.id().to_owned(),
             type_name: finding.type_name().to_owned(),
@@ -394,7 +396,7 @@ impl PyDetectedFinding {
     }
 
     /// Reconstructs the core finding this metadata was derived from.
-    fn to_core(&self) -> PyResult<DetectedFinding> {
+    pub(crate) fn to_core(&self) -> PyResult<DetectedFinding> {
         DetectedFinding::new(
             self.id.clone(),
             self.type_name.clone(),
@@ -449,7 +451,7 @@ impl PyPolicyContext {
 /// `scan_and_redact`.
 #[pyclass(module = "secret_scan._native", name = "Finding", skip_from_py_object)]
 #[derive(Clone)]
-struct PyFinding {
+pub(crate) struct PyFinding {
     /// Deterministic finding id (`finding-1`, `finding-2`, ...).
     #[pyo3(get)]
     id: String,
@@ -475,7 +477,7 @@ struct PyFinding {
 }
 
 impl PyFinding {
-    fn from_core(finding: CoreFinding, start: usize, end: usize) -> Self {
+    pub(crate) fn from_core(finding: CoreFinding, start: usize, end: usize) -> Self {
         Self {
             id: finding.id().to_owned(),
             type_name: finding.type_name().to_owned(),
@@ -511,10 +513,10 @@ impl PyFinding {
 /// Never constructed from Python; only produced by `redact` and
 /// `scan_and_redact` for their formatter callback.
 #[pyclass(module = "secret_scan._native", name = "PlaceholderContext")]
-struct PyPlaceholderContext {
+pub(crate) struct PyPlaceholderContext {
     /// One-based position among findings that are actually replaced.
     #[pyo3(get)]
-    placeholder_index: usize,
+    pub(crate) placeholder_index: usize,
 }
 
 #[pymethods]
@@ -880,6 +882,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyPlaceholderContext>()?;
     module.add_class::<PyScanResult>()?;
 
+    incremental::register(module)?;
     register_exceptions(module)?;
 
     Ok(())

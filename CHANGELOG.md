@@ -19,6 +19,14 @@ select or authorize a release.
   boundaries; the documented overlap precedence; and sanitized errors with fixed
   public codes and messages. Built-in detectors, the default policy, and
   redaction are not ported yet.
+- Bounded incremental sanitization in the Python binding:
+  `IncrementalSanitizer` with mandatory `IncrementalLimits`, an explicit
+  `accepting`/`finalized`/`aborted`/`failed` lifecycle, immutable per-call
+  results, incremental `policy` and `formatter` callbacks that receive only safe
+  metadata, and a `with` block that aborts a session left unfinalized. Findings
+  carry absolute Unicode code point offsets into the whole-session input and
+  keep stable ids across calls; `abort` and every failure discard retained
+  plaintext and raise a fixed, input-free exception.
 - Unified `@omiologic/secret-scan` npm package in `packages/javascript`: one
   typed API whose conditional `exports` select the Node N-API addon or the
   browser WebAssembly build, a shared `await initialize()` contract that gates
