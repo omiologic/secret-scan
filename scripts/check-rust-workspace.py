@@ -14,6 +14,20 @@ Checks, in order:
 4. MSRV: the declared ``rust-version`` is inherited by every member, is at
    least the highest ``rust-version`` required by any resolved dependency, and
    matches the ``MSRV`` value exercised by the CI workflow.
+5. Public API: the names the core crate root exports match
+   ``core-public-api`` exactly, so nothing joins or leaves the published
+   surface without a manifest change to review.
+6. Source boundary: no core source names a runtime I/O, environment,
+   process, clock, or thread facility, and no core source reaches for a
+   binding crate. This is the compile-time half of the "no runtime I/O"
+   guarantee; the dependency boundary in check 1 is the other half.
+7. Core manifest shape: the core declares no Cargo features, no optional or
+   target-specific dependencies, and no dependency named in
+   ``binding-dependencies`` — the crate a dependent gets is the crate this
+   repository tests, with no feature-selected variants.
+8. Package contents: every file ``cargo package`` would publish for the core
+   matches ``core-package-globs``, and the files in
+   ``core-package-required`` are all present.
 
 Run ``--recheck-crate-name`` to also query crates.io for the preferred crate
 name; that is the only check that uses the network and it is off by default.
@@ -29,7 +43,7 @@ import sys
 import tomllib
 import urllib.error
 import urllib.request
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 CI_WORKFLOW = Path(".github") / "workflows" / "ci.yml"
@@ -37,6 +51,30 @@ CI_MSRV = re.compile(r"^\s*MSRV:\s*[\"']?(\d+\.\d+(?:\.\d+)?)[\"']?\s*$", re.M)
 FORBID_UNSAFE = re.compile(r"^\s*#!\[forbid\(unsafe_code\)\]\s*$", re.M)
 FORBID_UNSAFE_ROOTS = {"secret-scan": "src/lib.rs", "secret-scan-cli": "src/main.rs"}
 LOCKSTEP_MANIFESTS = ("package.json", "bindings/node/package.json")
+
+# `pub use path::{A, B};`, `pub use path::name;`, and the `pub const NAME`
+# items the crate root declares directly.
+PUB_USE = re.compile(r"^pub use\s+(?P<path>[^;]+);", re.M)
+PUB_ITEM = re.compile(r"^pub (?:mod|const|fn|struct|enum|trait|type)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)", re.M)
+TEST_MODULE = re.compile(r"^#\[cfg\(test\)\]", re.M)
+
+# Facilities a side-effect-free core must never name. `env!` is deliberately
+# absent: it is resolved by the compiler and reads nothing at runtime.
+FORBIDDEN_SOURCE = {
+    "std::fs": "filesystem access",
+    "std::net": "network access",
+    "std::env": "process environment access",
+    "std::process": "process control",
+    "std::io": "standard stream access",
+    "std::thread": "thread spawning",
+    "std::time": "clock access",
+    "std::os": "platform-specific host access",
+    "option_env!": "build-environment lookup",
+    "include_str!": "file inclusion",
+    "include_bytes!": "file inclusion",
+    "println!": "standard output",
+    "eprintln!": "standard error",
+}
 USER_AGENT = "secret-scan workspace check (https://github.com/omiologic/secret-scan)"
 
 
@@ -84,7 +122,7 @@ def check_core_boundary(metadata: dict, policy: dict) -> list[str]:
     errors: list[str] = []
     core_name = policy["core-package"]
     packages = {package["id"]: package for package in metadata["packages"]}
-    core = next((p for p in workspace_members(metadata).values() if p["name"] == core_name), None)
+    core = core_package(metadata, policy)
     if core is None:
         return [f"core package {core_name} is not a workspace member"]
 
@@ -185,7 +223,166 @@ def check_msrv(root: Path, metadata: dict, root_manifest: dict) -> list[str]:
     return errors
 
 
-def validate(root: Path, metadata: dict) -> list[str]:
+def core_package(metadata: dict, policy: dict) -> dict | None:
+    core_name = policy["core-package"]
+    return next((p for p in workspace_members(metadata).values() if p["name"] == core_name), None)
+
+
+def core_root(metadata: dict, policy: dict) -> Path | None:
+    """The directory of the core crate, or ``None`` when it is not a member."""
+    core = core_package(metadata, policy)
+    return None if core is None else Path(core["manifest_path"]).resolve().parent
+
+
+def exported_names(crate_root_source: str) -> set[str]:
+    """The public names a crate root re-exports or declares.
+
+    Only the surface above the first ``#[cfg(test)]`` counts; a test module
+    is not part of the published API.
+    """
+    boundary = TEST_MODULE.search(crate_root_source)
+    source = crate_root_source[: boundary.start()] if boundary else crate_root_source
+
+    names: set[str] = set()
+    for match in PUB_USE.finditer(source):
+        path = " ".join(match.group("path").split())
+        if "{" in path:
+            inner = path[path.index("{") + 1 : path.rindex("}")]
+            leaves = inner.split(",")
+        else:
+            leaves = [path]
+        for leaf in leaves:
+            leaf = leaf.strip().split("::")[-1].strip()
+            if leaf:
+                names.add(leaf)
+    for match in PUB_ITEM.finditer(source):
+        names.add(match.group("name"))
+    return names
+
+
+def check_core_public_api(root: Path, metadata: dict, policy: dict) -> list[str]:
+    """The core crate root exports exactly ``core-public-api``."""
+    declared = policy.get("core-public-api")
+    if declared is None:
+        return ["Cargo.toml: [workspace.metadata.secret-scan] must declare core-public-api"]
+    crate = core_root(metadata, policy)
+    if crate is None:
+        return []
+    source_path = crate / "src" / "lib.rs"
+    if not source_path.is_file():
+        return [f"{source_path.relative_to(root)}: missing core crate root"]
+
+    found = exported_names(source_path.read_text(encoding="utf-8"))
+    expected = set(declared)
+    errors = []
+    for name in sorted(found - expected):
+        errors.append(f"{source_path.relative_to(root)}: {name} is public but not in core-public-api")
+    for name in sorted(expected - found):
+        errors.append(f"Cargo.toml: core-public-api lists {name}, which the core crate root does not export")
+    return errors
+
+
+def check_core_source_boundary(root: Path, metadata: dict, policy: dict) -> list[str]:
+    """No core source names a runtime I/O facility or a binding crate."""
+    crate = core_root(metadata, policy)
+    if crate is None:
+        return []
+    bindings = set(policy.get("binding-dependencies", []))
+    binding_paths = {name.replace("-", "_") for name in bindings}
+
+    errors = []
+    for source_path in sorted((crate / "src").rglob("*.rs")):
+        source = source_path.read_text(encoding="utf-8")
+        relative = source_path.relative_to(root)
+        for needle, reason in FORBIDDEN_SOURCE.items():
+            if needle in source:
+                errors.append(f"{relative}: names {needle} ({reason}); the core performs no runtime I/O")
+        for name in sorted(binding_paths):
+            if re.search(rf"\b{re.escape(name)}::", source):
+                errors.append(f"{relative}: names the binding crate {name}; the core is binding-neutral")
+    return errors
+
+
+def check_core_manifest(root: Path, metadata: dict, policy: dict) -> list[str]:
+    """The core ships one shape: no features, no optional or target deps."""
+    crate = core_root(metadata, policy)
+    if crate is None:
+        return []
+    manifest_path = crate / "Cargo.toml"
+    with manifest_path.open("rb") as handle:
+        manifest = tomllib.load(handle)
+    relative = manifest_path.relative_to(root)
+
+    errors = []
+    if manifest.get("features"):
+        errors.append(f"{relative}: the core declares no Cargo features; found {sorted(manifest['features'])}")
+    if manifest.get("target"):
+        errors.append(f"{relative}: the core declares no target-specific dependencies")
+    bindings = set(policy.get("binding-dependencies", []))
+    for section in ("dependencies", "build-dependencies"):
+        for name, spec in (manifest.get(section) or {}).items():
+            if name in bindings:
+                errors.append(f"{relative}: [{section}] {name} is a binding dependency; the core is binding-neutral")
+            if isinstance(spec, dict) and spec.get("optional"):
+                errors.append(f"{relative}: [{section}] {name} is optional, which would feature-gate the core")
+    if not manifest.get("package", {}).get("include"):
+        errors.append(f"{relative}: [package] must declare include so the published file set is explicit")
+    return errors
+
+
+def glob_to_regex(pattern: str) -> re.Pattern[str]:
+    """Translate a package-content glob: ``**`` spans directories, ``*`` does not."""
+    out = ""
+    index = 0
+    while index < len(pattern):
+        if pattern.startswith("**/", index):
+            out += "(?:[^/]+/)*"
+            index += 3
+        elif pattern.startswith("**", index):
+            out += ".*"
+            index += 2
+        elif pattern[index] == "*":
+            out += "[^/]*"
+            index += 1
+        elif pattern[index] == "?":
+            out += "[^/]"
+            index += 1
+        else:
+            out += re.escape(pattern[index])
+            index += 1
+    return re.compile(f"^{out}$")
+
+
+def cargo_package_list(root: Path, package: str) -> list[str]:
+    """The files ``cargo package`` would publish for ``package``."""
+    output = subprocess.run(
+        ["cargo", "package", "--list", "--locked", "--no-verify", "--allow-dirty", "-p", package],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return [line.strip() for line in output.splitlines() if line.strip()]
+
+
+def check_core_package_contents(policy: dict, listed: list[str]) -> list[str]:
+    """Every published file matches an allowed glob, and none is missing."""
+    globs = policy.get("core-package-globs")
+    if globs is None:
+        return ["Cargo.toml: [workspace.metadata.secret-scan] must declare core-package-globs"]
+    allowed = [glob_to_regex(pattern) for pattern in globs]
+    errors = []
+    for path in listed:
+        normalized = PurePosixPath(path).as_posix()
+        if not any(rule.match(normalized) for rule in allowed):
+            errors.append(f"{policy['core-package']}: packaged file {normalized} matches no core-package-globs entry")
+    for required in policy.get("core-package-required", []):
+        if required not in listed:
+            errors.append(f"{policy['core-package']}: core-package-required file {required} is not in the package")
+    return errors
+
+
+def validate(root: Path, metadata: dict, package_lister=None) -> list[str]:
     root = root.resolve()
     with (root / "Cargo.toml").open("rb") as handle:
         root_manifest = tomllib.load(handle)
@@ -198,6 +395,11 @@ def validate(root: Path, metadata: dict) -> list[str]:
     errors.extend(check_unsafe_policy(root, metadata, root_manifest))
     errors.extend(check_version_lockstep(root, metadata, root_manifest))
     errors.extend(check_msrv(root, metadata, root_manifest))
+    errors.extend(check_core_public_api(root, metadata, policy))
+    errors.extend(check_core_source_boundary(root, metadata, policy))
+    errors.extend(check_core_manifest(root, metadata, policy))
+    if package_lister is not None:
+        errors.extend(check_core_package_contents(policy, package_lister(policy["core-package"])))
     return errors
 
 
@@ -233,7 +435,7 @@ def main() -> int:
     args = parser.parse_args()
 
     metadata = load_metadata(args.root)
-    errors = validate(args.root, metadata)
+    errors = validate(args.root, metadata, lambda package: cargo_package_list(args.root, package))
     derived, culprits = derived_msrv(metadata)
     if derived is not None:
         print(f"Derived MSRV {derived} from " + ", ".join(f"{name} {version}" for name, version, _ in culprits))

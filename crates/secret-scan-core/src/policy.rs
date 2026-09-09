@@ -52,6 +52,30 @@ fn default_action(finding: &DetectedFinding) -> Action {
 
 /// The default [`Policy`]: deterministic, infallible, and independent of
 /// [`PolicyContext`].
+///
+/// A private key is blocked, a known credential type is redacted at any
+/// confidence, and anything else is redacted only at high confidence and
+/// warned about otherwise. Because it ignores [`PolicyContext`], it is also
+/// a valid [`IncrementalPolicy`](crate::IncrementalPolicy), which cannot
+/// know the whole-session finding count.
+///
+/// # Examples
+///
+/// ```
+/// use secret_scan::{Action, DefaultPolicy, DetectorRegistry, scan};
+///
+/// let registry = DetectorRegistry::with_built_in([])?;
+/// let findings = scan("API_KEY=ghp_SYNTHETICREVOKED00000000000000000000", &registry, &DefaultPolicy)?;
+/// assert_eq!(findings[0].action(), Action::Redact);
+///
+/// // Any `Fn(&DetectedFinding, &PolicyContext) -> Result<Action, _>` is a policy.
+/// let block_all = |_: &secret_scan::DetectedFinding, _: &secret_scan::PolicyContext| {
+///     Ok(Action::Block)
+/// };
+/// let findings = scan("API_KEY=ghp_SYNTHETICREVOKED00000000000000000000", &registry, &block_all)?;
+/// assert_eq!(findings[0].action(), Action::Block);
+/// # Ok::<(), secret_scan::SecretScanError>(())
+/// ```
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DefaultPolicy;
 

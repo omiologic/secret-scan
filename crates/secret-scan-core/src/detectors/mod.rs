@@ -1,8 +1,12 @@
 //! Built-in detectors in canonical registration order.
 //!
-//! The order of the list returned by [`built_in_detectors`] is a public
-//! contract: it is the registry order used as an overlap tie breaker, so it
-//! must match the TypeScript oracle and the conformance corpus.
+//! This module is private. The built-in set is reached only through
+//! [`DetectorRegistry::with_built_in`](crate::DetectorRegistry::with_built_in),
+//! so which detectors exist, how they are constructed, and what they retain
+//! are all free to change without breaking a caller. What is public is the
+//! observable consequence of the order below: it is the registry order used
+//! as the fourth overlap tie breaker, so it must match the TypeScript oracle
+//! and the conformance corpus.
 
 mod additional_providers;
 mod anthropic;
@@ -30,7 +34,7 @@ pub(crate) use private_key::PrivateKeyRetentionTracker;
 
 /// Every built-in detector, in canonical registration order.
 #[must_use]
-pub fn built_in_detectors() -> Vec<Box<dyn Detector>> {
+pub(crate) fn built_in_detectors() -> Vec<Box<dyn Detector>> {
     vec![
         Box::new(PrivateKeyDetector),
         Box::new(aws::AwsAccessKeyDetector),

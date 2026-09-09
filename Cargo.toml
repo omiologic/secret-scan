@@ -67,6 +67,15 @@ unimplemented = "deny"
 core-package = "secret-scan"
 product-name = "secret-scan"
 allowed-dependencies = []
+# Crates a binding needs to speak to its host. The core is binding-neutral:
+# none of these may appear in its dependency graph, its manifest, or its
+# sources. They are not in `forbidden-dependencies` because the bindings
+# themselves depend on them legitimately.
+binding-dependencies = [
+  "napi", "napi-derive", "napi-build", "napi-sys",
+  "pyo3", "pyo3-build-config", "pyo3-ffi", "pyo3-macros",
+  "wasm-bindgen", "wasm-bindgen-macro", "js-sys", "web-sys", "serde-wasm-bindgen",
+]
 forbidden-dependencies = [
   # network
   "reqwest", "hyper", "ureq", "curl", "tokio", "async-std", "mio", "socket2",
@@ -79,6 +88,66 @@ forbidden-dependencies = [
   # user interfaces
   "crossterm", "ratatui", "dialoguer", "indicatif", "console",
 ]
+
+# The stabilized public surface of the core crate: every name
+# `crates/secret-scan-core/src/lib.rs` exports, and nothing else. A name may
+# only join or leave this list in a change that reviews the API contract.
+# `crates/secret-scan-core/tests/public_api.rs` pins that each one is usable.
+core-public-api = [
+  "Action",
+  "ByteRange",
+  "Candidate",
+  "Confidence",
+  "DefaultPolicy",
+  "DetectedFinding",
+  "Detector",
+  "DetectorContext",
+  "DetectorFailure",
+  "DetectorRegistry",
+  "Finding",
+  "FormatterFailure",
+  "IncrementalLimits",
+  "IncrementalPolicy",
+  "IncrementalPolicyContext",
+  "IncrementalResult",
+  "IncrementalSanitizer",
+  "MAX_IDENTIFIER_LENGTH",
+  "MAX_PLACEHOLDER_LENGTH",
+  "PlaceholderContext",
+  "PlaceholderFormatter",
+  "Policy",
+  "PolicyContext",
+  "PolicyFailure",
+  "RANGE_UNIT",
+  "RegisteredDetector",
+  "ScanResult",
+  "SecretScanError",
+  "SecretScanErrorCode",
+  "SessionState",
+  "Specificity",
+  "VERSION",
+  "default_placeholder_formatter",
+  "is_identifier",
+  "redact",
+  "run_detector_pipeline",
+  "scan",
+  "scan_and_redact",
+  "shannon_entropy",
+  "typed_placeholder_formatter",
+]
+
+# What `cargo package` may publish for the core: the library, its README, and
+# the manifest metadata cargo generates. Nothing else — in particular no
+# fixture, test, or script — may travel with the crate.
+core-package-globs = [
+  ".cargo_vcs_info.json",
+  "Cargo.lock",
+  "Cargo.toml",
+  "Cargo.toml.orig",
+  "README.md",
+  "src/**/*.rs",
+]
+core-package-required = ["Cargo.toml", "README.md", "src/lib.rs"]
 
 [profile.release]
 codegen-units = 1

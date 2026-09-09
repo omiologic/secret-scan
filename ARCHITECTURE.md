@@ -112,8 +112,9 @@ The binding and package layout is:
 | `packages/javascript` | One typed API with runtime-specific loading | `@omiologic/secret-scan` |
 | `conformance` | Language-neutral behavioral fixtures and schema | Repository contract, not a package |
 
-Detailed workspace dependency, lint, unsafe-code, MSRV, and registry-name
-policies live in [docs/rust-workspace.md](./docs/rust-workspace.md).
+Detailed workspace dependency, lint, unsafe-code, MSRV, public-API,
+package-content, and registry-name policies live in
+[docs/rust-workspace.md](./docs/rust-workspace.md).
 
 ## Canonical processing pipeline
 
@@ -298,9 +299,18 @@ fragments.
 
 The Rust core may use `std` and only explicitly allowlisted dependencies. Its
 normal and build dependency graph excludes runtime networking, filesystem and
-environment access, telemetry, secret storage, and UI behavior. Unsafe code is
+environment access, telemetry, secret storage, and UI behavior, and its sources
+name none of those facilities either. It declares no Cargo features, no
+optional or target-specific dependencies, and nothing binding-specific, so
+every dependent gets the one shape the test suite exercises. Unsafe code is
 forbidden in the core and CLI. Any binding-local unsafe code must be scoped to a
 real FFI boundary and documented according to workspace policy.
+
+The core's published surface is pinned by name in
+`[workspace.metadata.secret-scan] core-public-api`, and the files its package
+may carry are pinned by `core-package-globs`; `npm run rust:check` fails when
+either drifts. The built-in detector registry and the incremental retention
+tuning are private, so both can change without breaking a dependent.
 
 Core algorithms must be deterministic, avoid catastrophic regular-expression
 behavior, avoid unnecessary full-input copies, resolve overlaps in

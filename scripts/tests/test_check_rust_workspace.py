@@ -18,6 +18,26 @@ SPEC.loader.exec_module(CHECK)
 VERSION = "0.1.0-beta.1"
 MSRV = "1.88"
 
+CORE_LIB = """#![forbid(unsafe_code)]
+
+mod types;
+
+pub use types::{Finding, scan};
+
+/// The shared product version.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+#[cfg(test)]
+mod tests {
+    pub use types::NotPublic;
+}
+"""
+CORE_API = ["Finding", "VERSION", "scan"]
+CORE_MANIFEST = '[package]\nname = "secret-scan"\ninclude = ["src/**/*.rs", "README.md"]\n[lints]\nworkspace = true\n'
+PACKAGE_GLOBS = ["Cargo.toml", "README.md", "src/**/*.rs"]
+PACKAGE_REQUIRED = ["Cargo.toml", "README.md", "src/lib.rs"]
+PACKAGE_LIST = ["Cargo.toml", "README.md", "src/lib.rs", "src/detectors/aws.rs"]
+
 
 def package(root: Path, name: str, relative: str, deps: list[str], rust_version: str | None = MSRV) -> dict:
     return {
@@ -40,10 +60,15 @@ class Workspace:
         self.dep_kinds: dict[tuple[str, str], list[dict]] = {}
         self.allowed: list[str] = []
         self.forbidden: list[str] = ["reqwest"]
+        self.bindings: list[str] = ["napi", "pyo3", "wasm-bindgen"]
+        self.public_api: list[str] = list(CORE_API)
+        self.package_globs: list[str] = list(PACKAGE_GLOBS)
+        self.package_required: list[str] = list(PACKAGE_REQUIRED)
+        self.package_list: list[str] = list(PACKAGE_LIST)
         self.write(".github/workflows/ci.yml", f'name: CI\nenv:\n  MSRV: "{MSRV}"\n')
         self.write("package.json", json.dumps({"version": VERSION}))
         self.write("bindings/node/package.json", json.dumps({"version": VERSION}))
-        self.add_member("secret-scan", "crates/secret-scan-core", "src/lib.rs", "#![forbid(unsafe_code)]\n")
+        self.add_member("secret-scan", "crates/secret-scan-core", "src/lib.rs", CORE_LIB, manifest=CORE_MANIFEST)
         self.add_member("secret-scan-cli", "crates/secret-scan-cli", "src/main.rs", "#![forbid(unsafe_code)]\n", deps=["secret-scan"])
 
     def write(self, relative: str, content: str) -> None:
@@ -51,8 +76,8 @@ class Workspace:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
 
-    def add_member(self, name: str, relative: str, source: str, content: str, deps: list[str] | None = None, lints: str = "[lints]\nworkspace = true\n") -> None:
-        self.write(f"{relative}/Cargo.toml", f'[package]\nname = "{name}"\n{lints}')
+    def add_member(self, name: str, relative: str, source: str, content: str, deps: list[str] | None = None, lints: str = "[lints]\nworkspace = true\n", manifest: str | None = None) -> None:
+        self.write(f"{relative}/Cargo.toml", manifest or f'[package]\nname = "{name}"\n{lints}')
         self.write(f"{relative}/{source}", content)
         self.packages.append(package(self.root, name, relative, deps or []))
         self.members.append(name)
@@ -83,6 +108,10 @@ class Workspace:
                     "core-package": "secret-scan",
                     "allowed-dependencies": self.allowed,
                     "forbidden-dependencies": self.forbidden,
+                    "binding-dependencies": self.bindings,
+                    "core-public-api": self.public_api,
+                    "core-package-globs": self.package_globs,
+                    "core-package-required": self.package_required,
                 }
             },
         }
@@ -94,7 +123,11 @@ class RustWorkspaceCheckTests(unittest.TestCase):
             workspace = Workspace(Path(temp))
             if configure is not None:
                 configure(workspace)
-            return CHECK.validate(workspace.root, workspace.metadata())
+            return CHECK.validate(
+                workspace.root,
+                workspace.metadata(),
+                lambda _package: workspace.package_list,
+            )
 
     def test_scaffold_passes(self) -> None:
         self.assertEqual(self.run_check(), [])
@@ -197,6 +230,132 @@ class RustWorkspaceCheckTests(unittest.TestCase):
 
         errors = self.run_check(configure)
         self.assertTrue(any("secret-scan-cli: rust-version 1.85" in error for error in errors), errors)
+
+    # -- public API -------------------------------------------------------
+
+    def test_an_unlisted_export_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write(
+                "crates/secret-scan-core/src/lib.rs",
+                CORE_LIB.replace("pub use types::{Finding, scan};", "pub use types::{Finding, scan, sneak};"),
+            )
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("sneak is public but not in core-public-api" in error for error in errors), errors)
+
+    def test_a_removed_export_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.public_api.append("removed")
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("core-public-api lists removed" in error for error in errors), errors)
+
+    def test_a_public_module_counts_as_an_export(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("crates/secret-scan-core/src/lib.rs", CORE_LIB.replace("mod types;", "pub mod types;"))
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("types is public but not in core-public-api" in error for error in errors), errors)
+
+    def test_a_test_module_is_not_part_of_the_public_surface(self) -> None:
+        self.assertEqual(self.run_check(), [])
+        self.assertNotIn("NotPublic", CHECK.exported_names(CORE_LIB))
+
+    def test_missing_public_api_policy_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.public_api = None
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("must declare core-public-api" in error for error in errors), errors)
+
+    # -- source boundary --------------------------------------------------
+
+    def test_runtime_io_in_core_sources_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("crates/secret-scan-core/src/types.rs", "fn read() { std::fs::read(\"x\"); }\n")
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("names std::fs (filesystem access)" in error for error in errors), errors)
+
+    def test_compile_time_env_macro_is_allowed_in_core_sources(self) -> None:
+        self.assertEqual(self.run_check(), [])
+
+    def test_a_binding_crate_named_in_core_sources_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("crates/secret-scan-core/src/types.rs", "use wasm_bindgen::prelude::*;\n")
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("names the binding crate wasm_bindgen" in error for error in errors), errors)
+
+    # -- core manifest shape ----------------------------------------------
+
+    def test_core_features_are_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("crates/secret-scan-core/Cargo.toml", CORE_MANIFEST + '[features]\nextra = []\n')
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("declares no Cargo features" in error for error in errors), errors)
+
+    def test_optional_core_dependency_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write(
+                "crates/secret-scan-core/Cargo.toml",
+                CORE_MANIFEST + '[dependencies]\nmemchr = { version = "2", optional = true }\n',
+            )
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("memchr is optional" in error for error in errors), errors)
+
+    def test_binding_dependency_in_the_core_manifest_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("crates/secret-scan-core/Cargo.toml", CORE_MANIFEST + '[dependencies]\nnapi = "3"\n')
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("napi is a binding dependency" in error for error in errors), errors)
+
+    def test_target_specific_core_dependencies_are_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write(
+                "crates/secret-scan-core/Cargo.toml",
+                CORE_MANIFEST + '[target."cfg(unix)".dependencies]\nlibc = "0.2"\n',
+            )
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("no target-specific dependencies" in error for error in errors), errors)
+
+    def test_core_manifest_without_include_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("crates/secret-scan-core/Cargo.toml", '[package]\nname = "secret-scan"\n[lints]\nworkspace = true\n')
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("must declare include" in error for error in errors), errors)
+
+    # -- package contents -------------------------------------------------
+
+    def test_a_file_outside_the_package_globs_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.package_list.append("tests/support/mod.rs")
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("tests/support/mod.rs matches no core-package-globs" in error for error in errors), errors)
+
+    def test_a_missing_required_package_file_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.package_list.remove("README.md")
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("core-package-required file README.md" in error for error in errors), errors)
+
+    def test_package_globs_do_not_let_a_single_star_span_directories(self) -> None:
+        self.assertFalse(CHECK.glob_to_regex("src/*.rs").match("src/detectors/aws.rs"))
+        self.assertTrue(CHECK.glob_to_regex("src/**/*.rs").match("src/detectors/aws.rs"))
+        self.assertTrue(CHECK.glob_to_regex("src/**/*.rs").match("src/lib.rs"))
+        self.assertFalse(CHECK.glob_to_regex("src/**/*.rs").match("src/lib.rs.bak"))
+
+    def test_package_contents_are_not_checked_without_a_lister(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Workspace(Path(temp))
+            self.assertEqual(CHECK.validate(workspace.root, workspace.metadata()), [])
 
 
 if __name__ == "__main__":

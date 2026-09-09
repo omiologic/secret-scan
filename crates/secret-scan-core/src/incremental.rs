@@ -68,21 +68,43 @@ use crate::redact::{default_placeholder_formatter, redact};
 use crate::registry::DetectorRegistry;
 use crate::types::{
     Action, ByteRange, DetectedFinding, Finding, PlaceholderContext, PlaceholderFormatter, Policy,
-    PolicyContext,
+    PolicyContext, ScanResult,
 };
 
 /// Reserve in bytes for the longest built-in fixed match and its boundary
 /// lookaround, that `max_buffered_bytes` must accommodate on top of the
 /// larger of `max_token_bytes` and `max_multiline_bytes`.
-pub const INCREMENTAL_LOOKAROUND_BYTES: usize = 128;
+///
+/// This is retention tuning, not a public contract: it tracks the built-in
+/// detector set and changes with it. Callers ask
+/// [`IncrementalLimits::minimum_buffered_bytes`] for the derived requirement
+/// instead of reproducing this arithmetic.
+const LOOKAROUND_BYTES: usize = 128;
 
 /// Explicit, positive byte limits every incremental session requires. There
 /// are no environment-derived or silent defaults.
 ///
-/// `max_buffered_bytes` must accommodate the larger of `max_token_bytes` and
-/// `max_multiline_bytes` plus [`INCREMENTAL_LOOKAROUND_BYTES`]. A construct
-/// that reaches its limit without a closing boundary is not reclassified as
-/// ordinary text: the session fails before any of its bytes are emitted.
+/// `max_buffered_bytes` must be at least
+/// [`minimum_buffered_bytes`](Self::minimum_buffered_bytes) for the construct
+/// limits it accompanies. A construct that reaches its limit without a
+/// closing boundary is not reclassified as ordinary text: the session fails
+/// before any of its bytes are emitted.
+///
+/// # Examples
+///
+/// ```
+/// use secret_scan::IncrementalLimits;
+///
+/// let (token, multiline) = (4_096, 16_384);
+/// let limits = IncrementalLimits::new(
+///     1 << 20,
+///     IncrementalLimits::minimum_buffered_bytes(token, multiline),
+///     token,
+///     multiline,
+/// )?;
+/// assert_eq!(limits.max_token_bytes(), token);
+/// # Ok::<(), secret_scan::SecretScanError>(())
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[allow(clippy::struct_field_names)]
 pub struct IncrementalLimits {
@@ -93,14 +115,35 @@ pub struct IncrementalLimits {
 }
 
 impl IncrementalLimits {
+    /// The smallest `max_buffered_bytes` [`new`](Self::new) accepts
+    /// alongside these construct limits: the larger of the two plus the
+    /// boundary lookaround the built-in detectors need to decide whether a
+    /// construct is still open.
+    ///
+    /// The lookaround reserve itself is an implementation detail that tracks
+    /// the built-in detector set. Deriving the limit through this function
+    /// keeps a caller correct when that reserve changes.
+    #[must_use]
+    pub const fn minimum_buffered_bytes(
+        max_token_bytes: usize,
+        max_multiline_bytes: usize,
+    ) -> usize {
+        let construct_max = if max_token_bytes > max_multiline_bytes {
+            max_token_bytes
+        } else {
+            max_multiline_bytes
+        };
+        construct_max.saturating_add(LOOKAROUND_BYTES)
+    }
+
     /// Validates and creates a limit set.
     ///
     /// # Errors
     ///
     /// Returns [`SecretScanErrorCode::InvalidLimits`] when any limit is
     /// zero, when `max_token_bytes` or `max_multiline_bytes` exceeds
-    /// `max_input_bytes`, or when `max_buffered_bytes` is smaller than the
-    /// larger construct limit plus [`INCREMENTAL_LOOKAROUND_BYTES`].
+    /// `max_input_bytes`, or when `max_buffered_bytes` is below
+    /// [`minimum_buffered_bytes`](Self::minimum_buffered_bytes).
     pub fn new(
         max_input_bytes: usize,
         max_buffered_bytes: usize,
@@ -114,8 +157,9 @@ impl IncrementalLimits {
             || max_multiline_bytes == 0
             || max_token_bytes > max_input_bytes
             || max_multiline_bytes > max_input_bytes
-            || construct_max > usize::MAX - INCREMENTAL_LOOKAROUND_BYTES
-            || max_buffered_bytes < construct_max + INCREMENTAL_LOOKAROUND_BYTES;
+            || construct_max > usize::MAX - LOOKAROUND_BYTES
+            || max_buffered_bytes
+                < Self::minimum_buffered_bytes(max_token_bytes, max_multiline_bytes);
         if invalid {
             return Err(SecretScanErrorCode::InvalidLimits.into());
         }
@@ -240,35 +284,14 @@ pub enum SessionState {
 /// The sanitized text and final findings produced by one `append` or
 /// `finalize` call.
 ///
-/// Findings use absolute byte offsets into the logical whole-session input
-/// and are immutable; ids and ordering follow the synchronous pipeline.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct IncrementalResult {
-    text: String,
-    findings: Vec<Finding>,
-}
-
-impl IncrementalResult {
-    /// The sanitized text produced by this call. Concatenating every
-    /// `append`/`finalize` result's text, in call order, reconstructs the
-    /// whole sanitized output.
-    #[must_use]
-    pub fn text(&self) -> &str {
-        &self.text
-    }
-
-    /// The findings finalized by this call.
-    #[must_use]
-    pub fn findings(&self) -> &[Finding] {
-        &self.findings
-    }
-
-    /// Consumes the result, returning its parts.
-    #[must_use]
-    pub fn into_parts(self) -> (String, Vec<Finding>) {
-        (self.text, self.findings)
-    }
-}
+/// This is [`ScanResult`] under the name the incremental API reports it by:
+/// the whole-input and chunked paths return the same shape, so a host can
+/// carry one result type. [`text`](ScanResult::text) is the safe output this
+/// call releases — concatenating every `append`/`finalize` result's text, in
+/// call order, reconstructs the whole sanitized output — and
+/// [`findings`](ScanResult::findings) are the findings this call finalized,
+/// with absolute UTF-8 byte offsets into the logical whole-session input.
+pub type IncrementalResult = ScanResult;
 
 /// Finds the byte offset of the next `\n` or `\r` at or after `from`, or
 /// `None` when `chunk` has no more line terminators.
@@ -282,6 +305,32 @@ fn find_next_newline(chunk: &str, from: usize) -> Option<usize> {
 /// A bounded, side-effect-free incremental sanitizer session over built-in
 /// detectors. Custom detectors are not accepted: each has no retention
 /// declaration, so the session cannot bound what it must hold open.
+///
+/// # Examples
+///
+/// ```
+/// use secret_scan::{IncrementalLimits, IncrementalSanitizer, SessionState};
+///
+/// let (token, multiline) = (8_192, 16_384);
+/// let limits = IncrementalLimits::new(
+///     1 << 20,
+///     IncrementalLimits::minimum_buffered_bytes(token, multiline),
+///     token,
+///     multiline,
+/// )?;
+/// let mut session = IncrementalSanitizer::new(limits)?;
+///
+/// let mut output = String::new();
+/// // A value split across chunks is held until its detection window closes.
+/// for chunk in ["API_KEY=ghp_SYNTHETIC", "REVOKED00000000000000000000\ntail"] {
+///     output.push_str(session.append(chunk)?.text());
+/// }
+/// output.push_str(session.finalize()?.text());
+///
+/// assert_eq!(output, "API_KEY=<SECRET_1>\ntail");
+/// assert_eq!(session.state(), SessionState::Finalized);
+/// # Ok::<(), secret_scan::SecretScanError>(())
+/// ```
 pub struct IncrementalSanitizer {
     registry: DetectorRegistry,
     policy: Box<dyn IncrementalPolicy>,
@@ -505,7 +554,7 @@ impl IncrementalSanitizer {
             .filter(|finding| finding.action().replaces_text())
             .count();
 
-        Ok(IncrementalResult { text, findings })
+        Ok(IncrementalResult::new(text, findings))
     }
 
     /// Appends `chunk` to the logical input.
@@ -560,18 +609,16 @@ impl IncrementalSanitizer {
                 match self.process_unit() {
                     Ok(result) => {
                         self.finish_unit();
-                        emitted.push_str(&result.text);
-                        findings.extend(result.findings);
+                        let (text, unit_findings) = result.into_parts();
+                        emitted.push_str(&text);
+                        findings.extend(unit_findings);
                     }
                     Err(error) => return Err(self.fail_with(error)),
                 }
             }
             cursor = newline + 1;
         }
-        Ok(IncrementalResult {
-            text: emitted,
-            findings,
-        })
+        Ok(IncrementalResult::new(emitted, findings))
     }
 
     /// Supplies the end-of-input boundary, finalizing any remaining

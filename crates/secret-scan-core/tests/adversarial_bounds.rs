@@ -61,7 +61,7 @@ fn limits_for(fixture: &CanonicalFixture) -> IncrementalLimits {
     let construct = declared.max(1);
     IncrementalLimits::new(
         declared.max(fixture.input.len()),
-        construct + secret_scan::INCREMENTAL_LOOKAROUND_BYTES,
+        IncrementalLimits::minimum_buffered_bytes(construct, construct),
         construct,
         construct,
     )

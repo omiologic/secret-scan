@@ -19,6 +19,23 @@ select or authorize a release.
   boundaries; the documented overlap precedence; and sanitized errors with fixed
   public codes and messages. Built-in detectors, the default policy, and
   redaction are not ported yet.
+- Stabilized public Rust API for the `secret-scan` core crate: `scan_and_redact`
+  and a shared `ScanResult` (which `IncrementalResult` now names) alongside the
+  existing scan, redact, incremental, policy, formatter, finding, and sanitized
+  error APIs, all documented with runnable examples. Public ranges are UTF-8
+  byte offsets into the original input, including the findings returned with
+  redacted text.
+- The built-in detector registry and the incremental retention tuning are now
+  private: the built-in set is reached only through
+  `DetectorRegistry::with_built_in`, and `INCREMENTAL_LOOKAROUND_BYTES` is
+  replaced by `IncrementalLimits::minimum_buffered_bytes`.
+- `npm run rust:check` gained public-API, source-boundary, core-manifest-shape,
+  and package-content checks, so the core keeps no runtime I/O, no Cargo
+  features, and no binding-specific dependency, and the published package
+  carries only the library and its README. CI additionally builds the docs with
+  warnings denied and verifies that the published core package builds on its
+  own. The crates.io names `secret-scan` and `secret_scan` were rechecked on
+  2026-09-09 before the manifests were finalized.
 - Unified `@omiologic/secret-scan` npm package in `packages/javascript`: one
   typed API whose conditional `exports` select the Node N-API addon or the
   browser WebAssembly build, a shared `await initialize()` contract that gates

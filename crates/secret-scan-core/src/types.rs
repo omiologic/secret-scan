@@ -504,6 +504,66 @@ impl Finding {
     }
 }
 
+/// Sanitized text paired with the findings that produced it.
+///
+/// This is the result type of every API that redacts and reports in one
+/// call: [`scan_and_redact`](crate::scan_and_redact) for a whole input, and
+/// [`IncrementalSanitizer`](crate::IncrementalSanitizer) for a chunked
+/// session (where it is named [`IncrementalResult`](crate::IncrementalResult)).
+///
+/// [`findings`](Self::findings) keep the UTF-8 byte offsets of the
+/// **original** input ([`crate::RANGE_UNIT`]), not offsets into
+/// [`text`](Self::text): redaction changes lengths, so a range read against
+/// the sanitized text would select the wrong span. A caller that needs both
+/// must keep the original input alongside the result.
+///
+/// # Examples
+///
+/// ```
+/// use secret_scan::{DefaultPolicy, DetectorRegistry, default_placeholder_formatter, scan_and_redact};
+///
+/// let registry = DetectorRegistry::with_built_in([])?;
+/// let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000";
+/// let result = scan_and_redact(input, &registry, &DefaultPolicy, &default_placeholder_formatter)?;
+///
+/// let finding = &result.findings()[0];
+/// // The range indexes the original input, never `result.text()`.
+/// assert_eq!(&input[finding.range().start()..finding.range().end()], "ghp_SYNTHETICREVOKED00000000000000000000");
+/// assert_eq!(result.text(), "API_KEY=<SECRET_1>");
+/// # Ok::<(), secret_scan::SecretScanError>(())
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScanResult {
+    text: String,
+    findings: Vec<Finding>,
+}
+
+impl ScanResult {
+    /// Creates a result from its parts.
+    #[must_use]
+    pub(crate) const fn new(text: String, findings: Vec<Finding>) -> Self {
+        Self { text, findings }
+    }
+
+    /// The sanitized text.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// The findings, ordered by their offset in the original input.
+    #[must_use]
+    pub fn findings(&self) -> &[Finding] {
+        &self.findings
+    }
+
+    /// Consumes the result, returning its parts.
+    #[must_use]
+    pub fn into_parts(self) -> (String, Vec<Finding>) {
+        (self.text, self.findings)
+    }
+}
+
 /// Position information a whole-input policy receives.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PolicyContext {

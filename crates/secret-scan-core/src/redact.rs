@@ -18,6 +18,9 @@ pub const MAX_PLACEHOLDER_LENGTH: usize = 256;
 /// The default formatter: `<SECRET_N>`, `N` one-based among replaced
 /// findings.
 ///
+/// `N` counts only findings whose action replaces text, so `warn` and
+/// `allow` findings do not consume a number.
+///
 /// # Errors
 ///
 /// Never fails.
@@ -30,6 +33,10 @@ pub fn default_placeholder_formatter(
 
 /// A formatter that names the finding type: `<TYPE_NAME_N>`, upper-cased
 /// with `.` and `-` mapped to `_`.
+///
+/// The type name is a validated identifier
+/// ([`is_identifier`](crate::is_identifier)), never a matched value, so the
+/// placeholder cannot carry input.
 ///
 /// # Errors
 ///
@@ -131,6 +138,29 @@ fn ordered_and_disjoint<'a>(
 ///
 /// `findings` need not be pre-sorted or non-overlapping; this function
 /// establishes both before producing output.
+///
+/// # Examples
+///
+/// ```
+/// use secret_scan::{
+///     DefaultPolicy, DetectorRegistry, default_placeholder_formatter, redact, scan,
+///     typed_placeholder_formatter,
+/// };
+///
+/// let registry = DetectorRegistry::with_built_in([])?;
+/// let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000";
+/// let findings = scan(input, &registry, &DefaultPolicy)?;
+///
+/// assert_eq!(redact(input, &findings, &default_placeholder_formatter)?, "API_KEY=<SECRET_1>");
+/// assert_eq!(redact(input, &findings, &typed_placeholder_formatter)?, "API_KEY=<GITHUB_TOKEN_1>");
+///
+/// // A formatter is any `Fn(&Finding, &PlaceholderContext) -> Result<String, _>`.
+/// let by_type = |finding: &secret_scan::Finding, _: &secret_scan::PlaceholderContext| {
+///     Ok(format!("[{}]", finding.type_name()))
+/// };
+/// assert_eq!(redact(input, &findings, &by_type)?, "API_KEY=[github_token]");
+/// # Ok::<(), secret_scan::SecretScanError>(())
+/// ```
 ///
 /// # Errors
 ///

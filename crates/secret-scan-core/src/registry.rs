@@ -57,6 +57,27 @@ impl DetectorRegistry {
     /// Creates a registry holding every built-in detector in canonical
     /// order, followed by `custom` in the given order.
     ///
+    /// This is the only way to reach the built-in detectors: which ones
+    /// exist and how they are constructed is private, so it can change
+    /// without breaking a caller. Their order is not: it is the fourth
+    /// overlap tie breaker.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use secret_scan::{DefaultPolicy, DetectorRegistry, scan};
+    ///
+    /// let registry = DetectorRegistry::with_built_in([])?;
+    /// assert!(registry.contains("github-token"));
+    ///
+    /// let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000";
+    /// assert_eq!(scan(input, &registry, &DefaultPolicy)?.len(), 1);
+    ///
+    /// // An empty registry detects nothing; it is not the built-in set.
+    /// assert_eq!(scan(input, &DetectorRegistry::new(), &DefaultPolicy)?.len(), 0);
+    /// # Ok::<(), secret_scan::SecretScanError>(())
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`SecretScanErrorCode::InvalidDetector`] when a custom
