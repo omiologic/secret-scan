@@ -6,8 +6,8 @@
 //! no candidates. Values above 4 KiB are left to more specific detectors.
 
 use super::text::{
-    ascii_run_len, char_at, ends_with_ci, is_js_whitespace, is_line_start, skip_while_chars,
-    starts_with_ci,
+    ascii_run_len, char_at, ends_with_ci, is_js_whitespace, is_line_start, prev_char,
+    rskip_while_chars, skip_while_chars, starts_with_ci,
 };
 use crate::error::DetectorFailure;
 use crate::types::{ByteRange, Candidate, Confidence, Detector, DetectorContext, Specificity};
@@ -68,6 +68,69 @@ fn normalize_name(name: &str) -> String {
         });
     }
     out
+}
+
+fn is_open_assignment_boundary_char(ch: char) -> bool {
+    is_js_whitespace(ch) || matches!(ch, '{' | ',' | ';')
+}
+
+/// Internal retention hint for the built-in incremental scanner: `true` when
+/// the tail of `input` still looks like an in-progress contextual assignment
+/// whose name is high-signal or ambiguous, so a caller should keep holding
+/// the line open in case a bounded-entropy value follows. Mirrors
+/// `hasOpenContextualAssignment` in `src/detectors/generic-token.ts`
+/// (`decision-govern-cross-language-conformance`).
+///
+/// Unlike `ASSIGNMENT_PREFIX_PATTERN`'s multiline `^`, the boundary
+/// alternation here has no `m` flag in the TypeScript oracle: `^` anchors to
+/// the absolute start of `input`, which is exactly byte offset `0` of the
+/// slice this function receives.
+pub(crate) fn has_open_contextual_assignment(input: &str) -> bool {
+    let mut end = rskip_while_chars(input, input.len(), is_js_whitespace);
+
+    if let Some(ch) = prev_char(input, end)
+        && (ch == '=' || ch == ':')
+    {
+        end -= ch.len_utf8();
+        end = rskip_while_chars(input, end, is_js_whitespace);
+    }
+
+    if let Some(ch @ ('"' | '\'')) = prev_char(input, end) {
+        end -= ch.len_utf8();
+    }
+
+    let name_end = end;
+    let mut name_start = end;
+    while let Some(ch) = prev_char(input, name_start) {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '.' | '-') {
+            name_start -= ch.len_utf8();
+        } else {
+            break;
+        }
+    }
+    if name_start == name_end {
+        return false;
+    }
+    let Some(first) = char_at(input, name_start) else {
+        return false;
+    };
+    if !first.is_ascii_alphabetic() {
+        return false;
+    }
+
+    let mut boundary_pos = name_start;
+    if let Some(ch @ ('"' | '\'')) = prev_char(input, boundary_pos) {
+        boundary_pos -= ch.len_utf8();
+    }
+    let boundary_ok = boundary_pos == 0
+        || prev_char(input, boundary_pos).is_some_and(is_open_assignment_boundary_char);
+    if !boundary_ok {
+        return false;
+    }
+
+    let normalized = normalize_name(&input[name_start..name_end]);
+    HIGH_SIGNAL_NAMES.contains(&normalized.as_str())
+        || AMBIGUOUS_NAMES.contains(&normalized.as_str())
 }
 
 // --- non-secret reference exclusions -----------------------------------
@@ -565,5 +628,36 @@ mod tests {
             &token_input[start..end],
             "SYNTHETIC_REVOKED_TOKEN_VALUE_1234"
         );
+    }
+
+    #[test]
+    fn open_contextual_assignment_hint_recognizes_a_pending_high_signal_or_ambiguous_name() {
+        for open in [
+            "api_key",
+            "api_key=",
+            "api_key: ",
+            "\"api_key\"=",
+            "'api_key' = ",
+            "{api_key=",
+            "line one\napi_key:",
+            "AWS_SECRET_ACCESS_KEY=",
+            "auth",
+            "credential:",
+        ] {
+            assert!(has_open_contextual_assignment(open), "{open:?}");
+        }
+    }
+
+    #[test]
+    fn open_contextual_assignment_hint_rejects_resolved_or_low_signal_text() {
+        for closed in [
+            "",
+            "token=",
+            "xapi_key=",
+            "api_key=SYNTHETIC_REVOKED_CONTEXT_VALUE",
+            "plain text",
+        ] {
+            assert!(!has_open_contextual_assignment(closed), "{closed:?}");
+        }
     }
 }

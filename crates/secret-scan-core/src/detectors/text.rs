@@ -51,6 +51,20 @@ pub(super) fn skip_while_chars(input: &str, start: usize, pred: fn(char) -> bool
     cursor
 }
 
+/// Retreats `end` past every consecutive character matching `pred`, scanning
+/// backward from byte offset `end`.
+pub(super) fn rskip_while_chars(input: &str, end: usize, pred: fn(char) -> bool) -> usize {
+    let mut cursor = end;
+    while let Some(ch) = prev_char(input, cursor) {
+        if pred(ch) {
+            cursor -= ch.len_utf8();
+        } else {
+            break;
+        }
+    }
+    cursor
+}
+
 /// Length in bytes of the maximal run of `pred`-matching bytes starting at
 /// `start`. Every predicate used with this helper matches ASCII bytes only,
 /// so byte and character boundaries coincide.
