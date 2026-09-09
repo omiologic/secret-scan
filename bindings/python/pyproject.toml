@@ -16,6 +16,9 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
 [project.urls]
 Repository = "https://github.com/omiologic/secret-scan"
 
@@ -23,3 +26,7 @@ Repository = "https://github.com/omiologic/secret-scan"
 # Version comes from Cargo.toml (workspace version) to keep lockstep releases.
 features = ["extension-module"]
 module-name = "secret_scan._native"
+python-source = "python"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,77 @@
+"""Typing tests: the compiled extension's `.pyi` stub is syntactically
+valid, matches its runtime surface, and the public callables carry
+introspectable signatures a type checker (and `help()`) can read."""
+
+from __future__ import annotations
+
+import ast
+import inspect
+from pathlib import Path
+
+import secret_scan
+import secret_scan._native as native
+
+STUB_PATH = Path(native.__file__).with_name("_native.pyi")
+
+
+def test_native_stub_file_exists_and_parses() -> None:
+    assert STUB_PATH.is_file()
+    source = STUB_PATH.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(STUB_PATH))
+    assert isinstance(tree, ast.Module)
+
+
+def _stub_top_level_names() -> set[str]:
+    tree = ast.parse(STUB_PATH.read_text(encoding="utf-8"), filename=str(STUB_PATH))
+    names: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    names.add(target.id)
+    return names
+
+
+def test_every_public_native_name_has_a_stub_declaration() -> None:
+    stub_names = _stub_top_level_names()
+    for name in secret_scan.__all__:
+        if not hasattr(native, name):
+            continue  # re-exported from elsewhere, e.g. __version__
+        assert name in stub_names, f"{name} is missing from _native.pyi"
+
+
+def test_package_declares_pep_561_support() -> None:
+    package_dir = Path(secret_scan.__file__).parent
+    assert (package_dir / "py.typed").is_file()
+
+
+def test_functions_carry_introspectable_signatures() -> None:
+    expected = {
+        "scan": {"text", "policy"},
+        "redact": {"text", "findings", "formatter"},
+        "scan_and_redact": {"text", "policy", "formatter"},
+        "default_policy": {"finding", "context"},
+        "default_placeholder_formatter": {"finding", "context"},
+        "typed_placeholder_formatter": {"finding", "context"},
+    }
+    for name, params in expected.items():
+        signature = inspect.signature(getattr(secret_scan, name))
+        assert set(signature.parameters) == params, name
+
+
+def test_finding_and_context_types_expose_documented_attributes() -> None:
+    findings = secret_scan.scan(
+        "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000"
+    )
+    assert findings
+    finding = findings[0]
+    for attribute in ("id", "type", "detector", "confidence", "action", "start", "end"):
+        assert hasattr(finding, attribute)
+    assert isinstance(finding.start, int)
+    assert isinstance(finding.end, int)
+    assert isinstance(finding.confidence, str)
+    assert isinstance(finding.action, str)
