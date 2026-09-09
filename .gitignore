@@ -8,3 +8,13 @@
 
 # Rust build output
 /target/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# maturin builds the native extension in place for `maturin develop`
+/bindings/python/python/secret_scan/_native*.so
+/bindings/python/python/secret_scan/_native*.pyd
