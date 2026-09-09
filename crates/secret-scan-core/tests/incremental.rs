@@ -1,15 +1,22 @@
 //! Incremental sanitizer session tests, grouped by the areas the deliverable
-//! calls out: session-state, limit-boundary, open-construct, multiline, and
-//! progressive-emission.
+//! calls out: session-state, limit-boundary, open-construct, multiline,
+//! progressive-emission, final-findings, incremental-policy,
+//! callback-failure, and no-plaintext-diagnostics.
 //!
 //! Every input is synthetic; no test embeds a credential-shaped value that
 //! is not obviously a revoked fixture.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use secret_scan::{
-    Action, Finding, IncrementalLimits, IncrementalResult, IncrementalSanitizer,
-    SecretScanErrorCode, SessionState,
+    Action, DefaultPolicy, DetectedFinding, DetectorRegistry, Finding, FormatterFailure,
+    IncrementalLimits, IncrementalPolicy, IncrementalPolicyContext, IncrementalResult,
+    IncrementalSanitizer, MAX_PLACEHOLDER_LENGTH, PlaceholderContext, PlaceholderFormatter,
+    PolicyFailure, SecretScanError, SecretScanErrorCode, SessionState,
+    default_placeholder_formatter, redact, scan, typed_placeholder_formatter,
 };
 
 /// Generous limits for tests that are not exercising a specific boundary.
@@ -19,6 +26,24 @@ fn generous_limits() -> IncrementalLimits {
 
 fn session() -> IncrementalSanitizer {
     IncrementalSanitizer::new(generous_limits()).unwrap()
+}
+
+/// A session with generous limits and a caller-supplied policy and
+/// placeholder formatter.
+fn session_with(
+    policy: Box<dyn IncrementalPolicy>,
+    formatter: Box<dyn PlaceholderFormatter>,
+) -> IncrementalSanitizer {
+    IncrementalSanitizer::with_policy_and_formatter(generous_limits(), policy, formatter).unwrap()
+}
+
+/// The whole-input reference result: the synchronous pipeline over the same
+/// input with the default policy and the default placeholder formatter.
+fn whole_input(input: &str) -> (String, Vec<Finding>) {
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+    let findings = scan(input, &registry, &DefaultPolicy).unwrap();
+    let text = redact(input, &findings, &default_placeholder_formatter).unwrap();
+    (text, findings)
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +207,34 @@ fn multiline_limit_exceeded_fails_before_emitting_any_byte() {
     let error = sanitizer.append(&chunk).unwrap_err();
     assert_eq!(error.code(), SecretScanErrorCode::MultilineLimitExceeded);
     assert_eq!(sanitizer.state(), SessionState::Failed);
+}
+
+/// fixture: lifecycle-token-construct-accepted-at-exact-limit
+#[test]
+fn an_open_token_construct_exactly_at_its_limit_is_accepted() {
+    let limits = IncrementalLimits::new(512, 192, 32, 64).unwrap();
+    let mut sanitizer = IncrementalSanitizer::new(limits).unwrap();
+    let chunk = "x".repeat(limits.max_token_bytes());
+
+    assert_eq!(sanitizer.append(&chunk).unwrap().text(), "");
+    let result = sanitizer.finalize().unwrap();
+
+    assert_eq!(result.text(), chunk);
+    assert_eq!(sanitizer.state(), SessionState::Finalized);
+}
+
+#[test]
+fn an_open_multiline_construct_exactly_at_its_limit_is_accepted() {
+    let limits = IncrementalLimits::new(512, 256, 64, 128).unwrap();
+    let mut sanitizer = IncrementalSanitizer::new(limits).unwrap();
+    let chunk = format!("-----BEGIN PRIVATE KEY-----\n{}", "A".repeat(100));
+    assert_eq!(chunk.len(), limits.max_multiline_bytes());
+
+    assert_eq!(sanitizer.append(&chunk).unwrap().text(), "");
+    let result = sanitizer.finalize().unwrap();
+
+    assert_eq!(result.text(), chunk);
+    assert_eq!(sanitizer.state(), SessionState::Finalized);
 }
 
 // ---------------------------------------------------------------------------
@@ -370,4 +423,527 @@ fn whole_input_acceptance_is_independent_of_partitioning_for_a_multi_detector_in
     let (text, findings) = run(&[&input[..cut], &input[cut..]]);
     assert_eq!(text, baseline_text);
     assert_eq!(findings, baseline_findings);
+}
+
+// ---------------------------------------------------------------------------
+// final-findings
+// ---------------------------------------------------------------------------
+
+#[test]
+fn final_findings_reproduce_the_synchronous_ids_ordering_and_absolute_ranges() {
+    let chunks = [
+        "Authorization: Bearer SYNTHETIC_REVOKED_BEARER_VALUE_1234567890\n",
+        "api_key=SYNTHETIC_REVOKED_CONTEXT_VALUE\n",
+        "-----BEGIN PRIVATE KEY-----\n",
+        "U1lOVEhFVElDX1JFVk9LRUQ=\n",
+        "-----END PRIVATE KEY-----\n",
+    ];
+    let (expected_text, expected_findings) = whole_input(&chunks.concat());
+
+    let (text, findings) = run(&chunks);
+
+    assert_eq!(text, expected_text);
+    assert_eq!(findings, expected_findings);
+    let ids: Vec<&str> = findings.iter().map(Finding::id).collect();
+    assert_eq!(ids, ["finding-1", "finding-2", "finding-3"]);
+}
+
+#[test]
+fn absolute_ranges_are_offsets_into_the_whole_session_input() {
+    let first = "ordinary line\n";
+    let second = "api_key=SYNTHETIC_REVOKED_ABSOLUTE_VALUE\n";
+    let value = "SYNTHETIC_REVOKED_ABSOLUTE_VALUE";
+
+    let (_, findings) = run(&[first, second]);
+
+    let start = first.len() + second.find(value).unwrap();
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].range().start(), start);
+    assert_eq!(findings[0].range().end(), start + value.len());
+}
+
+#[test]
+fn absolute_ranges_count_utf8_bytes_and_not_characters() {
+    // Two characters, five UTF-8 bytes: a character-counting offset would
+    // report the finding three positions early.
+    let prefix = "🧪 ";
+    assert_eq!(prefix.len(), 5);
+    assert_eq!(prefix.chars().count(), 2);
+    let line = format!("{prefix}api_key=SYNTHETIC_REVOKED_ASTRAL_VALUE\n");
+    let value = "SYNTHETIC_REVOKED_ASTRAL_VALUE";
+
+    let (_, findings) = run(&[&line]);
+
+    let byte_start = line.find(value).unwrap();
+    let character_start = line.chars().take_while(|&c| c != 'S').count();
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].range().start(), byte_start);
+    assert_ne!(findings[0].range().start(), character_start);
+    assert_eq!(findings[0].range().end(), byte_start + value.len());
+}
+
+// ---------------------------------------------------------------------------
+// incremental-policy
+// ---------------------------------------------------------------------------
+
+/// What a recording callback observed, in call order.
+type CallbackLog<T> = Rc<RefCell<Vec<T>>>;
+
+/// One policy evaluation: the finding id, its absolute byte range, and the
+/// finalized index its context carried.
+type PolicyEvaluation = (String, usize, usize, usize);
+
+/// A policy that records what it is handed and always redacts.
+fn recording_policy() -> (Box<dyn IncrementalPolicy>, CallbackLog<PolicyEvaluation>) {
+    let seen: CallbackLog<PolicyEvaluation> = Rc::new(RefCell::new(Vec::new()));
+    let sink = Rc::clone(&seen);
+    let policy = move |finding: &DetectedFinding, context: &IncrementalPolicyContext| {
+        sink.borrow_mut().push((
+            finding.id().to_string(),
+            finding.range().start(),
+            finding.range().end(),
+            context.finding_index(),
+        ));
+        Ok(Action::Redact)
+    };
+    (Box::new(policy), seen)
+}
+
+#[test]
+fn the_policy_sees_every_final_finding_once_with_its_finalized_index() {
+    let (policy, seen) = recording_policy();
+    let mut sanitizer = session_with(policy, Box::new(default_placeholder_formatter));
+    let first = "api_key=SYNTHETIC_REVOKED_POLICY_ONE\n";
+    let second = "password=SYNTHETIC_REVOKED_POLICY_TWO";
+
+    sanitizer.append(first).unwrap();
+    sanitizer.append(second).unwrap();
+    sanitizer.finalize().unwrap();
+
+    assert_eq!(
+        *seen.borrow(),
+        vec![
+            (
+                "finding-1".to_string(),
+                first.find("SYNTHETIC").unwrap(),
+                first.len() - 1,
+                0,
+            ),
+            (
+                "finding-2".to_string(),
+                first.len() + second.find("SYNTHETIC").unwrap(),
+                first.len() + second.len(),
+                1,
+            ),
+        ]
+    );
+}
+
+#[test]
+fn the_policy_is_evaluated_once_per_finding_however_the_input_is_partitioned() {
+    let input = "api_key=SYNTHETIC_REVOKED_PARTITION_ONE\npassword=SYNTHETIC_REVOKED_PARTITION_TWO";
+    for split in 0..=input.len() {
+        if !input.is_char_boundary(split) {
+            continue;
+        }
+        let (policy, seen) = recording_policy();
+        let mut sanitizer = session_with(policy, Box::new(default_placeholder_formatter));
+        sanitizer.append(&input[..split]).unwrap();
+        sanitizer.append(&input[split..]).unwrap();
+        sanitizer.finalize().unwrap();
+
+        let indices: Vec<usize> = seen.borrow().iter().map(|entry| entry.3).collect();
+        assert_eq!(indices, [0, 1], "split at {split}");
+    }
+}
+
+#[test]
+fn the_policy_receives_only_safe_metadata() {
+    let value = "SYNTHETIC_REVOKED_METADATA_VALUE";
+    let rendered: CallbackLog<String> = Rc::new(RefCell::new(Vec::new()));
+    let sink = Rc::clone(&rendered);
+    let policy = move |finding: &DetectedFinding, context: &IncrementalPolicyContext| {
+        sink.borrow_mut().push(format!("{finding:?}|{context:?}"));
+        Ok(Action::Redact)
+    };
+    let mut sanitizer = session_with(Box::new(policy), Box::new(default_placeholder_formatter));
+
+    sanitizer.append(&format!("api_key={value}\n")).unwrap();
+
+    let rendered = rendered.borrow();
+    assert_eq!(rendered.len(), 1);
+    assert!(!rendered[0].contains(value));
+    assert!(rendered[0].contains("finding-1"));
+    assert!(rendered[0].contains("contextual_secret"));
+}
+
+#[test]
+fn the_incremental_policy_context_carries_nothing_but_the_finalized_index() {
+    let context = IncrementalPolicyContext::new(7);
+    assert_eq!(context.finding_index(), 7);
+    assert_eq!(
+        format!("{context:?}"),
+        "IncrementalPolicyContext { finding_index: 7 }"
+    );
+}
+
+#[test]
+fn the_default_incremental_policy_matches_the_default_whole_input_policy() {
+    let input = "api_key=SYNTHETIC_REVOKED_DEFAULT_POLICY\n-----BEGIN PRIVATE KEY-----\nU1lOVEhFVElDX1JFVk9LRUQ=\n-----END PRIVATE KEY-----\n";
+    let (expected_text, expected_findings) = whole_input(input);
+
+    let (text, findings) = run(&[input]);
+
+    assert_eq!(text, expected_text);
+    assert_eq!(
+        findings.iter().map(Finding::action).collect::<Vec<_>>(),
+        expected_findings
+            .iter()
+            .map(Finding::action)
+            .collect::<Vec<_>>()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// placeholder
+// ---------------------------------------------------------------------------
+
+#[test]
+fn placeholder_numbering_continues_from_append_into_finalize() {
+    let mut sanitizer = session();
+
+    let appended = sanitizer
+        .append("api_key=SYNTHETIC_REVOKED_PLACEHOLDER_ONE\n")
+        .unwrap();
+    let finalized = sanitizer
+        .append("password=SYNTHETIC_REVOKED_PLACEHOLDER_TWO")
+        .unwrap();
+    assert_eq!(finalized.text(), "");
+    let finalized = sanitizer.finalize().unwrap();
+
+    assert_eq!(appended.text(), "api_key=<SECRET_1>\n");
+    assert_eq!(finalized.text(), "password=<SECRET_2>");
+    assert_eq!(finalized.findings()[0].id(), "finding-2");
+}
+
+#[test]
+fn warn_and_allow_findings_keep_their_text_without_consuming_placeholder_numbers() {
+    let policy = |finding: &DetectedFinding, _: &IncrementalPolicyContext| {
+        Ok(match finding.id() {
+            "finding-1" => Action::Warn,
+            "finding-2" => Action::Allow,
+            _ => Action::Redact,
+        })
+    };
+    let mut sanitizer = session_with(Box::new(policy), Box::new(default_placeholder_formatter));
+
+    let warned = sanitizer
+        .append("api_key=SYNTHETIC_REVOKED_WARNED_VALUE\n")
+        .unwrap();
+    let allowed = sanitizer
+        .append("password=SYNTHETIC_REVOKED_ALLOWED_VALUE\n")
+        .unwrap();
+    let redacted = sanitizer
+        .append("client_secret=SYNTHETIC_REVOKED_REDACTED_VALUE\n")
+        .unwrap();
+
+    assert_eq!(warned.text(), "api_key=SYNTHETIC_REVOKED_WARNED_VALUE\n");
+    assert_eq!(allowed.text(), "password=SYNTHETIC_REVOKED_ALLOWED_VALUE\n");
+    assert_eq!(redacted.text(), "client_secret=<SECRET_1>\n");
+}
+
+#[test]
+fn the_formatter_receives_the_global_finding_and_the_session_placeholder_index() {
+    let seen: CallbackLog<(String, usize, usize)> = Rc::new(RefCell::new(Vec::new()));
+    let sink = Rc::clone(&seen);
+    let formatter = move |finding: &Finding, context: &PlaceholderContext| {
+        sink.borrow_mut().push((
+            finding.id().to_string(),
+            finding.range().start(),
+            context.placeholder_index(),
+        ));
+        Ok(format!("<REMOVED_{}>", context.placeholder_index()))
+    };
+    let mut sanitizer = session_with(Box::new(DefaultPolicy), Box::new(formatter));
+    let first = "api_key=SYNTHETIC_REVOKED_FORMATTER_ONE\n";
+    let second = "password=SYNTHETIC_REVOKED_FORMATTER_TWO\n";
+
+    assert_eq!(
+        sanitizer.append(first).unwrap().text(),
+        "api_key=<REMOVED_1>\n"
+    );
+    assert_eq!(
+        sanitizer.append(second).unwrap().text(),
+        "password=<REMOVED_2>\n"
+    );
+
+    assert_eq!(
+        *seen.borrow(),
+        vec![
+            ("finding-1".to_string(), first.find("SYNTHETIC").unwrap(), 1),
+            (
+                "finding-2".to_string(),
+                first.len() + second.find("SYNTHETIC").unwrap(),
+                2,
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_typed_formatter_numbers_placeholders_across_the_whole_session() {
+    let mut sanitizer = session_with(
+        Box::new(DefaultPolicy),
+        Box::new(typed_placeholder_formatter),
+    );
+
+    let first = sanitizer
+        .append("api_key=SYNTHETIC_REVOKED_TYPED_ONE\n")
+        .unwrap();
+    let second = sanitizer
+        .append("password=SYNTHETIC_REVOKED_TYPED_TWO\n")
+        .unwrap();
+
+    assert_eq!(first.text(), "api_key=<CONTEXTUAL_SECRET_1>\n");
+    assert_eq!(second.text(), "password=<CONTEXTUAL_SECRET_2>\n");
+}
+
+// ---------------------------------------------------------------------------
+// callback-failure
+// ---------------------------------------------------------------------------
+
+/// The value a failing callback is handed and must never leak back out.
+const CALLBACK_FAILURE_VALUE: &str = "SYNTHETIC_REVOKED_CALLBACK_FAILURE_VALUE";
+
+/// One failing-callback session, named by the failure class it provokes.
+fn failing_callback_sessions() -> Vec<(&'static str, SecretScanErrorCode, IncrementalSanitizer)> {
+    vec![
+        (
+            "policy failure",
+            SecretScanErrorCode::PolicyFailure,
+            session_with(
+                Box::new(|_: &DetectedFinding, _: &IncrementalPolicyContext| Err(PolicyFailure)),
+                Box::new(default_placeholder_formatter),
+            ),
+        ),
+        (
+            "formatter failure",
+            SecretScanErrorCode::PlaceholderFailure,
+            session_with(
+                Box::new(DefaultPolicy),
+                Box::new(|_: &Finding, _: &PlaceholderContext| Err(FormatterFailure)),
+            ),
+        ),
+        (
+            "placeholder reproducing the matched value",
+            SecretScanErrorCode::InvalidPlaceholder,
+            session_with(
+                Box::new(DefaultPolicy),
+                Box::new(|_: &Finding, _: &PlaceholderContext| {
+                    Ok(CALLBACK_FAILURE_VALUE.to_string())
+                }),
+            ),
+        ),
+        (
+            "empty placeholder",
+            SecretScanErrorCode::InvalidPlaceholder,
+            session_with(
+                Box::new(DefaultPolicy),
+                Box::new(|_: &Finding, _: &PlaceholderContext| Ok(String::new())),
+            ),
+        ),
+        (
+            "oversized placeholder",
+            SecretScanErrorCode::InvalidPlaceholder,
+            session_with(
+                Box::new(DefaultPolicy),
+                Box::new(|_: &Finding, _: &PlaceholderContext| {
+                    Ok("x".repeat(MAX_PLACEHOLDER_LENGTH + 1))
+                }),
+            ),
+        ),
+    ]
+}
+
+#[test]
+fn a_failing_callback_fails_the_session_with_its_own_code() {
+    for (name, code, mut sanitizer) in failing_callback_sessions() {
+        let error = sanitizer
+            .append(&format!("api_key={CALLBACK_FAILURE_VALUE}\n"))
+            .unwrap_err();
+
+        assert_eq!(error.code(), code, "{name}");
+        assert_eq!(sanitizer.state(), SessionState::Failed, "{name}");
+        assert_eq!(
+            sanitizer.append("ignored").unwrap_err().code(),
+            SecretScanErrorCode::InvalidState,
+            "{name}"
+        );
+        assert_eq!(
+            sanitizer.finalize().unwrap_err().code(),
+            SecretScanErrorCode::InvalidState,
+            "{name}"
+        );
+        assert_eq!(
+            sanitizer.abort().unwrap_err().code(),
+            SecretScanErrorCode::InvalidState,
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn a_callback_that_fails_at_finalize_never_releases_the_retained_unit() {
+    for (name, code, mut sanitizer) in failing_callback_sessions() {
+        // No line terminator: the construct stays open until finalize.
+        let held = sanitizer
+            .append(&format!("api_key={CALLBACK_FAILURE_VALUE}"))
+            .unwrap();
+        assert_eq!(held.text(), "", "{name}");
+        assert!(held.findings().is_empty(), "{name}");
+
+        let error = sanitizer.finalize().unwrap_err();
+
+        assert_eq!(error.code(), code, "{name}");
+        assert_eq!(sanitizer.state(), SessionState::Failed, "{name}");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// no-plaintext-diagnostics
+// ---------------------------------------------------------------------------
+
+#[test]
+fn no_callback_failure_diagnostic_carries_the_value_it_was_handed() {
+    for (name, _, mut sanitizer) in failing_callback_sessions() {
+        let input = format!("api_key={CALLBACK_FAILURE_VALUE}\n");
+
+        let error = sanitizer.append(&input).unwrap_err();
+
+        for rendered in [
+            error.to_string(),
+            format!("{error:?}"),
+            error.message().to_string(),
+            format!("{sanitizer:?}"),
+        ] {
+            assert!(
+                !rendered.contains(CALLBACK_FAILURE_VALUE),
+                "{name}: {rendered}"
+            );
+            assert!(!rendered.contains(&input), "{name}: {rendered}");
+        }
+    }
+}
+
+/// The documented failure classes of an incremental session, each with its
+/// own code. Extending this list is a public-contract change.
+const INCREMENTAL_FAILURE_CODES: [SecretScanErrorCode; 10] = [
+    SecretScanErrorCode::DetectorFailure,
+    SecretScanErrorCode::PolicyFailure,
+    SecretScanErrorCode::PlaceholderFailure,
+    SecretScanErrorCode::InvalidPlaceholder,
+    SecretScanErrorCode::InvalidLimits,
+    SecretScanErrorCode::InputLimitExceeded,
+    SecretScanErrorCode::BufferLimitExceeded,
+    SecretScanErrorCode::TokenLimitExceeded,
+    SecretScanErrorCode::MultilineLimitExceeded,
+    SecretScanErrorCode::InvalidState,
+];
+
+#[test]
+fn every_incremental_failure_class_has_its_own_fixed_input_free_code() {
+    let mut distinct = INCREMENTAL_FAILURE_CODES;
+    distinct.sort_unstable();
+    let mut deduplicated = distinct.to_vec();
+    deduplicated.dedup();
+    assert_eq!(deduplicated.len(), INCREMENTAL_FAILURE_CODES.len());
+
+    for code in INCREMENTAL_FAILURE_CODES {
+        let error = SecretScanError::new(code);
+        assert_eq!(error.code(), code);
+        assert!(!error.message().is_empty());
+        assert_eq!(error.to_string(), code.message());
+        // The error is its code and nothing else, so no diagnostic can carry
+        // input, a candidate, or a matched value.
+        assert_eq!(std::mem::size_of_val(&error), 1);
+    }
+}
+
+#[test]
+fn each_failing_callback_reports_one_of_the_documented_failure_codes() {
+    for (name, code, _) in failing_callback_sessions() {
+        assert!(INCREMENTAL_FAILURE_CODES.contains(&code), "{name}");
+    }
+}
+
+/// Replays `chunks` through a fresh session with `limits` and then finalizes
+/// it, returning the text emitted up to the first failure, that failure's
+/// code (`None` when the whole replay succeeded), and the terminal state.
+fn run_until_failure(
+    limits: IncrementalLimits,
+    chunks: &[&str],
+) -> (String, Option<SecretScanErrorCode>, SessionState) {
+    let mut sanitizer = IncrementalSanitizer::new(limits).unwrap();
+    let mut emitted = String::new();
+    for chunk in chunks {
+        match sanitizer.append(chunk) {
+            Ok(result) => emitted.push_str(result.text()),
+            Err(error) => return (emitted, Some(error.code()), sanitizer.state()),
+        }
+    }
+    match sanitizer.finalize() {
+        Ok(result) => emitted.push_str(result.text()),
+        Err(error) => return (emitted, Some(error.code()), sanitizer.state()),
+    }
+    (emitted, None, sanitizer.state())
+}
+
+#[test]
+fn a_limit_failure_emits_the_same_safe_error_however_the_input_is_partitioned() {
+    let limits = IncrementalLimits::new(512, 192, 64, 64).unwrap();
+    let input = format!("ordinary\r\napi_key=SYNTHETIC_REVOKED_{}", "X".repeat(48));
+
+    let mut partitions: Vec<Vec<&str>> = (0..=input.len())
+        .filter(|&split| input.is_char_boundary(split))
+        .map(|split| vec![&input[..split], &input[split..]])
+        .collect();
+    partitions.push(
+        (0..input.len())
+            .map(|index| &input[index..=index])
+            .collect(),
+    );
+
+    for chunks in partitions {
+        let (emitted, code, state) = run_until_failure(limits, &chunks);
+
+        assert_eq!(code, Some(SecretScanErrorCode::TokenLimitExceeded));
+        assert_eq!(state, SessionState::Failed);
+        // A failing `append` returns no text at all, so how much of the
+        // already-closed prefix was handed back depends on which chunk
+        // failed. What may never vary is that only closed prefix bytes are
+        // ever emitted.
+        assert!("ordinary\r\n".starts_with(&emitted), "emitted {emitted:?}");
+        assert!(!emitted.contains("SYNTHETIC_REVOKED_"));
+    }
+}
+
+#[test]
+fn an_aborted_session_never_emits_the_construct_it_was_holding() {
+    let value = "SYNTHETIC_REVOKED_ABORTED_VALUE";
+    let mut sanitizer = session();
+
+    let emitted = sanitizer.append("ordinary line\n").unwrap();
+    let held = sanitizer.append(&format!("api_key={value}")).unwrap();
+    sanitizer.abort().unwrap();
+
+    assert_eq!(emitted.text(), "ordinary line\n");
+    assert_eq!(held.text(), "");
+    assert!(held.findings().is_empty());
+    assert_eq!(sanitizer.state(), SessionState::Aborted);
+    for rendered in [
+        format!("{sanitizer:?}"),
+        sanitizer.finalize().unwrap_err().to_string(),
+    ] {
+        assert!(!rendered.contains(value), "{rendered}");
+    }
 }
