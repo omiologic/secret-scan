@@ -3,31 +3,32 @@
 //! The order of the list returned by [`built_in_detectors`] is a public
 //! contract: it is the registry order used as an overlap tie breaker, so it
 //! must match the TypeScript oracle and the conformance corpus. This module
-//! currently carries every qualified provider-token detector (AWS, GitHub,
-//! GitLab, `OpenAI`, Anthropic, Shopify, Vault, Stripe, Slack, `PyPI`, Hugging
-//! Face, Docker, Cloudflare, `DigitalOcean`, Linear, Supabase, and Vercel).
-//! The private-key, structural, contextual, and entropy detectors are
-//! ported in follow-up work; their positions in the TypeScript oracle's
-//! `builtInDetectors` array surround this block without interleaving it, so
-//! adding them later only requires splicing entries in, not reordering
-//! these.
+//! currently carries the private-key and connection-string parsers plus every
+//! qualified provider-token detector. JWT, bearer, contextual, and entropy
+//! detectors are ported in follow-up work; their positions in the TypeScript
+//! oracle's `builtInDetectors` array do not require reordering these entries.
 
 mod additional_providers;
 mod anthropic;
 mod aws;
+mod connection_string;
 mod github;
 mod gitlab;
 mod openai;
 mod pattern;
+mod private_key;
 mod shopify;
 mod vault;
 
 use crate::types::Detector;
+use connection_string::ConnectionStringDetector;
+use private_key::PrivateKeyDetector;
 
 /// Every built-in detector, in canonical registration order.
 #[must_use]
 pub fn built_in_detectors() -> Vec<Box<dyn Detector>> {
     vec![
+        Box::new(PrivateKeyDetector),
         Box::new(aws::AwsAccessKeyDetector),
         Box::new(github::GitHubTokenDetector),
         Box::new(gitlab::GitlabTokenDetector),
@@ -45,6 +46,7 @@ pub fn built_in_detectors() -> Vec<Box<dyn Detector>> {
         Box::new(additional_providers::LINEAR),
         Box::new(additional_providers::SUPABASE),
         Box::new(additional_providers::VERCEL),
+        Box::new(ConnectionStringDetector),
     ]
 }
 
@@ -72,6 +74,7 @@ mod tests {
         assert_eq!(
             ids,
             vec![
+                "private-key",
                 "aws-access-key",
                 "github-token",
                 "gitlab-token",
@@ -89,6 +92,7 @@ mod tests {
                 "linear-token",
                 "supabase-token",
                 "vercel-token",
+                "connection-string",
             ]
         );
     }
