@@ -2,22 +2,22 @@
 //!
 //! The order of the list returned by [`built_in_detectors`] is a public
 //! contract: it is the registry order used as an overlap tie breaker, so it
-//! must match the TypeScript oracle and the conformance corpus. This module
-//! currently carries the private-key and connection-string parsers plus every
-//! qualified provider-token detector. JWT, bearer, contextual, and entropy
-//! detectors are ported in follow-up work; their positions in the TypeScript
-//! oracle's `builtInDetectors` array do not require reordering these entries.
+//! must match the TypeScript oracle and the conformance corpus.
 
 mod additional_providers;
 mod anthropic;
 mod aws;
+mod bearer_token;
 mod connection_string;
+mod generic_token;
 mod github;
 mod gitlab;
+mod jwt;
 mod openai;
 mod pattern;
 mod private_key;
 mod shopify;
+mod text;
 mod vault;
 
 use crate::types::Detector;
@@ -46,7 +46,10 @@ pub fn built_in_detectors() -> Vec<Box<dyn Detector>> {
         Box::new(additional_providers::LINEAR),
         Box::new(additional_providers::SUPABASE),
         Box::new(additional_providers::VERCEL),
+        jwt::jwt_detector(),
+        bearer_token::bearer_token_detector(),
         Box::new(ConnectionStringDetector),
+        generic_token::generic_token_detector(),
     ]
 }
 
@@ -92,7 +95,10 @@ mod tests {
                 "linear-token",
                 "supabase-token",
                 "vercel-token",
+                "jwt",
+                "bearer-token",
                 "connection-string",
+                "generic-token",
             ]
         );
     }
