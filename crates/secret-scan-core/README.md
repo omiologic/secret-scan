@@ -52,21 +52,25 @@ documentation, inside a function that returns `Result`.)
 | Scan | `scan`, `run_detector_pipeline` |
 | Redact | `redact`, `MAX_PLACEHOLDER_LENGTH` |
 | Scan and redact | `scan_and_redact` |
-| Incremental | `IncrementalSanitizer`, `IncrementalLimits`, `SessionState` |
+| Incremental | `IncrementalSanitizer`, `IncrementalLimits`, `SessionState`, `IncrementalPolicy`, `IncrementalPolicyContext` |
 | Policy | `Policy`, `PolicyContext`, `DefaultPolicy`, `Action` |
 | Formatter | `PlaceholderFormatter`, `PlaceholderContext`, `default_placeholder_formatter`, `typed_placeholder_formatter` |
 | Finding | `Finding`, `DetectedFinding`, `ByteRange`, `Confidence`, `Specificity` |
 | Result | `ScanResult`, `IncrementalResult` |
-| Sanitized error | `SecretScanError`, `SecretScanErrorCode` |
-| Custom detectors | `Detector`, `Candidate`, `DetectorContext`, `DetectorRegistry` |
+| Sanitized error | `SecretScanError`, `SecretScanErrorCode`, `DetectorFailure`, `PolicyFailure`, `FormatterFailure` |
+| Custom detectors | `Detector`, `Candidate`, `DetectorContext`, `DetectorRegistry`, `RegisteredDetector` |
+| Identifiers and units | `is_identifier`, `MAX_IDENTIFIER_LENGTH`, `RANGE_UNIT`, `VERSION` |
+| Detector building blocks | `shannon_entropy` |
 
-Everything else is private. The built-in detector set is reached only through
-`DetectorRegistry::with_built_in`, and the incremental retention tuning is
-derived through `IncrementalLimits::minimum_buffered_bytes` rather than
-exposed as a constant, so both can change without breaking a caller.
+That table is the whole surface — it lists every name the crate root exports.
+Everything else is private. In particular, the built-in detector set is
+reached only through `DetectorRegistry::with_built_in`, and the incremental
+retention tuning is derived through
+`IncrementalLimits::minimum_buffered_bytes` rather than exposed as a
+constant, so both can change without breaking a caller.
 
 `[workspace.metadata.secret-scan] core-public-api` in the root `Cargo.toml`
-lists that surface name by name, and
+repeats that surface name by name, and
 `crates/secret-scan-core/tests/public_api.rs` exercises each one through a
 `secret_scan::` path — so a name cannot join or leave the API without a
 reviewed manifest change.

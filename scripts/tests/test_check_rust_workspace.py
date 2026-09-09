@@ -18,7 +18,14 @@ SPEC.loader.exec_module(CHECK)
 VERSION = "0.1.0-beta.1"
 MSRV = "1.88"
 
-CORE_LIB = """#![forbid(unsafe_code)]
+CORE_LIB = """//! # Public surface
+//!
+//! | Concern | API |
+//! | --- | --- |
+//! | Scan | [`scan`], [`Finding`] |
+//! | Version | [`VERSION`] |
+
+#![forbid(unsafe_code)]
 
 mod types;
 
@@ -260,6 +267,37 @@ class RustWorkspaceCheckTests(unittest.TestCase):
     def test_a_test_module_is_not_part_of_the_public_surface(self) -> None:
         self.assertEqual(self.run_check(), [])
         self.assertNotIn("NotPublic", CHECK.exported_names(CORE_LIB))
+
+    def test_an_export_missing_from_the_documented_table_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write(
+                "crates/secret-scan-core/src/lib.rs",
+                CORE_LIB.replace("//! | Version | [`VERSION`] |\n", ""),
+            )
+
+        errors = self.run_check(configure)
+        self.assertTrue(
+            any("VERSION is public but absent from the documented public-surface table" in error for error in errors),
+            errors,
+        )
+
+    def test_a_table_entry_that_is_not_public_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write(
+                "crates/secret-scan-core/src/lib.rs",
+                CORE_LIB.replace("[`VERSION`] |", "[`VERSION`], [`Gone`] |"),
+            )
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("table cites Gone" in error for error in errors), errors)
+
+    def test_a_crate_root_without_a_surface_table_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            body = CORE_LIB[CORE_LIB.index("#![forbid") :]
+            workspace.write("crates/secret-scan-core/src/lib.rs", body)
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("must carry a public-surface table" in error for error in errors), errors)
 
     def test_missing_public_api_policy_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:

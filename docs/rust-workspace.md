@@ -88,11 +88,15 @@ The core crate is the published library, so its surface is pinned in three
 places that must agree:
 
 - `crates/secret-scan-core/src/lib.rs` declares it. Every module below the
-  crate root is private; the crate root re-exports the names that are public.
+  crate root is private; the crate root re-exports the names that are public,
+  and its documentation opens with a "Public surface" table that names them
+  all.
 - `[workspace.metadata.secret-scan] core-public-api` in the root `Cargo.toml`
   lists those names. `npm run rust:check` fails when the crate root exports a
-  name the list does not carry, or the list names an export that is gone — so
-  a change to the published surface is always a reviewed manifest change.
+  name the list does not carry, when the list names an export that is gone,
+  and when the documented table and the list disagree in either direction —
+  so a change to the published surface is always a reviewed manifest change,
+  and the documentation cannot quietly fall behind it.
 - `crates/secret-scan-core/tests/public_api.rs` uses every one of them
   through a `secret_scan::` path, the way a dependent crate does, and pins
   the range contract, the `scan_and_redact` ≡ `scan` + `redact` equivalence

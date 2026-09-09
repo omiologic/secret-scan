@@ -14,9 +14,10 @@ Checks, in order:
 4. MSRV: the declared ``rust-version`` is inherited by every member, is at
    least the highest ``rust-version`` required by any resolved dependency, and
    matches the ``MSRV`` value exercised by the CI workflow.
-5. Public API: the names the core crate root exports match
-   ``core-public-api`` exactly, so nothing joins or leaves the published
-   surface without a manifest change to review.
+5. Public API: the names the core crate root exports, and the names its
+   documented "Public surface" table cites, both match ``core-public-api``
+   exactly — so nothing joins or leaves the published surface without a
+   manifest change to review, and the documentation cannot fall behind it.
 6. Source boundary: no core source names a runtime I/O, environment,
    process, clock, or thread facility, and no core source reaches for a
    binding crate. This is the compile-time half of the "no runtime I/O"
@@ -57,6 +58,11 @@ LOCKSTEP_MANIFESTS = ("package.json", "bindings/node/package.json")
 PUB_USE = re.compile(r"^pub use\s+(?P<path>[^;]+);", re.M)
 PUB_ITEM = re.compile(r"^pub (?:mod|const|fn|struct|enum|trait|type)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)", re.M)
 TEST_MODULE = re.compile(r"^#\[cfg\(test\)\]", re.M)
+
+# Rows of the "Public surface" table in the crate-root documentation, and the
+# `[`Name`]` / `Name` items they cite.
+DOC_TABLE_ROW = re.compile(r"^//! \|.*\|$", re.M)
+DOC_TABLE_ITEM = re.compile(r"`([A-Za-z_][A-Za-z0-9_]*)`")
 
 # Facilities a side-effect-free core must never name. `env!` is deliberately
 # absent: it is resolved by the compiler and reads nothing at runtime.
@@ -272,13 +278,28 @@ def check_core_public_api(root: Path, metadata: dict, policy: dict) -> list[str]
     if not source_path.is_file():
         return [f"{source_path.relative_to(root)}: missing core crate root"]
 
-    found = exported_names(source_path.read_text(encoding="utf-8"))
+    source = source_path.read_text(encoding="utf-8")
+    relative = source_path.relative_to(root)
+    found = exported_names(source)
     expected = set(declared)
     errors = []
     for name in sorted(found - expected):
-        errors.append(f"{source_path.relative_to(root)}: {name} is public but not in core-public-api")
+        errors.append(f"{relative}: {name} is public but not in core-public-api")
     for name in sorted(expected - found):
         errors.append(f"Cargo.toml: core-public-api lists {name}, which the core crate root does not export")
+
+    # The crate-root documentation claims its table is the whole surface, so
+    # the table has to carry every name — an omission there is a false claim,
+    # not a formatting nit.
+    documented: set[str] = set()
+    for row in DOC_TABLE_ROW.findall(source):
+        documented |= set(DOC_TABLE_ITEM.findall(row))
+    if not documented:
+        errors.append(f"{relative}: the crate documentation must carry a public-surface table")
+    for name in sorted(expected - documented):
+        errors.append(f"{relative}: {name} is public but absent from the documented public-surface table")
+    for name in sorted(documented - expected):
+        errors.append(f"{relative}: the public-surface table cites {name}, which is not in core-public-api")
     return errors
 
 
