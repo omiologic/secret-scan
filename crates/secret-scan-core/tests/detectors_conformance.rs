@@ -1,34 +1,12 @@
-//! Representative cases from the shared conformance corpus
-//! (`conformance/fixtures/synchronous-corpus.json`) for the detectors this
-//! crate ships: `jwt`, `bearer-token`, and `generic-token`. Fixture ids are
-//! named in each test so they can be cross-referenced against the corpus.
+//! Representative overlap cases from the shared conformance corpus
+//! (`conformance/fixtures/synchronous-corpus.json`). Fixture ids are named in
+//! each test so they can be cross-referenced against the corpus.
 //!
 //! Every input is synthetic; no test embeds a credential-shaped value.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use secret_scan::{
-    ByteRange, Candidate, Confidence, Detector, DetectorContext, DetectorFailure, DetectorRegistry,
-    Specificity, run_detector_pipeline,
-};
-
-/// A detector that emits a fixed candidate list regardless of input, used to
-/// stand in for a provider detector not yet ported (`decision-govern-cross-language-conformance`
-/// scopes this crate to jwt/bearer-token/generic-token for now).
-struct Fixed {
-    id: &'static str,
-    candidates: Vec<Candidate>,
-}
-
-impl Detector for Fixed {
-    fn id(&self) -> &str {
-        self.id
-    }
-
-    fn detect(&self, _: &str, _: &DetectorContext) -> Result<Vec<Candidate>, DetectorFailure> {
-        Ok(self.candidates.clone())
-    }
-}
+use secret_scan::{ByteRange, Confidence, DetectorRegistry, run_detector_pipeline};
 
 fn range(start: usize, end: usize) -> ByteRange {
     ByteRange::new(start, end).unwrap()
