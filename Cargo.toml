@@ -149,6 +149,38 @@ core-package-globs = [
 ]
 core-package-required = ["Cargo.toml", "README.md", "src/lib.rs"]
 
+# The CPython packaging contract for `bindings/python`, enforced by
+# `scripts/check-python-package.py`. `bindings/python/pyproject.toml` and
+# `.github/workflows/python-wheels.yml` must agree with every value here, so
+# the distribution name, the abi3 floor, and the wheel matrix can only change
+# in a reviewed manifest change. See docs/python-packaging.md.
+#
+# `python-distribution` is the PyPI name, which is not the product name: PyPI
+# `secret-scan` belongs to an unrelated project, so this is the registry
+# fallback of `decision-release-bindings-in-lockstep`. `python-import-name` is
+# the product name and does not move with it.
+python-distribution = "omiologic-secret-scan"
+python-import-name = "secret_scan"
+python-native-module = "secret_scan._native"
+# One abi3 wheel per platform serves every CPython from this floor upward, so
+# the Cargo feature and the `requires-python` floor are the same statement and
+# must not drift apart.
+python-abi3-feature = "abi3-py310"
+python-requires = ">=3.10"
+python-wheel-tag = "cp310-abi3"
+# Every target a release candidate must build and smoke-test a wheel for. A
+# target leaves this list only by dropping a supported platform.
+python-wheel-targets = [
+  "aarch64-apple-darwin",
+  "aarch64-pc-windows-msvc",
+  "aarch64-unknown-linux-gnu",
+  "aarch64-unknown-linux-musl",
+  "x86_64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+]
+
 [profile.release]
 codegen-units = 1
 lto = "fat"

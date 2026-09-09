@@ -108,13 +108,15 @@ The binding and package layout is:
 | `crates/secret-scan-cli` | Process arguments, files, standard streams, output, and exit codes | `secret-scan` binary |
 | `bindings/node` | N-API conversion between Node.js and the Rust core | Private input to the npm package |
 | `bindings/wasm` | `wasm-bindgen` conversion between browsers and the Rust core | Private input to the npm package |
-| `bindings/python` | PyO3 extension and Python-facing package surface | Python distribution |
+| `bindings/python` | PyO3 extension and Python-facing package surface | PyPI `omiologic-secret-scan`, imported as `secret_scan` |
 | `packages/javascript` | One typed API with runtime-specific loading | `@omiologic/secret-scan` |
 | `conformance` | Language-neutral behavioral fixtures and schema | Repository contract, not a package |
 
 Detailed workspace dependency, lint, unsafe-code, MSRV, public-API,
 package-content, and registry-name policies live in
-[docs/rust-workspace.md](./docs/rust-workspace.md).
+[docs/rust-workspace.md](./docs/rust-workspace.md). The CPython distribution's
+identity, abi3 contract, wheel matrix, and artifact qualification live in
+[docs/python-packaging.md](./docs/python-packaging.md).
 
 ## Canonical processing pipeline
 
@@ -205,8 +207,11 @@ The browser graph must not resolve Node built-ins, and Node consumers are not
 forced through browser-oriented WebAssembly glue.
 
 Python uses PyO3 and maturin. Supported wheels target CPython 3.10+ through the
-abi3 contract on qualified Linux, macOS, and Windows targets; source installs
-require Rust when no wheel applies. Rust consumers use the library crate
+abi3 contract on qualified manylinux, musllinux, macOS, and Windows targets in
+both x64 and arm64; source installs require Rust when no wheel applies. Every
+wheel is built and smoke-tested on the architecture it targets, and installed
+with no index, no dependency, and no source fallback, so a passing install is
+itself the evidence that no Rust toolchain was needed. Rust consumers use the library crate
 directly. The CLI is a host adapter over the same core, never another detector.
 
 ## Incremental and streaming behavior
