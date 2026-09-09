@@ -715,6 +715,12 @@ Every confirmed false positive or false negative is converted to a permanent
 synthetic regression. Submitted credential material is discarded and is never
 copied, transformed, encoded, hashed, logged, or included in diagnostics.
 
+The top-level, language-neutral canonical fixture schema and its UTF-8 byte
+offset range model live in [`conformance/`](./conformance/README.md), per
+`decision-govern-cross-language-conformance`. `scripts/migrate-conformance-corpus.ts`
+is migration tooling that converts this TypeScript corpus into that canonical
+schema; it is not itself the canonical source.
+
 ## Browser UX integration
 
 The initial core package should not provide UI components. Consumers can build
