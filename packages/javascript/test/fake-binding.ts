@@ -1,0 +1,113 @@
+/**
+ * A minimal stand-in for a loaded binding.
+ *
+ * The N-API addon and the WebAssembly artifact are built and published in
+ * lockstep with this package and are not present in a source checkout, so the
+ * lifecycle and normalization contracts are exercised against this recorded
+ * double instead. It implements the internal binding contract exactly, so a
+ * change to that contract breaks these tests rather than passing silently.
+ */
+
+import { VERSION } from "../src/version.js";
+import type {
+  NativeBinding,
+  NativeFinding,
+  NativeIncrementalSanitizer,
+} from "../src/native.js";
+import type { IncrementalSanitizerState } from "../src/types.js";
+
+export interface FakeBindingOptions {
+  readonly version?: string;
+  readonly findings?: readonly NativeFinding[];
+  readonly redacted?: string;
+  readonly throwOnScan?: unknown;
+  readonly throwOnInitialize?: unknown;
+}
+
+export interface FakeBinding extends NativeBinding {
+  readonly calls: string[];
+}
+
+export function createFakeBinding(
+  options: FakeBindingOptions = {},
+): FakeBinding {
+  const calls: string[] = [];
+  const findings = options.findings ?? [];
+  const redacted = options.redacted ?? "<SECRET_1>";
+
+  function session(): NativeIncrementalSanitizer {
+    let state: IncrementalSanitizerState = "accepting";
+    function requireAccepting(): void {
+      if (state !== "accepting") {
+        throw Object.assign(
+          new Error("The incremental sanitizer is no longer accepting input."),
+          { code: "INVALID_STATE" },
+        );
+      }
+    }
+    return {
+      get state() {
+        return state;
+      },
+      append: (chunk: string) => {
+        requireAccepting();
+        calls.push(`append:${chunk.length}`);
+        return { text: chunk, findings: [] };
+      },
+      finalize: () => {
+        requireAccepting();
+        state = "finalized";
+        return { text: "", findings };
+      },
+      abort: () => {
+        requireAccepting();
+        calls.push("abort");
+        state = "aborted";
+      },
+    };
+  }
+
+  return {
+    calls,
+    version: () => options.version ?? VERSION,
+    initialize: () => {
+      calls.push("initialize");
+      if (options.throwOnInitialize !== undefined) {
+        throw options.throwOnInitialize;
+      }
+    },
+    scan: (input, policy) => {
+      calls.push(`scan:${input}:${policy === undefined ? "builtin" : "custom"}`);
+      if (options.throwOnScan !== undefined) throw options.throwOnScan;
+      return findings;
+    },
+    redact: (input, given, formatter) => {
+      calls.push(
+        `redact:${input}:${given.length}:${formatter === undefined ? "builtin" : "custom"}`,
+      );
+      return redacted;
+    },
+    scanAndRedact: (input, policy, formatter) => {
+      calls.push(
+        `scanAndRedact:${input}:${policy === undefined ? "builtin" : "custom"}:${formatter === undefined ? "builtin" : "custom"}`,
+      );
+      return { text: redacted, findings };
+    },
+    createIncrementalSanitizer: (incrementalOptions) => {
+      calls.push(
+        `createIncrementalSanitizer:${incrementalOptions.limits.maxInputCodeUnits}`,
+      );
+      return session();
+    },
+  };
+}
+
+export const sampleFinding: NativeFinding = Object.freeze({
+  id: "finding-1",
+  type: "contextual_secret",
+  detector: "generic-token",
+  confidence: "high",
+  action: "redact",
+  start: 8,
+  end: 39,
+});

@@ -1,0 +1,47 @@
+{
+  "name": "@omiologic/secret-scan",
+  "description": "Deterministic secret detection and redaction for browser and server JavaScript/TypeScript applications.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omiologic/secret-scan.git",
+    "directory": "packages/javascript"
+  },
+  "homepage": "https://github.com/omiologic/secret-scan#readme",
+  "bugs": {
+    "url": "https://github.com/omiologic/secret-scan/issues"
+  },
+  "keywords": [
+    "secret-detection",
+    "redaction",
+    "security",
+    "browser",
+    "node"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#native": {
+      "node": "./dist/runtime/node.js",
+      "browser": "./dist/runtime/browser.js",
+      "default": "./dist/runtime/browser.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=20"
+  },
+  "version": "0.1.0-beta.1"
+}

@@ -1,0 +1,149 @@
+/**
+ * The compile-time half of the package contract. `tsc --project
+ * packages/javascript/test/tsconfig.json` is the assertion: nothing here runs.
+ *
+ * It proves what a runtime test cannot — that findings are immutable in the
+ * declarations, that offsets are documented UTF-16 numbers, that the internal
+ * modules and any custom detector surface are absent, and that a consumer can
+ * write the documented calls without reaching for `any`.
+ */
+
+import * as publicApi from "../src/index.js";
+import {
+  createIncrementalSanitizer,
+  defaultPlaceholderFormatter,
+  initialize,
+  RANGE_UNIT,
+  redact,
+  scan,
+  scanAndRedact,
+  SecretScanError,
+  typedPlaceholderFormatter,
+  VERSION,
+} from "../src/index.js";
+import type {
+  DetectedSecretFinding,
+  IncrementalSanitizer,
+  IncrementalSanitizerOptions,
+  IncrementalSanitizerResult,
+  PlaceholderContext,
+  PlaceholderFormatter,
+  PolicyContext,
+  RangeUnit,
+  ScanAndRedactOptions,
+  ScanOptions,
+  ScanResult,
+  SecretAction,
+  SecretConfidence,
+  SecretFinding,
+  SecretPolicy,
+  SecretScanErrorCode,
+} from "../src/index.js";
+
+type Expect<T extends true> = T;
+type IsAbsent<Key extends string> = Key extends keyof typeof publicApi
+  ? false
+  : true;
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? true
+    : false;
+
+/** Findings are immutable, and carry no plaintext value. */
+type FindingIsImmutable = Expect<Equal<SecretFinding, Readonly<SecretFinding>>>;
+type ScanResultIsImmutable = Expect<Equal<ScanResult, Readonly<ScanResult>>>;
+type FindingHasNoValue = Expect<
+  "value" extends keyof SecretFinding ? false : true
+>;
+type FindingsAreImmutable = Expect<
+  Equal<ScanResult["findings"], readonly SecretFinding[]>
+>;
+
+/** Offsets are UTF-16 code units, and the unit is stated in the type. */
+type OffsetsAreNumbers = Expect<
+  Equal<SecretFinding["start"], number> extends true
+    ? Equal<SecretFinding["end"], number>
+    : false
+>;
+type RangeUnitIsUtf16 = Expect<Equal<RangeUnit, "utf16-code-units">>;
+
+/** Custom detector callbacks and internal surfaces are not published. */
+type NoDetectorRegistry = Expect<IsAbsent<"DetectorRegistry">>;
+type NoDetectorFactory = Expect<IsAbsent<"createDetectorRegistry">>;
+type NoBuiltInDetectors = Expect<IsAbsent<"builtInDetectors">>;
+type NoEntropyHelper = Expect<IsAbsent<"calculateShannonEntropy">>;
+type NoNativeHandle = Expect<IsAbsent<"NATIVE_HANDLE">>;
+type NoRuntimeFactory = Expect<IsAbsent<"createSecretScanRuntime">>;
+type NoImplementationLookaround = Expect<
+  IsAbsent<"INCREMENTAL_LOOKAROUND_CODE_UNITS">
+>;
+
+/** Synchronous operations stay synchronous; only initialize is awaited. */
+type InitializeIsAsync = Expect<Equal<ReturnType<typeof initialize>, Promise<void>>>;
+type ScanIsSync = Expect<
+  Equal<ReturnType<typeof scan>, readonly SecretFinding[]>
+>;
+type RedactIsSync = Expect<Equal<ReturnType<typeof redact>, string>>;
+type ScanAndRedactIsSync = Expect<
+  Equal<ReturnType<typeof scanAndRedact>, ScanResult>
+>;
+
+const policy: SecretPolicy = {
+  evaluate(finding: DetectedSecretFinding, context: PolicyContext): SecretAction {
+    const confidence: SecretConfidence = finding.confidence;
+    return context.findingIndex + 1 === context.findingCount &&
+      confidence === "high"
+      ? "block"
+      : "warn";
+  },
+};
+
+const formatter: PlaceholderFormatter = (
+  finding: SecretFinding,
+  context: PlaceholderContext,
+) => `<${finding.type}_${context.placeholderIndex}>`;
+
+const scanOptions: ScanOptions = { policy };
+const scanAndRedactOptions: ScanAndRedactOptions = {
+  policy,
+  placeholderFormatter: formatter,
+};
+
+const incrementalOptions: IncrementalSanitizerOptions = {
+  limits: {
+    maxInputCodeUnits: 4_096,
+    maxBufferedCodeUnits: 2_176,
+    maxTokenCodeUnits: 1_024,
+    maxMultilineCodeUnits: 2_048,
+  },
+  policy: {
+    evaluate: (_finding, context) =>
+      context.findingIndex === 0 ? "redact" : "warn",
+  },
+  placeholderFormatter: typedPlaceholderFormatter,
+};
+
+async function documentedUsage(input: string): Promise<void> {
+  await initialize();
+
+  const findings: readonly SecretFinding[] = scan(input, scanOptions);
+  const text: string = redact(input, findings, {
+    placeholderFormatter: defaultPlaceholderFormatter,
+  });
+  const result: ScanResult = scanAndRedact(input, scanAndRedactOptions);
+
+  const session: IncrementalSanitizer = createIncrementalSanitizer(
+    incrementalOptions,
+  );
+  const appended: IncrementalSanitizerResult = session.append(input);
+  const finalized: IncrementalSanitizerResult = session.finalize();
+
+  const error = new SecretScanError("NOT_INITIALIZED");
+  const code: SecretScanErrorCode = error.code;
+  const unit: RangeUnit = RANGE_UNIT;
+  const version: string = VERSION;
+
+  void [text, result, appended, finalized, code, unit, version, session.state];
+}
+
+void documentedUsage;

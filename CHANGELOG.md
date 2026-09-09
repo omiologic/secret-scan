@@ -19,6 +19,13 @@ select or authorize a release.
   boundaries; the documented overlap precedence; and sanitized errors with fixed
   public codes and messages. Built-in detectors, the default policy, and
   redaction are not ported yet.
+- Unified `@omiologic/secret-scan` npm package in `packages/javascript`: one
+  typed API whose conditional `exports` select the Node N-API addon or the
+  browser WebAssembly build, a shared `await initialize()` contract that gates
+  every synchronous operation, frozen findings with explicit UTF-16 code-unit
+  offsets, one sanitized `SecretScanError`, and a lockstep version check. It is
+  not published yet; the repository-root TypeScript implementation remains the
+  released package and the behavioral oracle.
 
 ## 0.1.0-beta.1 - 2026-08-31
 
