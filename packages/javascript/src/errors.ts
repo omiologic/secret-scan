@@ -5,8 +5,9 @@
  * scanned input, a matched value, a placeholder, or a failing callback's own
  * message (`decision-define-runtime-bindings`). Sixteen codes come from the
  * Rust core; `NOT_INITIALIZED` and `INITIALIZATION_FAILED` are produced by the
- * binding layer, and this package normalizes both into the same class so
- * `instanceof SecretScanError` holds on every runtime.
+ * binding layer and `INVALID_CHUNK` and `INVALID_UTF8` by the stream adapters,
+ * and this package normalizes all of them into the same class so `instanceof
+ * SecretScanError` holds on every runtime and every subpath.
  */
 
 export type SecretScanErrorCode =
@@ -27,7 +28,9 @@ export type SecretScanErrorCode =
   | "MULTILINE_LIMIT_EXCEEDED"
   | "INVALID_STATE"
   | "NOT_INITIALIZED"
-  | "INITIALIZATION_FAILED";
+  | "INITIALIZATION_FAILED"
+  | "INVALID_CHUNK"
+  | "INVALID_UTF8";
 
 /** The fixed message for every code, mirroring the core's own strings. */
 const ERROR_MESSAGES: Readonly<Record<SecretScanErrorCode, string>> = {
@@ -50,6 +53,8 @@ const ERROR_MESSAGES: Readonly<Record<SecretScanErrorCode, string>> = {
   NOT_INITIALIZED:
     "secret-scan is not initialized; await initialize() before this call.",
   INITIALIZATION_FAILED: "secret-scan failed to initialize.",
+  INVALID_CHUNK: "Stream sanitizer input must contain bytes.",
+  INVALID_UTF8: "Stream sanitizer input is not valid UTF-8.",
 };
 
 const ERROR_CODES = new Set<string>(Object.keys(ERROR_MESSAGES));

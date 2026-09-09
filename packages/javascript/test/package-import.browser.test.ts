@@ -62,6 +62,29 @@ describe("browser package import", () => {
     expect(globals.secretScanRangeUnit).toBe("utf16-code-units");
   });
 
+  it("bundles the Web adapter without resolving a Node-only module", async () => {
+    const output = await bundleForBrowser(
+      [
+        'import { createWebStreamSanitizer, WebStreamSanitizer } from "@omiologic/secret-scan/web-stream";',
+        "globalThis.secretScanWebStream = [",
+        "  typeof createWebStreamSanitizer,",
+        "  WebStreamSanitizer.prototype instanceof TransformStream,",
+        "];",
+      ].join("\n"),
+    );
+
+    await import(
+      `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`
+    );
+    const globals = globalThis as typeof globalThis & {
+      secretScanWebStream?: readonly unknown[];
+    };
+
+    expect(globals.secretScanWebStream).toEqual(["function", true]);
+    expect(output).not.toContain("node:stream");
+    expect(output).not.toContain("require(");
+  });
+
   it("refuses synchronous operations before initialize succeeds", async () => {
     const output = await bundleForBrowser(
       [

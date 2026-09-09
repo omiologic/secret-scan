@@ -55,6 +55,52 @@ describe("Node package import", () => {
     ).toBe("true");
   });
 
+  it("resolves both stream adapter subpaths through the exports map", () => {
+    const output = runInNode(
+      [
+        "const node = await import('@omiologic/secret-scan/node-stream');",
+        "const web = await import('@omiologic/secret-scan/web-stream');",
+        "console.log(JSON.stringify({",
+        "  node: Object.keys(node).sort(),",
+        "  web: Object.keys(web).sort(),",
+        "}));",
+      ].join(" "),
+    );
+
+    expect(JSON.parse(output)).toEqual({
+      node: [
+        "NodeStreamSanitizer",
+        "SecretScanError",
+        "createNodeStreamSanitizer",
+      ],
+      web: [
+        "SecretScanError",
+        "WebStreamSanitizer",
+        "createWebStreamSanitizer",
+      ],
+    });
+  });
+
+  it("shares one initialization state across the root and the adapters", () => {
+    const output = runInNode(
+      [
+        "const { createNodeStreamSanitizer } = await import('@omiologic/secret-scan/node-stream');",
+        "const { createWebStreamSanitizer } = await import('@omiologic/secret-scan/web-stream');",
+        "const limits = { maxInputCodeUnits: 1024, maxBufferedCodeUnits: 384, maxTokenCodeUnits: 128, maxMultilineCodeUnits: 256 };",
+        "const codes = [];",
+        "for (const open of [createNodeStreamSanitizer, createWebStreamSanitizer]) {",
+        "  try { open({ limits }); codes.push('resolved'); }",
+        "  catch (error) { codes.push(error.code); }",
+        "}",
+        "console.log(JSON.stringify(codes));",
+      ].join(" "),
+    );
+
+    // Both adapters go through the same runtime as the root export, so both
+    // report the root's own uninitialized state rather than opening a session.
+    expect(JSON.parse(output)).toEqual(["NOT_INITIALIZED", "NOT_INITIALIZED"]);
+  });
+
   it("refuses synchronous operations before initialize succeeds", () => {
     const output = runInNode(
       [

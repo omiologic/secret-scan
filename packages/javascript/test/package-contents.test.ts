@@ -66,6 +66,10 @@ describe("package contents", () => {
     expect(paths).toContain("dist/index.d.ts");
     expect(paths).toContain("dist/runtime/node.js");
     expect(paths).toContain("dist/runtime/browser.js");
+    expect(paths).toContain("dist/adapters/node-stream.js");
+    expect(paths).toContain("dist/adapters/node-stream.d.ts");
+    expect(paths).toContain("dist/adapters/web-stream.js");
+    expect(paths).toContain("dist/adapters/web-stream.d.ts");
   });
 
   it("publishes nothing from the repository around it", () => {
@@ -100,18 +104,38 @@ describe("package contents", () => {
     expect(declaredVersion).toContain(`"${workspaceManifest.version}"`);
   });
 
-  it("exposes one public subpath and no internal ones", () => {
+  it("exposes the reviewed public subpaths and no internal ones", () => {
     const manifest = JSON.parse(
       readFileSync(join(PACKAGE_ROOT, "package.json"), "utf8"),
     ) as { exports: Record<string, unknown>; imports: Record<string, unknown> };
 
+    // The root API plus the two stream adapters. Each adapter is its own
+    // subpath so that resolving the Web one never reaches `node:stream`.
     expect(Object.keys(manifest.exports).sort()).toEqual([
       ".",
+      "./node-stream",
       "./package.json",
+      "./web-stream",
     ]);
     // `#native` is a subpath *import*: it is how this package selects its own
     // runtime adapter and is not reachable from outside.
     expect(Object.keys(manifest.imports)).toEqual(["#native"]);
+  });
+
+  it("keeps the Web adapter free of Node-only modules", () => {
+    for (const file of [
+      "web-stream.js",
+      "web-stream.d.ts",
+      "shared.js",
+      "shared.d.ts",
+    ]) {
+      const source = readFileSync(
+        join(PACKAGE_ROOT, "dist", "adapters", file),
+        "utf8",
+      );
+
+      expect(source, file).not.toMatch(/from\s+["']node:/);
+    }
   });
 
   it("keeps implementation details out of the published declarations", () => {

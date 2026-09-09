@@ -26,6 +26,16 @@ select or authorize a release.
   offsets, one sanitized `SecretScanError`, and a lockstep version check. It is
   not published yet; the repository-root TypeScript implementation remains the
   released package and the behavioral oracle.
+- Node and Web stream adapters on that package, published as the
+  `@omiologic/secret-scan/node-stream` and `@omiologic/secret-scan/web-stream`
+  subpaths. Each drives one incremental session per stream through a single
+  fatal, stateful UTF-8 decoder, emits only text whose detection window is
+  closed, exposes frozen findings with absolute whole-stream offsets, and
+  discards retained plaintext on Node destruction, Web cancellation, writable
+  abort, and explicit abort. Backpressure and errors travel through the host's
+  own stream contract, and two new `SecretScanError` codes, `INVALID_CHUNK` and
+  `INVALID_UTF8`, report malformed adapter input. The root export and the Web
+  subpath resolve no Node-only module.
 
 ## 0.1.0-beta.1 - 2026-08-31
 
