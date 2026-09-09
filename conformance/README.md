@@ -42,7 +42,9 @@ depend on `src/`.
   must reproduce each fixture's `text` and `expected` findings identically at
   every UTF-16 code-unit and streaming UTF-8 byte partition of `input`;
   partitioning itself is generated deterministically by each binding runner,
-  not stored as data.
+  not stored as data. The Rust consumer is
+  `crates/secret-scan-core/tests/incremental_partitions.rs`; see
+  [Partition invariance](#partition-invariance) below.
 - [`fixtures/unicode-conversion-corpus.json`](./fixtures/unicode-conversion-corpus.json) —
   `fixtures/unicode-astral.source.ts`, migrated to canonical UTF-8 byte
   offsets, persisted so every binding checks the same committed values
@@ -106,16 +108,72 @@ Both validators (`schema.ts`'s closed key check and `schema.json`'s
 expectation object with an extra key — the fixture format itself has no way
 to carry plaintext into a public expectation.
 
+## Partition invariance
+
+A bounded incremental session must accept exactly what the whole-input
+pipeline accepts, however the caller divides the input. Each runner proves
+this by enumerating partitions itself, over the fixtures in
+`fixtures/incremental-corpus.json`:
+
+- **Every UTF-8 byte boundary**, including byte indices inside a multi-byte
+  code point. A core whose native string type cannot hold a partial code
+  point (Rust's `&str`, JavaScript's `string`) reaches those indices through
+  the same streaming decoder a byte-oriented host must place in front of it,
+  which retains an incomplete sequence between chunks.
+- **Every applicable host-native string boundary** — every `&str` char
+  boundary in Rust, every UTF-16 code-unit boundary in JavaScript — plus the
+  maximally fragmented partition of one chunk per unit.
+
+At every one of those partitions the concatenated text, the findings and
+their actions, their order, IDs and absolute ranges, and placeholder
+numbering must equal the whole-input reference. Only the distribution of
+safe output across `append` and `finalize` results may vary: feeding the
+whole input in a single `append`, so that all finalized safe output
+accumulates in one call, must accept exactly what the fragmented partitions
+accept.
+
+Two whole-input capabilities are outside the incremental API by
+construction, and each runner records that rather than asserting an
+equivalence that cannot exist: **custom synchronous detectors** (an
+incremental session takes no registry, because a custom detector declares no
+retention bound) and **whole-input count-dependent policies** (the
+incremental policy context carries the finalized index but no total, because
+a progressive evaluation cannot know the whole session's finding count).
+See the `incremental` module documentation in the Rust core, and
+`createIncrementalSanitizer`'s `INVALID_OPTIONS` rejection of a `detectors`
+option in the TypeScript oracle.
+
+## Adversarial resource caps
+
+Every fixture in the `adversarial` tier of `fixtures/synchronous-corpus.json`
+carries a `resource` object declaring `maxInputBytes`, `maxFindings`, and
+`maxRuntimeMs`. A runner must assert all three, on the whole-input surface
+and — where the language has one — on the incremental surface, including a
+fragmented partition of the same input, since fragmentation is where an
+implementation that rescans retained text degrades. The Rust consumer is
+`crates/secret-scan-core/tests/adversarial_bounds.rs`; the TypeScript oracle
+asserts the same caps in `test/conformance/conformance.test.ts`.
+
+`maxInputBytes` and `maxFindings` are properties of the fixture and its
+expected result, so every runner asserts them exactly. `maxRuntimeMs`
+describes the shipped, optimized implementation. A runner whose default test
+build is unoptimized may hold that build to a fixed, documented multiple of
+the declared cap instead — the Rust runner allows 8x for a debug binary and
+the declared cap exactly for an optimized one — but never to a value derived
+from the machine it happens to run on. The caps exist to catch superlinear
+blowup, which is orders of magnitude, not a constant factor.
+
 ## What this directory is not (yet)
 
 This item defines the schema, the UTF-8 range model, migration tooling, and
 the migrated synchronous, incremental, Unicode-conversion, and safe-error
-corpora. It does not yet add a full Rust or Python detector-pipeline
-consumer — those are separate, larger changes tracked elsewhere. The
-existing TypeScript corpus (`test/conformance/`) remains the executable
-behavioral oracle until the Rust core reaches parity, and every JSON file
-under `fixtures/` remains a derived artifact of it, not an independently
-authored source.
+corpora. The Rust core consumes the incremental and adversarial corpora
+directly (see the two sections above); a full Rust or Python
+detector-pipeline consumer for the whole synchronous corpus is a separate,
+larger change tracked elsewhere. The existing TypeScript corpus
+(`test/conformance/`) remains the executable behavioral oracle until the
+Rust core reaches parity, and every JSON file under `fixtures/` remains a
+derived artifact of it, not an independently authored source.
 
 Unicode range conversion is asserted for all three of today's units, against
 the exact fixture values in `fixtures/unicode-conversion-corpus.json`:
