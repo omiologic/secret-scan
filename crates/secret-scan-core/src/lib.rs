@@ -29,10 +29,13 @@
 //! Every failure is a [`SecretScanError`] with a fixed code and message and
 //! no payload; no public value carries an input fragment or a matched value.
 //!
-//! Built-in detectors, the default policy, redaction, and incremental
-//! sanitization are not implemented yet. Until the Rust core passes the shared
-//! conformance corpus, the TypeScript implementation in `src/` remains the
-//! behavioral oracle.
+//! [`redact`] then applies [`Finding`] actions to the input in one ordered
+//! pass, replacing `redact`/`block` ranges with placeholders from a
+//! [`PlaceholderFormatter`] and validating that formatter's output.
+//!
+//! Built-in detectors and incremental sanitization are not implemented yet.
+//! Until the Rust core passes the shared conformance corpus, the TypeScript
+//! implementation in `src/` remains the behavioral oracle.
 
 #![forbid(unsafe_code)]
 #![deny(clippy::print_stdout, clippy::print_stderr)]
@@ -42,6 +45,8 @@ pub mod detectors;
 mod entropy;
 mod error;
 mod pipeline;
+mod policy;
+mod redact;
 mod registry;
 mod types;
 
@@ -50,6 +55,10 @@ pub use error::{
     DetectorFailure, FormatterFailure, PolicyFailure, SecretScanError, SecretScanErrorCode,
 };
 pub use pipeline::{run_detector_pipeline, scan};
+pub use policy::DefaultPolicy;
+pub use redact::{
+    MAX_PLACEHOLDER_LENGTH, default_placeholder_formatter, redact, typed_placeholder_formatter,
+};
 pub use registry::{DetectorRegistry, RegisteredDetector};
 pub use types::{
     Action, ByteRange, Candidate, Confidence, DetectedFinding, Detector, DetectorContext, Finding,
