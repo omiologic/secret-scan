@@ -1,0 +1,97 @@
+/**
+ * `@omiologic/secret-scan`: deterministic secret detection and redaction, one
+ * API across Node.js and the browser.
+ *
+ * The package's `exports` map selects the N-API addon on Node and the
+ * WebAssembly build in the browser (`decision-define-runtime-bindings`).
+ * Every runtime uses the same contract:
+ *
+ * ```ts
+ * import { initialize, scanAndRedact } from "@omiologic/secret-scan";
+ *
+ * await initialize();
+ * const { text, findings } = scanAndRedact(input);
+ * ```
+ *
+ * `await initialize()` must succeed exactly once before any synchronous
+ * operation; calling it again is free. Node's own loading has nothing to
+ * await, but the call stays part of the contract so the usage model does not
+ * vary by runtime.
+ *
+ * Every range this module reports is a `[start, end)` pair of UTF-16
+ * code-unit offsets ({@link RANGE_UNIT}), and every finding it returns is
+ * frozen. Every failure is a {@link SecretScanError} carrying nothing but a
+ * fixed code and message.
+ *
+ * Built-in detectors all run in Rust; there is no custom detector callback in
+ * this API, and no internal module of this package is reachable through its
+ * `exports` map.
+ */
+
+import { loadNativeBinding } from "#native";
+
+import { createSecretScanRuntime } from "./runtime.js";
+import type { RangeUnit } from "./types.js";
+
+const runtime = createSecretScanRuntime(loadNativeBinding);
+
+/**
+ * Loads this runtime's binding and prepares it for use.
+ *
+ * Idempotent: the artifact is loaded at most once no matter how many callers
+ * await it. A rejected attempt is not cached, so a caller may retry. Rejects
+ * with `INITIALIZATION_FAILED` when the artifact is missing, unusable, or
+ * built from a different product version than this package.
+ */
+export const initialize = runtime.initialize;
+
+/** Scans `input` and returns every finding, in input order. */
+export const scan = runtime.scan;
+
+/**
+ * Replaces the `redact` and `block` findings in `input` with placeholders,
+ * leaving `warn` and `allow` findings untouched.
+ *
+ * `findings` must be the findings {@link scan} returned for this same input.
+ */
+export const redact = runtime.redact;
+
+/** Scans and redacts in one call, so text and findings cannot disagree. */
+export const scanAndRedact = runtime.scanAndRedact;
+
+/** Opens a bounded incremental session over text supplied in chunks. */
+export const createIncrementalSanitizer = runtime.createIncrementalSanitizer;
+
+export {
+  defaultPlaceholderFormatter,
+  typedPlaceholderFormatter,
+} from "./formatters.js";
+export { SecretScanError } from "./errors.js";
+export type { SecretScanErrorCode } from "./errors.js";
+export { VERSION } from "./version.js";
+
+/** The string-index unit of every range this package reports. */
+export const RANGE_UNIT: RangeUnit = "utf16-code-units";
+
+export type {
+  DetectedSecretFinding,
+  IncrementalLimits,
+  IncrementalPolicyContext,
+  IncrementalSanitizer,
+  IncrementalSanitizerOptions,
+  IncrementalSanitizerResult,
+  IncrementalSanitizerState,
+  IncrementalSecretPolicy,
+  PlaceholderContext,
+  PlaceholderFormatter,
+  PolicyContext,
+  RangeUnit,
+  RedactOptions,
+  ScanAndRedactOptions,
+  ScanOptions,
+  ScanResult,
+  SecretAction,
+  SecretConfidence,
+  SecretFinding,
+  SecretPolicy,
+} from "./types.js";

@@ -1,0 +1,94 @@
+import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
+import { describe, expect, it } from "vitest";
+
+const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+/** The artifacts a browser build resolves lazily, at `initialize()` time. */
+const EXTERNAL_ARTIFACTS = ["@omiologic/secret-scan-wasm"];
+
+async function bundleForBrowser(contents: string): Promise<string> {
+  const result = await build({
+    bundle: true,
+    format: "esm",
+    platform: "browser",
+    external: EXTERNAL_ARTIFACTS,
+    stdin: {
+      contents,
+      loader: "js",
+      resolveDir: PACKAGE_ROOT,
+      sourcefile: "browser-consumer.js",
+    },
+    write: false,
+  });
+
+  expect(result.errors).toEqual([]);
+  expect(result.outputFiles).toHaveLength(1);
+  const output = result.outputFiles[0]?.text;
+  expect(output).toBeDefined();
+  return output ?? "";
+}
+
+describe("browser package import", () => {
+  it("bundles and evaluates the package entry point", async () => {
+    const output = await bundleForBrowser(
+      [
+        'import * as api from "@omiologic/secret-scan";',
+        "globalThis.secretScanExports = Object.keys(api).sort();",
+        "globalThis.secretScanRangeUnit = api.RANGE_UNIT;",
+      ].join("\n"),
+    );
+
+    await import(
+      `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`
+    );
+    const globals = globalThis as typeof globalThis & {
+      secretScanExports?: readonly string[];
+      secretScanRangeUnit?: string;
+    };
+
+    expect(globals.secretScanExports).toEqual([
+      "RANGE_UNIT",
+      "SecretScanError",
+      "VERSION",
+      "createIncrementalSanitizer",
+      "defaultPlaceholderFormatter",
+      "initialize",
+      "redact",
+      "scan",
+      "scanAndRedact",
+      "typedPlaceholderFormatter",
+    ]);
+    expect(globals.secretScanRangeUnit).toBe("utf16-code-units");
+  });
+
+  it("refuses synchronous operations before initialize succeeds", async () => {
+    const output = await bundleForBrowser(
+      [
+        'import { scan, SecretScanError } from "@omiologic/secret-scan";',
+        "try { scan('API_KEY=SYNTHETIC_REVOKED_VALUE'); }",
+        "catch (error) {",
+        "  globalThis.secretScanBrowserError = {",
+        "    isSecretScanError: error instanceof SecretScanError,",
+        "    code: error.code,",
+        "    message: error.message,",
+        "  };",
+        "}",
+      ].join("\n"),
+    );
+
+    await import(
+      `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`
+    );
+
+    expect(
+      (globalThis as typeof globalThis & { secretScanBrowserError?: unknown })
+        .secretScanBrowserError,
+    ).toEqual({
+      isSecretScanError: true,
+      code: "NOT_INITIALIZED",
+      message:
+        "secret-scan is not initialized; await initialize() before this call.",
+    });
+  });
+});

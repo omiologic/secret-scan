@@ -3,6 +3,11 @@
 /dist/
 /node_modules/
 
+# Built output of the unified npm package (regenerate with
+# `npm run js:build`); only the tarball's `dist` is published.
+/packages/javascript/dist/
+/packages/javascript/node_modules/
+
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
 

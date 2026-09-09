@@ -16,10 +16,27 @@ moves or removes it.
 | `bindings/node` | `secret-scan-node` (cdylib) | N-API addon; UTF-16 code unit ranges. | core, `napi`, `napi-derive`, `napi-build` | Consumed by `packages/javascript`; never on its own |
 | `bindings/wasm` | `secret-scan-wasm` (cdylib) | `wasm-bindgen` browser build; UTF-16 code unit ranges. | core, `wasm-bindgen` | Consumed by `packages/javascript`; never on its own |
 | `bindings/python` | `secret-scan-python` (cdylib, module `secret_scan._native`) | PyO3 extension built by maturin; Unicode code point ranges. | core, `pyo3` | PyPI distribution selected by the binding issue |
-| `packages/javascript` | none | Future home of the `@omiologic/secret-scan` npm package that loads the Node and wasm bindings. | Node and wasm bindings | npm `@omiologic/secret-scan` |
+| `packages/javascript` | none | The `@omiologic/secret-scan` npm package: one typed API whose `exports` map selects the Node addon or the wasm build, with the shared `await initialize()` contract. | Node and wasm bindings | npm `@omiologic/secret-scan` |
 
 Bindings and the CLI translate host APIs to the core. They never reimplement
 detector behavior, and they convert ranges without changing the selected span.
+
+### Two manifests named `@omiologic/secret-scan`
+
+`packages/javascript` and the repository root both declare a package named
+`@omiologic/secret-scan`, and only the root one is released today. Until the
+Rust core passes the shared conformance corpus, the root TypeScript
+implementation (`src/`, `test/`, `package.json`) remains the released package
+and the behavioral oracle (`decision-govern-cross-language-conformance`); the
+package in `packages/javascript` is the wrapper that replaces it once the
+bindings qualify. `npm publish` at the root publishes the current package;
+publishing the wrapper is part of that cutover, not a routine release.
+
+`packages/javascript` owns the public JavaScript API, the runtime loaders, and
+the initialization contract. It may depend on the Node and WebAssembly
+bindings, and it must not reimplement detector behavior. Build it with
+`npm run js:build`, type-check it with `npm run js:typecheck`, and test it with
+`npm run js:test`; `npm run ci` runs all three.
 
 ## Policies
 
