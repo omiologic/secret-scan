@@ -78,9 +78,21 @@ boundary under streaming decode, and a one-code-unit-at-a-time partition for
 representative fixed-width, open-ended, structural, contextual, URL, Unicode,
 overlap, multiline, negative, and end-of-input cases.
 
-The integration suite executes the same partitions through the bounded session
-implementation and compares them with the synchronous behavioral reference.
-Independently scanning chunks remains unsafe.
+The integration suite (`test/integration/incremental-semantics.test.ts`,
+`test/adapters/node-stream.test.ts`, `test/adapters/web-stream.test.ts`)
+executes the same partitions through the bounded session implementation and
+compares them with the synchronous behavioral reference. Independently
+scanning chunks remains unsafe.
+
+This whole-input reference corpus, plus Unicode astral conversion and safe
+lifecycle/abort/malformed-UTF-8/resource-limit evidence, is also migrated to
+the language-neutral canonical corpus under
+[`../../conformance/fixtures/`](../../conformance/fixtures/) — see
+[`../../conformance/README.md`](../../conformance/README.md).
+[`canonical-incremental-oracle.test.ts`](./canonical-incremental-oracle.test.ts)
+fails if any of those files drift from a fresh migration, and separately
+proves the current TypeScript incremental sanitizer and stream adapters
+reproduce exactly the migrated corpus.
 
 ## Regression intake
 

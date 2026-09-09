@@ -36,13 +36,41 @@ depend on `src/`.
   `test/conformance/canonical-oracle.test.ts` fails if the two drift, and
   proves the current TypeScript implementation reproduces exactly this
   file's findings, per-detector specificity, and redacted output.
+- [`fixtures/incremental-corpus.json`](./fixtures/incremental-corpus.json) —
+  whole-input incremental references (`test/conformance/incremental-partitions.ts`),
+  migrated to canonical UTF-8 byte offsets. A bounded incremental session
+  must reproduce each fixture's `text` and `expected` findings identically at
+  every UTF-16 code-unit and streaming UTF-8 byte partition of `input`;
+  partitioning itself is generated deterministically by each binding runner,
+  not stored as data.
+- [`fixtures/unicode-conversion-corpus.json`](./fixtures/unicode-conversion-corpus.json) —
+  `fixtures/unicode-astral.source.ts`, migrated to canonical UTF-8 byte
+  offsets, persisted so every binding checks the same committed values
+  rather than only an in-memory conversion.
+- [`fixtures/incremental-lifecycle-corpus.json`](./fixtures/incremental-lifecycle-corpus.json) —
+  lifecycle, abort, malformed-UTF-8, and buffer/token/multiline resource-limit
+  scenarios (`fixtures/incremental-lifecycle.source.ts`), each an ordered,
+  replayable operation sequence and its terminal outcome. Already canonical
+  (there is no UTF-16 oracle shape to convert from); no fixture or outcome
+  carries a matched value.
+- [`fixtures/error-codes.json`](./fixtures/error-codes.json) — the safe,
+  cross-language error-code registry (`fixtures/error-codes.source.ts`):
+  every stable code the incremental sanitizer and its stream adapters can
+  raise, paired with its fixed, input-free message.
 
-`scripts/migrate-conformance-corpus.ts` is migration tooling built on this
-directory: it reads the existing TypeScript corpus
-(`test/conformance/corpus.ts`), converts it with `convert.ts`, validates the
-result with `validateCanonicalFixtures`, and writes canonical JSON. See that
-script and the decision record for why the TypeScript exporter is adapted
-rather than retained as a second canonical source.
+`scripts/migrate-conformance-corpus.ts` migrates the synchronous detector
+corpus; `scripts/migrate-incremental-corpus.ts` migrates the four files
+above (`npm run corpus:migrate:incremental`). Both read the existing
+TypeScript oracle, convert with `convert.ts`, validate with the matching
+`schema.ts` validator, and write canonical JSON. See those scripts and the
+decision record for why the TypeScript exporter is adapted rather than
+retained as a second canonical source.
+`test/conformance/canonical-incremental-oracle.test.ts` is the incremental
+counterpart of `canonical-oracle.test.ts`: it fails if any of the four files
+above drift from a fresh migration, and separately replays every lifecycle
+fixture's operations against the real `createIncrementalSanitizer` and
+`createStreamSanitizerRuntime` to prove the current TypeScript
+implementation reproduces exactly the declared outcome.
 
 ## UTF-8 byte offset model
 
@@ -81,8 +109,22 @@ to carry plaintext into a public expectation.
 ## What this directory is not (yet)
 
 This item defines the schema, the UTF-8 range model, migration tooling, and
-the migrated synchronous corpus. It does not yet add a Rust or Python
-consumer — those are separate, larger changes tracked elsewhere. The existing
-TypeScript corpus (`test/conformance/`) remains the executable behavioral
-oracle until the Rust core reaches parity, and `synchronous-corpus.json`
-remains a derived artifact of it, not an independently authored source.
+the migrated synchronous, incremental, Unicode-conversion, and safe-error
+corpora. It does not yet add a full Rust or Python detector-pipeline
+consumer — those are separate, larger changes tracked elsewhere. The
+existing TypeScript corpus (`test/conformance/`) remains the executable
+behavioral oracle until the Rust core reaches parity, and every JSON file
+under `fixtures/` remains a derived artifact of it, not an independently
+authored source.
+
+Unicode range conversion is asserted for all three of today's units, against
+the exact fixture values in `fixtures/unicode-conversion-corpus.json`:
+JavaScript's UTF-16 code units
+(`conformance/convert.ts`, exercised by `test/conformance/conversion.test.ts`
+and `canonical-incremental-oracle.test.ts`), Rust's native UTF-8 bytes
+(`crates/secret-scan-core/src/types.rs`'s
+`unicode_conversion_corpus_byte_offsets_are_char_aligned` test — Rust's
+`RANGE_UNIT` is already bytes, so there is no conversion step, only a proof
+that the canonical offsets are char-aligned and select the same substring),
+and Python's Unicode code points
+(`bindings/python/src/lib.rs`'s `byte_offset_to_char_offset` and its tests).

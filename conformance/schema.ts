@@ -115,6 +115,70 @@ export interface CanonicalFixture {
   readonly note: string;
 }
 
+/**
+ * A whole-input incremental reference: the fully redacted `text` and the
+ * safe finding metadata (UTF-8 byte offsets into `input`) that the bounded
+ * incremental session must reproduce identically at every UTF-16 code-unit
+ * and streaming UTF-8 byte partition of `input`. This is the canonical form
+ * of `test/conformance/incremental-partitions.ts`.
+ */
+export interface CanonicalIncrementalFixture {
+  readonly id: string;
+  readonly input: string;
+  /** The fully redacted output produced by scanning `input` as one unit. */
+  readonly text: string;
+  readonly expected: readonly CanonicalExpectation[];
+  readonly note: string;
+}
+
+/** One step of a canonical lifecycle scenario. */
+export type CanonicalIncrementalOperation =
+  | { readonly op: "append"; readonly chunk: string }
+  | { readonly op: "appendBytesHex"; readonly bytesHex: string }
+  | { readonly op: "finalize" }
+  | { readonly op: "abort" };
+
+export interface CanonicalIncrementalLimits {
+  readonly maxInputCodeUnits: number;
+  readonly maxBufferedCodeUnits: number;
+  readonly maxTokenCodeUnits: number;
+  readonly maxMultilineCodeUnits: number;
+}
+
+/**
+ * A lifecycle, abort, malformed-input, or resource-limit scenario: an
+ * ordered operation sequence and its expected terminal outcome. Only the
+ * `stream` surface accepts `appendBytesHex` (raw, possibly malformed UTF-8);
+ * the `incremental` surface accepts only well-formed string chunks. The
+ * outcome never carries a matched value: on failure it records only a
+ * stable code, the terminal state, the plaintext-free cumulative output,
+ * and a finding count.
+ */
+export interface CanonicalLifecycleFixture {
+  readonly id: string;
+  readonly surface: "incremental" | "stream";
+  readonly limits?: CanonicalIncrementalLimits;
+  readonly operations: readonly CanonicalIncrementalOperation[];
+  readonly outcome: {
+    readonly ok: boolean;
+    readonly code?: string;
+    readonly state: "accepting" | "finalized" | "aborted" | "failed";
+    readonly text: string;
+    readonly findingCount: number;
+  };
+  readonly note: string;
+}
+
+/**
+ * One entry of the safe, cross-language error-code registry: a stable
+ * `SCREAMING_SNAKE_CASE` code and its fixed, input-free message.
+ */
+export interface CanonicalErrorCode {
+  readonly code: string;
+  readonly message: string;
+  readonly surface: "incremental" | "stream";
+}
+
 const CASE_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const IDENTIFIER_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 
@@ -303,6 +367,237 @@ export function validateCanonicalFixtures(
         invalid(id, "invalid-expectation");
       }
       previousEnd = expected.end;
+    }
+  }
+
+  return value;
+}
+
+/**
+ * Validates one fixture's `expected` list against its UTF-8 byte length and
+ * boundaries, and returns nothing but throws with only `id` and a stable
+ * code — never `input` or a matched substring. Shared by every canonical
+ * validator that carries a `CanonicalExpectation[]`.
+ */
+function validateExpectationList(
+  id: string,
+  input: string,
+  expected: readonly CanonicalExpectation[],
+): void {
+  const inputByteLength = utf8ByteLength(input);
+  const boundaries = expected.length > 0 ? utf8BoundaryOffsets(input) : undefined;
+  let previousEnd = 0;
+  for (const item of expected) {
+    if (
+      typeof item !== "object" ||
+      item === null ||
+      Object.keys(item).some((key) => !EXPECTATION_KEYS.has(key)) ||
+      !IDENTIFIER_PATTERN.test(item.detector) ||
+      !IDENTIFIER_PATTERN.test(item.type) ||
+      !CONFIDENCE.includes(item.confidence) ||
+      !SPECIFICITY.includes(item.specificity) ||
+      !Number.isInteger(item.start) ||
+      !Number.isInteger(item.end) ||
+      item.start < previousEnd ||
+      item.end <= item.start ||
+      item.end > inputByteLength ||
+      !boundaries?.has(item.start) ||
+      !boundaries.has(item.end)
+    ) {
+      invalid(id, "invalid-expectation");
+    }
+    previousEnd = item.end;
+  }
+}
+
+/**
+ * Validates the canonical incremental partition-equivalence corpus: the
+ * whole-input references that a bounded incremental session must reproduce
+ * at every partition. Never validates a partition itself — partitioning is
+ * generated deterministically by each binding runner from `input`.
+ */
+export function validateCanonicalIncrementalFixtures(
+  value: readonly CanonicalIncrementalFixture[],
+): readonly CanonicalIncrementalFixture[] {
+  if (!Array.isArray(value)) invalid("incremental-corpus", "not-an-array");
+
+  const ids = new Set<string>();
+  for (const fixture of value) {
+    const rawId =
+      typeof fixture === "object" && fixture !== null &&
+      typeof fixture.id === "string"
+        ? fixture.id
+        : undefined;
+    const id =
+      rawId !== undefined && rawId.length <= 64 && CASE_ID_PATTERN.test(rawId)
+        ? rawId
+        : "unknown";
+    if (id === "unknown" || ids.has(id)) invalid(id, "invalid-id");
+    ids.add(id);
+
+    if (
+      typeof fixture.input !== "string" ||
+      typeof fixture.text !== "string" ||
+      !Array.isArray(fixture.expected) ||
+      typeof fixture.note !== "string" ||
+      fixture.note.length === 0
+    ) {
+      invalid(id, "invalid-metadata");
+    }
+    validateExpectationList(id, fixture.input, fixture.expected);
+  }
+
+  return value;
+}
+
+const INCREMENTAL_OPERATIONS = new Set(["append", "appendBytesHex", "finalize", "abort"]);
+const LIFECYCLE_SURFACES = new Set(["incremental", "stream"]);
+const LIFECYCLE_STATES = new Set(["accepting", "finalized", "aborted", "failed"]);
+const ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
+const HEX_BYTES_PATTERN = /^(?:[0-9a-f]{2})*$/;
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
+function validateLimits(id: string, limits: unknown): void {
+  if (limits === undefined) return;
+  if (typeof limits !== "object" || limits === null) {
+    invalid(id, "invalid-limits");
+  }
+  const { maxInputCodeUnits, maxBufferedCodeUnits, maxTokenCodeUnits, maxMultilineCodeUnits } =
+    limits as Partial<CanonicalIncrementalLimits>;
+  if (
+    !isPositiveSafeInteger(maxInputCodeUnits) ||
+    !isPositiveSafeInteger(maxBufferedCodeUnits) ||
+    !isPositiveSafeInteger(maxTokenCodeUnits) ||
+    !isPositiveSafeInteger(maxMultilineCodeUnits)
+  ) {
+    invalid(id, "invalid-limits");
+  }
+}
+
+function validateOperations(
+  id: string,
+  surface: string,
+  operations: unknown,
+): void {
+  if (!Array.isArray(operations) || operations.length === 0) {
+    invalid(id, "invalid-operations");
+  }
+  for (const operation of operations as readonly CanonicalIncrementalOperation[]) {
+    if (
+      typeof operation !== "object" ||
+      operation === null ||
+      !INCREMENTAL_OPERATIONS.has(operation.op)
+    ) {
+      invalid(id, "invalid-operation");
+    }
+    if (operation.op === "append" && typeof operation.chunk !== "string") {
+      invalid(id, "invalid-operation");
+    }
+    if (operation.op === "appendBytesHex") {
+      if (surface !== "stream" || !HEX_BYTES_PATTERN.test(operation.bytesHex)) {
+        invalid(id, "invalid-operation");
+      }
+    }
+  }
+}
+
+/**
+ * Validates canonical lifecycle, abort, malformed-input, and resource-limit
+ * scenarios. Diagnostics carry only the fixture id and a stable code; the
+ * fixture's own `outcome` is deliberately restricted to a code, a state, an
+ * already-redacted `text`, and a finding count, so no validator failure and
+ * no fixture itself can carry a matched value.
+ */
+export function validateCanonicalLifecycleFixtures(
+  value: readonly CanonicalLifecycleFixture[],
+): readonly CanonicalLifecycleFixture[] {
+  if (!Array.isArray(value)) invalid("lifecycle-corpus", "not-an-array");
+
+  const ids = new Set<string>();
+  for (const fixture of value) {
+    const rawId =
+      typeof fixture === "object" && fixture !== null &&
+      typeof fixture.id === "string"
+        ? fixture.id
+        : undefined;
+    const id =
+      rawId !== undefined && rawId.length <= 64 && CASE_ID_PATTERN.test(rawId)
+        ? rawId
+        : "unknown";
+    if (id === "unknown" || ids.has(id)) invalid(id, "invalid-id");
+    ids.add(id);
+
+    if (!LIFECYCLE_SURFACES.has(fixture.surface)) invalid(id, "invalid-surface");
+    validateLimits(id, fixture.limits);
+    validateOperations(id, fixture.surface, fixture.operations);
+
+    const { outcome } = fixture;
+    if (
+      typeof outcome !== "object" ||
+      outcome === null ||
+      typeof outcome.ok !== "boolean" ||
+      !LIFECYCLE_STATES.has(outcome.state) ||
+      typeof outcome.text !== "string" ||
+      !Number.isSafeInteger(outcome.findingCount) ||
+      outcome.findingCount < 0
+    ) {
+      invalid(id, "invalid-outcome");
+    }
+    if (outcome.ok) {
+      if (outcome.code !== undefined || outcome.state === "failed") {
+        invalid(id, "invalid-outcome");
+      }
+    } else if (
+      typeof outcome.code !== "string" ||
+      !ERROR_CODE_PATTERN.test(outcome.code) ||
+      outcome.state === "accepting"
+    ) {
+      // A failing final operation can be rejected while the session is
+      // already terminal (e.g. INVALID_STATE after a prior finalize/abort),
+      // so any state but "accepting" is a legitimate outcome for ok: false.
+      invalid(id, "invalid-outcome");
+    }
+
+    if (typeof fixture.note !== "string" || fixture.note.length === 0) {
+      invalid(id, "invalid-metadata");
+    }
+  }
+
+  return value;
+}
+
+/**
+ * Validates the safe, cross-language error-code registry: every entry is a
+ * unique, stable code with a fixed, input-free message.
+ */
+export function validateCanonicalErrorCodes(
+  value: readonly CanonicalErrorCode[],
+): readonly CanonicalErrorCode[] {
+  if (!Array.isArray(value)) invalid("error-codes", "not-an-array");
+
+  const codes = new Set<string>();
+  for (const entry of value) {
+    const code = typeof entry === "object" && entry !== null && typeof entry.code === "string"
+      ? entry.code
+      : "unknown";
+    if (
+      code === "unknown" ||
+      !ERROR_CODE_PATTERN.test(code) ||
+      codes.has(code)
+    ) {
+      invalid(code, "invalid-code");
+    }
+    codes.add(code);
+
+    if (
+      typeof entry.message !== "string" ||
+      entry.message.length === 0 ||
+      !LIFECYCLE_SURFACES.has(entry.surface)
+    ) {
+      invalid(code, "invalid-metadata");
     }
   }
 

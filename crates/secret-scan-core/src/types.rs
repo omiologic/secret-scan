@@ -688,6 +688,45 @@ mod tests {
         assert!(!range.overlaps(ByteRange::new(0, 2).unwrap()));
     }
 
+    /// Mirrors `conformance/fixtures/unicode-conversion-corpus.json`
+    /// (`decision-govern-cross-language-conformance`): an astral
+    /// (supplementary-plane) character positioned before, within, and after
+    /// a finding's UTF-8 byte span. Rust's native range unit is already
+    /// UTF-8 bytes (`crate::RANGE_UNIT`), so there is no conversion step to
+    /// assert here — the byte offsets in the canonical corpus are the exact
+    /// literal `start`/`end` values every language must agree on. This
+    /// proves those offsets land on Rust's own char boundaries and select
+    /// the same substring the JavaScript and Python oracles select, without
+    /// splitting the astral character's 4-byte encoding.
+    #[test]
+    fn unicode_conversion_corpus_byte_offsets_are_char_aligned() {
+        let cases = [
+            (
+                "🔑 TOKEN_SYNTHETIC_REVOKED_VALUE",
+                5,
+                34,
+                "TOKEN_SYNTHETIC_REVOKED_VALUE",
+            ),
+            (
+                "TOKEN_🔑_SYNTHETIC_REVOKED",
+                0,
+                28,
+                "TOKEN_🔑_SYNTHETIC_REVOKED",
+            ),
+            (
+                "TOKEN_SYNTHETIC_REVOKED_VALUE 🔑",
+                0,
+                29,
+                "TOKEN_SYNTHETIC_REVOKED_VALUE",
+            ),
+        ];
+        for (input, start, end, expected_slice) in cases {
+            let range = ByteRange::new(start, end).unwrap();
+            assert!(range.is_char_aligned_in(input), "{input:?}");
+            assert_eq!(&input[start..end], expected_slice, "{input:?}");
+        }
+    }
+
     #[test]
     fn byte_range_char_alignment() {
         let input = "a😀b";
