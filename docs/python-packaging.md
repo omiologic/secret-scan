@@ -73,14 +73,14 @@ under PEP 561 and a type checker resolves the API with no stub package.
 
 | Target | Runner | Wheel platform tag | Smoke tested on |
 | --- | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | `ubuntu-latest` | `manylinux_2_17_x86_64` | CPython 3.10 and 3.13 |
-| `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | `manylinux_2_17_aarch64` | CPython 3.10 and 3.13 |
-| `x86_64-unknown-linux-musl` | `ubuntu-latest` | `musllinux_1_2_x86_64` | `python:3.10-alpine`, `python:3.13-alpine` |
-| `aarch64-unknown-linux-musl` | `ubuntu-24.04-arm` | `musllinux_1_2_aarch64` | `python:3.10-alpine`, `python:3.13-alpine` |
-| `x86_64-apple-darwin` | `macos-13` | `macosx_*_x86_64` | CPython 3.10 and 3.13 |
-| `aarch64-apple-darwin` | `macos-latest` | `macosx_*_arm64` | CPython 3.10 and 3.13 |
-| `x86_64-pc-windows-msvc` | `windows-latest` | `win_amd64` | CPython 3.10 and 3.13 |
-| `aarch64-pc-windows-msvc` | `windows-11-arm` | `win_arm64` | CPython 3.11 and 3.13 |
+| `x86_64-unknown-linux-gnu` | `ubuntu-latest` | `manylinux_2_17_x86_64.manylinux2014_x86_64` | CPython 3.10 and 3.14 |
+| `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | `manylinux_2_17_aarch64.manylinux2014_aarch64` | CPython 3.10 and 3.14 |
+| `x86_64-unknown-linux-musl` | `ubuntu-latest` | `musllinux_1_2_x86_64` | `python:3.10-alpine`, `python:3.14-alpine` |
+| `aarch64-unknown-linux-musl` | `ubuntu-24.04-arm` | `musllinux_1_2_aarch64` | `python:3.10-alpine`, `python:3.14-alpine` |
+| `x86_64-apple-darwin` | `macos-13` | `macosx_*_x86_64` | CPython 3.10 and 3.14 |
+| `aarch64-apple-darwin` | `macos-latest` | `macosx_*_arm64` | CPython 3.10 and 3.14 |
+| `x86_64-pc-windows-msvc` | `windows-latest` | `win_amd64` | CPython 3.10 and 3.14 |
+| `aarch64-pc-windows-msvc` | `windows-11-arm` | `win_arm64` | CPython 3.11 and 3.14 |
 
 Every wheel is built and smoke-tested on the architecture it targets; nothing
 is cross-qualified. Windows on Arm is the one place the floor interpreter is
@@ -91,6 +91,38 @@ Each wheel is tested on two interpreters on purpose. A single `cp310-abi3`
 wheel is only worth shipping if one build really does serve both ends of the
 supported range, and testing only the interpreter that happens to be on the
 runner would never catch a wheel that had quietly become interpreter-specific.
+The upper interpreter is the newest one the distribution claims a classifier
+for, so no classifier stands on an untested interpreter.
+
+### What a Linux wheel actually carries
+
+Two properties of a repaired Linux wheel are easy to get wrong, and both are
+checked rather than assumed:
+
+- **The platform is a compressed tag set, not one tag.** A manylinux wheel is
+  named `...-manylinux_2_17_x86_64.manylinux2014_x86_64.whl` and its `WHEEL`
+  file carries one `Tag:` line per element — the PEP 600 spelling and the
+  legacy alias for the same platform. Qualification splits on `.`, requires
+  every element to name the same declared target, and compares the full set of
+  `Tag:` headers rather than the first one. musllinux never had aliases, so its
+  tag stands alone.
+- **Repair vendors shared libraries.** Making a wheel self-contained copies
+  each non-system library the extension links against into
+  `omiologic_secret_scan.libs/` and rewrites the RPATH. On musl that is
+  `libgcc_s`; the manylinux policy treats it as a system library, so the
+  manylinux wheels carry none. The contents check allows that directory on a
+  Linux wheel and requires it to hold only shared objects — it is a repair
+  artifact, so it may not appear on a macOS or Windows wheel.
+
+### Running the tooling on the floor interpreter
+
+The musl jobs are the one place the interpreter under test is also the one
+running the qualification script, because it runs inside the musl container.
+That makes CPython 3.10 a supported host for the tooling, and `tomllib` only
+arrived in 3.11 — so `scripts/qualify-python-wheel.py` and
+`scripts/check-python-package.py` fall back to `tomli`, and the musl step
+installs it when the container needs it. The other jobs run the script on the
+runner's interpreter and pass the interpreters under test with `--python`.
 
 ## Qualification
 

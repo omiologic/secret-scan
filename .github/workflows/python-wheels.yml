@@ -107,43 +107,43 @@ jobs:
             manylinux: auto
             smoke: host
             python-floor: "3.10"
-            python-latest: "3.13"
+            python-latest: "3.14"
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
             manylinux: auto
             smoke: host
             python-floor: "3.10"
-            python-latest: "3.13"
+            python-latest: "3.14"
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-latest
             manylinux: musllinux_1_2
             smoke: alpine
             python-floor: "3.10"
-            python-latest: "3.13"
+            python-latest: "3.14"
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-24.04-arm
             manylinux: musllinux_1_2
             smoke: alpine
             python-floor: "3.10"
-            python-latest: "3.13"
+            python-latest: "3.14"
           - target: x86_64-apple-darwin
             runner: macos-13
             manylinux: auto
             smoke: host
             python-floor: "3.10"
-            python-latest: "3.13"
+            python-latest: "3.14"
           - target: aarch64-apple-darwin
             runner: macos-latest
             manylinux: auto
             smoke: host
             python-floor: "3.10"
-            python-latest: "3.13"
+            python-latest: "3.14"
           - target: x86_64-pc-windows-msvc
             runner: windows-latest
             manylinux: auto
             smoke: host
             python-floor: "3.10"
-            python-latest: "3.13"
+            python-latest: "3.14"
           - target: aarch64-pc-windows-msvc
             runner: windows-11-arm
             manylinux: auto
@@ -152,7 +152,7 @@ jobs:
             # interpreter this target can be smoke-tested on. The wheel's abi3
             # floor is still 3.10, and the x64 job exercises it.
             python-floor: "3.11"
-            python-latest: "3.13"
+            python-latest: "3.14"
 
     steps:
       - name: Check out repository
@@ -196,14 +196,18 @@ jobs:
             dist/*.whl
 
       # A musllinux wheel cannot be installed on the glibc runner, so it is
-      # qualified inside a musl image of the same architecture.
+      # qualified inside a musl image of the same architecture. Here the
+      # interpreter under test is also the one running the tooling, so the
+      # floor image needs `tomli`: `tomllib` only arrived in CPython 3.11.
       - name: Qualify the wheel on musl
         if: matrix.smoke == 'alpine'
         run: |
           for version in "${{ matrix.python-floor }}" "${{ matrix.python-latest }}"; do
-            docker run --rm -v "$PWD:/io" -w /io \
-              "python:${version}-alpine" \
-              sh -c 'python3 -B scripts/qualify-python-wheel.py --conformance dist/*.whl'
+            docker run --rm -v "$PWD:/io" -w /io "python:${version}-alpine" sh -c '
+              python3 -c "import tomllib" 2>/dev/null ||
+                pip install --quiet --disable-pip-version-check tomli
+              python3 -B scripts/qualify-python-wheel.py --conformance dist/*.whl
+            '
           done
 
       - name: Upload the wheel

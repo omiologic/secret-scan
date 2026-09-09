@@ -39,11 +39,17 @@ import sys
 import sysconfig
 import tarfile
 import tempfile
-import tomllib
 import venv
 import zipfile
 from pathlib import Path
 
+
+# This tool qualifies wheels for CPython 3.10 and up, so it has to run there
+# too: `tomllib` is 3.11+, and `tomli` is the same parser under its old name.
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on CPython 3.10
+    import tomli as tomllib  # type: ignore[no-redef]
 
 SCRIPTS = Path(__file__).resolve().parent
 ROOT = SCRIPTS.parent
@@ -178,13 +184,11 @@ def inspect_wheel(path: Path, rules: dict) -> list[str]:
         errors.append(f"{path.name}: interpreter/ABI tag {match.group('tag')} is not {expected_tag}")
 
     platform = match.group("platform")
-    targets = [
-        target
-        for target, pattern in CHECK.TARGET_PLATFORM_TAGS.items()
-        if target in rules["python-wheel-targets"] and pattern.match(platform)
-    ]
-    if not targets:
-        errors.append(f"{path.name}: platform tag {platform} matches no declared wheel target")
+    targets = CHECK.targets_for_platform(platform, rules["python-wheel-targets"])
+    if len(targets) != 1:
+        errors.append(
+            f"{path.name}: platform tag {platform} matches {targets or 'no'} declared wheel target"
+        )
 
     with zipfile.ZipFile(path) as archive:
         names = sorted(archive.namelist())
@@ -195,8 +199,16 @@ def inspect_wheel(path: Path, rules: dict) -> list[str]:
             errors.append(f"{path.name}: missing {wheel_entry}")
         else:
             wheel = parse_metadata(archive.read(wheel_entry).decode("utf-8"))
-            if wheel.get("Tag") != f"{expected_tag}-{platform}":
-                errors.append(f"{path.name}: WHEEL Tag {wheel.get('Tag')} disagrees with the filename")
+            # A compressed tag set in the filename is one `Tag:` header per
+            # element, so read all of them; the first alone would not describe
+            # the wheel.
+            declared_tags = set(wheel.get_all("Tag") or [])
+            expected_tags = {f"{expected_tag}-{part}" for part in platform.split(".")}
+            if declared_tags != expected_tags:
+                errors.append(
+                    f"{path.name}: WHEEL tags {sorted(declared_tags)} disagree with the "
+                    f"filename's {sorted(expected_tags)}"
+                )
             if (wheel.get("Root-Is-Purelib") or "").lower() != "false":
                 errors.append(f"{path.name}: WHEEL must not claim to be pure Python")
 
@@ -231,7 +243,24 @@ def inspect_wheel(path: Path, rules: dict) -> list[str]:
         # Exactly the importable package, its typing markers, and one abi3
         # extension. Anything else -- a second native module, a test, a stray
         # source file -- would be shipping something the contract does not name.
+        #
+        # The one addition is `<distribution>.libs/`: repairing a Linux wheel
+        # copies in each non-system shared library the extension links against
+        # and rewrites its RPATH, which is how a manylinux or musllinux wheel
+        # becomes self-contained. On this build that is libgcc_s for musl. It
+        # is a repair artifact, so it may only appear on a Linux wheel and may
+        # only hold shared objects.
         payload = [name for name in names if not name.startswith(f"{dist_info}/")]
+        libs = f"{normalized(distribution)}.libs/"
+        vendored = [name for name in payload if name.startswith(libs)]
+        payload = [name for name in payload if not name.startswith(libs)]
+        if vendored:
+            if not platform.startswith(("manylinux", "musllinux")):
+                errors.append(f"{path.name}: only a repaired Linux wheel may vendor libraries, found {vendored}")
+            stray_libs = [name for name in vendored if ".so" not in name]
+            if stray_libs:
+                errors.append(f"{path.name}: {libs} may only hold shared objects, found {stray_libs}")
+            print(f"{path.name}: vendors {', '.join(name[len(libs):] for name in vendored)}")
         natives = [name for name in payload if name.endswith((".so", ".pyd", ".dylib"))]
         # maturin names the limited-API extension `_native.abi3.so` everywhere
         # but Windows, where the suffix is a plain `.pyd`; there the abi3 claim
@@ -509,9 +538,8 @@ def check_matrix(artifacts: list[Path], rules: dict) -> list[str]:
         match = WHEEL_NAME.match(artifact.name)
         if not match:
             continue
-        for target in declared:
-            if CHECK.TARGET_PLATFORM_TAGS[target].match(match.group("platform")):
-                found[target].append(artifact.name)
+        for target in CHECK.targets_for_platform(match.group("platform"), declared):
+            found[target].append(artifact.name)
 
     errors = [
         f"wheel matrix: no wheel for {target}" if not names else f"wheel matrix: {len(names)} wheels for {target}: {names}"

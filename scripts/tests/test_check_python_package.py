@@ -238,6 +238,48 @@ class CheckPythonPackageTest(unittest.TestCase):
         for target in policy["python-wheel-targets"]:
             self.assertIn(target, CHECK.TARGET_PLATFORM_TAGS)
 
+    def test_a_compressed_manylinux_tag_set_maps_to_one_target(self) -> None:
+        """auditwheel writes one platform as several `.`-joined spellings."""
+        declared = list(CHECK.TARGET_PLATFORM_TAGS)
+        self.assertEqual(
+            CHECK.targets_for_platform("manylinux_2_17_x86_64.manylinux2014_x86_64", declared),
+            ["x86_64-unknown-linux-gnu"],
+        )
+        self.assertEqual(
+            CHECK.targets_for_platform("manylinux_2_17_aarch64.manylinux2014_aarch64", declared),
+            ["aarch64-unknown-linux-gnu"],
+        )
+
+    def test_legacy_manylinux_aliases_are_recognized(self) -> None:
+        declared = list(CHECK.TARGET_PLATFORM_TAGS)
+        for tag in ("manylinux1_x86_64", "manylinux2010_x86_64", "manylinux2014_x86_64"):
+            self.assertEqual(CHECK.targets_for_platform(tag, declared), ["x86_64-unknown-linux-gnu"], tag)
+
+    def test_single_platform_tags_still_map(self) -> None:
+        declared = list(CHECK.TARGET_PLATFORM_TAGS)
+        for tag, target in [
+            ("musllinux_1_2_x86_64", "x86_64-unknown-linux-musl"),
+            ("musllinux_1_2_aarch64", "aarch64-unknown-linux-musl"),
+            ("macosx_11_0_arm64", "aarch64-apple-darwin"),
+            ("macosx_10_12_x86_64", "x86_64-apple-darwin"),
+            ("win_amd64", "x86_64-pc-windows-msvc"),
+            ("win_arm64", "aarch64-pc-windows-msvc"),
+        ]:
+            self.assertEqual(CHECK.targets_for_platform(tag, declared), [target], tag)
+
+    def test_a_tag_set_mixing_two_platforms_matches_nothing(self) -> None:
+        """Every element has to name the same target, so this claims neither."""
+        declared = list(CHECK.TARGET_PLATFORM_TAGS)
+        self.assertEqual(CHECK.targets_for_platform("manylinux_2_17_x86_64.win_amd64", declared), [])
+        self.assertEqual(
+            CHECK.targets_for_platform("manylinux_2_17_x86_64.musllinux_1_2_x86_64", declared), []
+        )
+
+    def test_an_unknown_tag_matches_nothing(self) -> None:
+        declared = list(CHECK.TARGET_PLATFORM_TAGS)
+        for tag in ("linux_x86_64", "any", "manylinux_2_17_s390x"):
+            self.assertEqual(CHECK.targets_for_platform(tag, declared), [], tag)
+
     def test_abi3_floor_parsing(self) -> None:
         self.assertEqual(CHECK.abi3_floor("abi3-py310"), 10)
         self.assertEqual(CHECK.abi3_floor("abi3-py314"), 14)

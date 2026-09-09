@@ -26,8 +26,12 @@ select or authorize a release.
   no source fallback, smoke-tests it outside the repository, runs the shared
   conformance suite against the installed artifact, and checks both documented
   source-distribution branches. `.github/workflows/python-wheels.yml` builds
-  every target and qualifies each wheel on the architecture it targets, on the
-  abi3 floor interpreter and a current one.
+  every target and qualifies each wheel on the architecture it targets, on
+  CPython 3.10 (3.11 on Windows on Arm) and 3.14 — the newest interpreter the
+  distribution claims a classifier for. Qualification understands what a
+  repaired Linux wheel actually carries: a compressed platform tag set whose
+  elements must all name the same target, and an
+  `omiologic_secret_scan.libs/` directory of vendored shared objects.
 - `docs/python-packaging.md` documents the distribution identity, the abi3
   contract, the wheel matrix, qualification, and source-distribution behavior.
 

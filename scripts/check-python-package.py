@@ -41,10 +41,17 @@ import ast
 import json
 import re
 import sys
-import tomllib
 import urllib.error
 import urllib.request
+from collections.abc import Iterable
 from pathlib import Path
+
+# `qualify-python-wheel.py` imports this module and runs on the abi3 floor,
+# CPython 3.10, where `tomllib` does not exist yet; `tomli` is the same parser.
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on CPython 3.10
+    import tomli as tomllib  # type: ignore[no-redef]
 
 
 BINDING = Path("bindings") / "python"
@@ -57,19 +64,43 @@ REQUIRES_PYTHON = re.compile(r"^>=3\.(\d+)$")
 # Every `target:` key in the wheel workflow's build matrix.
 WORKFLOW_TARGET = re.compile(r"^\s*(?:-\s+)?target:\s*(\S+)\s*$", re.M)
 
-# The wheel platform tag each supported target must produce. `qualify-python-wheel.py`
-# reads this table too, so a target and the tag it is qualified against are one
-# statement.
+# A single wheel platform tag each supported target may produce.
+# `qualify-python-wheel.py` reads this table too, so a target and the tag it is
+# qualified against are one statement.
+#
+# manylinux has two spellings of the same platform: the PEP 600 `manylinux_x_y`
+# form and the legacy aliases, and auditwheel emits both. `manylinux2014_*` is
+# `manylinux_2_17_*`, `manylinux2010_*` is `manylinux_2_12_*`, and
+# `manylinux1_*` is `manylinux_2_5_*`. musllinux never had aliases.
+MANYLINUX = r"(?:manylinux_\d+_\d+|manylinux1|manylinux2010|manylinux2014)"
 TARGET_PLATFORM_TAGS = {
     "aarch64-apple-darwin": re.compile(r"^macosx_\d+_\d+_arm64$"),
     "aarch64-pc-windows-msvc": re.compile(r"^win_arm64$"),
-    "aarch64-unknown-linux-gnu": re.compile(r"^manylinux_\d+_\d+_aarch64$"),
+    "aarch64-unknown-linux-gnu": re.compile(rf"^{MANYLINUX}_aarch64$"),
     "aarch64-unknown-linux-musl": re.compile(r"^musllinux_\d+_\d+_aarch64$"),
     "x86_64-apple-darwin": re.compile(r"^macosx_\d+_\d+_x86_64$"),
     "x86_64-pc-windows-msvc": re.compile(r"^win_amd64$"),
-    "x86_64-unknown-linux-gnu": re.compile(r"^manylinux_\d+_\d+_x86_64$"),
+    "x86_64-unknown-linux-gnu": re.compile(rf"^{MANYLINUX}_x86_64$"),
     "x86_64-unknown-linux-musl": re.compile(r"^musllinux_\d+_\d+_x86_64$"),
 }
+
+
+def targets_for_platform(platform: str, declared: Iterable[str]) -> list[str]:
+    """Every declared target whose tag pattern matches this platform tag.
+
+    A wheel filename carries a *compressed tag set*, not one tag: auditwheel
+    emits `manylinux_2_17_x86_64.manylinux2014_x86_64`, which is one platform
+    written two ways. Each `.`-separated element has to name the same target,
+    so a wheel can neither claim two platforms at once nor smuggle an
+    unqualified tag in beside a qualified one.
+    """
+    parts = platform.split(".")
+    return [
+        target
+        for target in declared
+        if target in TARGET_PLATFORM_TAGS
+        and all(TARGET_PLATFORM_TAGS[target].match(part) for part in parts)
+    ]
 
 # The maturin floor that understands PEP 639 `license-files`, so the license
 # actually travels with the wheel.
@@ -293,6 +324,10 @@ def validate(root: Path) -> list[str]:
     return errors
 
 
+class RegistryUnreachable(Exception):
+    """PyPI could not be reached, which is not the same as a name being free."""
+
+
 def distribution_exists(name: str) -> bool:
     request = urllib.request.Request(
         f"https://pypi.org/pypi/{name}/json", headers={"User-Agent": USER_AGENT}
@@ -303,7 +338,9 @@ def distribution_exists(name: str) -> bool:
     except urllib.error.HTTPError as error:
         if error.code == 404:
             return False
-        raise
+        raise RegistryUnreachable(f"PyPI returned HTTP {error.code} for {name}") from error
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        raise RegistryUnreachable(f"could not reach PyPI for {name}: {error}") from error
 
 
 def recheck_pypi_name(policy: dict) -> list[str]:
@@ -336,7 +373,12 @@ def main() -> int:
 
     errors = validate(args.root)
     if args.recheck_pypi_name and not errors:
-        errors.extend(recheck_pypi_name(load_policy(Path(args.root).resolve())))
+        try:
+            errors.extend(recheck_pypi_name(load_policy(Path(args.root).resolve())))
+        except RegistryUnreachable as error:
+            # An unreachable registry proves nothing about a name, so it is a
+            # failure rather than a silent pass on the path a release runs.
+            errors.append(f"PyPI: {error}")
     for error in errors:
         print(f"ERROR {error}")
     print(f"Python package check complete: {len(errors)} error(s)")

@@ -84,13 +84,13 @@ stub, so type checkers resolve the API without a stub package.
 
 | Platform | Architectures | Wheel tag |
 | --- | --- | --- |
-| manylinux (glibc 2.17+) | `x86_64`, `aarch64` | `cp310-abi3-manylinux_2_17_*` |
+| manylinux (glibc 2.17+) | `x86_64`, `aarch64` | `cp310-abi3-manylinux_2_17_*.manylinux2014_*` |
 | musllinux (musl 1.2+) | `x86_64`, `aarch64` | `cp310-abi3-musllinux_1_2_*` |
 | macOS 11+ | `x86_64`, `arm64` | `cp310-abi3-macosx_*` |
 | Windows | `x64`, `arm64` | `cp310-abi3-win_*` |
 
-Every wheel in that matrix is built and smoke-tested on its own architecture
-before a release candidate is accepted; see
+Every wheel in that matrix is built and smoke-tested on its own architecture,
+on CPython 3.10 and 3.14, before a release candidate is accepted; see
 [docs/python-packaging.md](https://github.com/omiologic/secret-scan/blob/main/docs/python-packaging.md).
 
 ## Building from source
