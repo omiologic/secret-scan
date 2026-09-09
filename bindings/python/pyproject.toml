@@ -1,32 +1,74 @@
+# The CPython distribution built from `bindings/python`.
+#
+# Identity, the abi3 contract, and the wheel matrix are declared once in
+# `[workspace.metadata.secret-scan]` in the root `Cargo.toml` and enforced by
+# `scripts/check-python-package.py`; the values here must agree with it.
+# See docs/python-packaging.md.
+
 [build-system]
-requires = ["maturin>=1.7,<2"]
+# 1.10 is the floor that understands PEP 639 `license-files`. The `<2` ceiling
+# keeps a major backend change out of a source install.
+requires = ["maturin>=1.10,<2"]
 build-backend = "maturin"
 
 [project]
-# Provisional distribution name. `secret-scan` on PyPI belongs to an unrelated
-# project (checked 2026-09-09), so the Python distribution name is selected by
-# the binding implementation issue; the product name stays `secret-scan`.
+# The product name is `secret-scan` everywhere. On PyPI that name belongs to an
+# unrelated project (verified 2026-09-09), so this distribution takes the
+# registry fallback recorded in docs/rust-workspace.md#registry-names. The
+# import name stays `secret_scan`. Recheck before publication with
+# `python3 scripts/check-python-package.py --recheck-pypi-name`.
 name = "omiologic-secret-scan"
 description = "Deterministic secret detection and redaction (CPython binding for the secret-scan core)."
+readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "omiologic" }]
+keywords = ["secret-detection", "redaction", "security", "credentials", "sanitization"]
+# Version comes from the Cargo workspace so every artifact releases in lockstep
+# (`decision-release-bindings-in-lockstep`).
 dynamic = ["version"]
 classifiers = [
-  "Programming Language :: Rust",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Rust",
+  "Topic :: Security",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Typing :: Typed",
 ]
+
+# The runtime has no Python dependencies: everything but the standard library
+# lives in the compiled extension.
+dependencies = []
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
 
 [project.urls]
+Homepage = "https://github.com/omiologic/secret-scan#readme"
 Repository = "https://github.com/omiologic/secret-scan"
+Issues = "https://github.com/omiologic/secret-scan/issues"
+Changelog = "https://github.com/omiologic/secret-scan/blob/main/CHANGELOG.md"
 
 [tool.maturin]
-# Version comes from Cargo.toml (workspace version) to keep lockstep releases.
 features = ["extension-module"]
 module-name = "secret_scan._native"
 python-source = "python"
+# The tests import the canonical `conformance/` corpus from the repository, two
+# levels above this package, so they cannot run from a source distribution.
+# They stay in the repository and out of every artifact.
+exclude = ["bindings/python/tests/**", "tests/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

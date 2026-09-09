@@ -68,7 +68,9 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for processing, trust boundaries,
 incremental safety, package ownership, conformance, and release design. See
 [docs/rust-workspace.md](./docs/rust-workspace.md) for workspace dependency,
 lint, unsafe-code, MSRV, public-API, package-content, and registry-name
-policies.
+policies, and [docs/python-packaging.md](./docs/python-packaging.md) for the
+CPython distribution, its abi3 wheel matrix, and how each artifact is
+qualified.
 
 ## JavaScript quick start
 
@@ -325,6 +327,17 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
 cargo package -p secret-scan --locked
+```
+
+Build and qualify the CPython artifacts (see
+[docs/python-packaging.md](./docs/python-packaging.md)):
+
+```bash
+npm run python:check
+uvx maturin build --release -m bindings/python/Cargo.toml -o dist
+uvx maturin sdist -m bindings/python/Cargo.toml -o dist
+python3 scripts/qualify-python-wheel.py --conformance dist/*.whl
+python3 scripts/qualify-python-wheel.py --build-sdist dist/*.tar.gz
 ```
 
 The repository layout is:

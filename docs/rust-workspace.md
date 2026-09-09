@@ -15,7 +15,7 @@ moves or removes it.
 | `crates/secret-scan-cli` | `secret-scan-cli` (bin `secret-scan`) | Host adapter for process arguments, standard streams, exit codes, and files. | core, host crates | CLI artifact of the same version |
 | `bindings/node` | `secret-scan-node` (cdylib) | N-API addon; UTF-16 code unit ranges. | core, `napi`, `napi-derive`, `napi-build` | Consumed by `packages/javascript`; never on its own |
 | `bindings/wasm` | `secret-scan-wasm` (cdylib) | `wasm-bindgen` browser build; UTF-16 code unit ranges. | core, `wasm-bindgen` | Consumed by `packages/javascript`; never on its own |
-| `bindings/python` | `secret-scan-python` (cdylib, module `secret_scan._native`) | PyO3 extension built by maturin; Unicode code point ranges. | core, `pyo3` | PyPI distribution selected by the binding issue |
+| `bindings/python` | `secret-scan-python` (cdylib, module `secret_scan._native`) | PyO3 extension built by maturin; Unicode code point ranges. | core, `pyo3` | PyPI `omiologic-secret-scan` (imported as `secret_scan`) |
 | `packages/javascript` | none | The `@omiologic/secret-scan` npm package: one typed API whose `exports` map selects the Node addon or the wasm build, with the shared `await initialize()` contract. | Node and wasm bindings | npm `@omiologic/secret-scan` |
 
 Bindings and the CLI translate host APIs to the core. They never reimplement
@@ -201,10 +201,14 @@ differ (`decision-release-bindings-in-lockstep`).
   change. Recheck before publication with
   `python3 scripts/check-rust-workspace.py --recheck-crate-name`.
 - npm: `@omiologic/secret-scan` is the existing package name.
-- PyPI: `secret-scan` belongs to an unrelated project as of 2026-09-09.
-  `bindings/python/pyproject.toml` carries the provisional name
-  `omiologic-secret-scan`; the binding implementation issue selects the final
-  distribution name.
+- PyPI: `secret-scan` belongs to an unrelated project, verified 2026-09-09 and
+  rechecked when the packaging contract was written, so the distribution takes
+  the fallback `omiologic-secret-scan`, which is available. The import name
+  stays `secret_scan`. The name is declared in
+  `[workspace.metadata.secret-scan] python-distribution` and enforced by
+  `npm run python:check`. Recheck before publication with
+  `python3 scripts/check-python-package.py --recheck-pypi-name`; see
+  [docs/python-packaging.md](./python-packaging.md).
 
 ## Verification
 
@@ -233,4 +237,14 @@ To recheck the registry names before a publication:
 
 ```bash
 python3 scripts/check-rust-workspace.py --recheck-crate-name
+python3 scripts/check-python-package.py --recheck-pypi-name
 ```
+
+## Python packaging
+
+The CPython distribution's identity, its abi3 contract, its wheel matrix, and
+how each artifact is qualified are declared in the same
+`[workspace.metadata.secret-scan]` table and documented separately in
+[docs/python-packaging.md](./python-packaging.md). `npm run python:check`
+enforces that contract and runs in `npm run ci`;
+`.github/workflows/python-wheels.yml` builds and qualifies the artifacts.

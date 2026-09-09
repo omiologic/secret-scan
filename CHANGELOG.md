@@ -7,6 +7,34 @@ select or authorize a release.
 
 ### Added
 
+- CPython packaging for the Python binding: the `omiologic-secret-scan`
+  distribution (imported as `secret_scan`), built by maturin as a `cp310-abi3`
+  wheel that serves every CPython from 3.10 upward with no pure-Python
+  fallback, with PEP 561 typing markers, PEP 639 license metadata, no runtime
+  dependency, and a source distribution that vendors the core crate. The
+  supported wheel matrix is manylinux and musllinux, macOS, and Windows in both
+  x64 and arm64.
+- `npm run python:check` (`scripts/check-python-package.py`, now part of
+  `npm run ci`) enforces the packaging contract declared in
+  `[workspace.metadata.secret-scan]`: the distribution and import names, the
+  abi3 floor and the `requires-python` floor agreeing with each other, the
+  absence of any Python implementation beside the extension, the typing
+  markers, and the wheel matrix the workflow actually builds.
+  `--recheck-pypi-name` rechecks the registry names before a publication.
+- `scripts/qualify-python-wheel.py` inspects wheel and source-distribution
+  contents and metadata, installs each wheel with no index, no dependency, and
+  no source fallback, smoke-tests it outside the repository, runs the shared
+  conformance suite against the installed artifact, and checks both documented
+  source-distribution branches. `.github/workflows/python-wheels.yml` builds
+  every target and qualifies each wheel on the architecture it targets, on
+  CPython 3.10 (3.11 on Windows on Arm) and 3.14 — the newest interpreter the
+  distribution claims a classifier for. Qualification understands what a
+  repaired Linux wheel actually carries: a compressed platform tag set whose
+  elements must all name the same target, and an
+  `omiologic_secret_scan.libs/` directory of vendored shared objects.
+- `docs/python-packaging.md` documents the distribution identity, the abi3
+  contract, the wheel matrix, qualification, and source-distribution behavior.
+
 - Rust workspace scaffold with the `secret-scan` core crate, the `secret-scan`
   CLI, Node, WebAssembly, and Python binding crates, and a `packages/javascript`
   ownership boundary; the TypeScript implementation is unchanged.
