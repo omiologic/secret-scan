@@ -26,6 +26,16 @@ depend on `src/`.
   fixtures with an astral (supplementary-plane) character positioned before,
   within, and after a finding, used to exercise the UTF-16/UTF-8 conversion
   at its most divergent case.
+- [`fixtures/synchronous-corpus.json`](./fixtures/synchronous-corpus.json) —
+  the full synchronous detector, exclusion, overlap, and adversarial-resource
+  corpus (`test/conformance/corpus.ts`), migrated to canonical UTF-8 byte
+  offsets by `scripts/migrate-conformance-corpus.ts`. This is the canonical
+  corpus for detector behavior today; regenerate it with
+  `npm run corpus:migrate -- conformance/fixtures/synchronous-corpus.json`
+  whenever `test/conformance/corpus.ts` changes.
+  `test/conformance/canonical-oracle.test.ts` fails if the two drift, and
+  proves the current TypeScript implementation reproduces exactly this
+  file's findings, per-detector specificity, and redacted output.
 
 `scripts/migrate-conformance-corpus.ts` is migration tooling built on this
 directory: it reads the existing TypeScript corpus
@@ -70,8 +80,9 @@ to carry plaintext into a public expectation.
 
 ## What this directory is not (yet)
 
-This item defines the schema, the UTF-8 range model, and migration tooling.
-It does not migrate the full existing corpus, and it does not add a Rust or
-Python consumer — those are separate, larger changes tracked elsewhere. The
-existing TypeScript corpus (`test/conformance/`) remains the executable
-behavioral oracle until the Rust core reaches parity.
+This item defines the schema, the UTF-8 range model, migration tooling, and
+the migrated synchronous corpus. It does not yet add a Rust or Python
+consumer — those are separate, larger changes tracked elsewhere. The existing
+TypeScript corpus (`test/conformance/`) remains the executable behavioral
+oracle until the Rust core reaches parity, and `synchronous-corpus.json`
+remains a derived artifact of it, not an independently authored source.

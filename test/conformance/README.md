@@ -31,6 +31,13 @@ a runtime classification. [`COVERAGE.md`](./COVERAGE.md) is generated from this
 metadata plus the incremental corpus and fails CI when an applicable detector
 dimension has no evidence or an inapplicable dimension has no reason.
 
+This corpus is also the source of the language-neutral canonical corpus at
+[`../../conformance/fixtures/synchronous-corpus.json`](../../conformance/fixtures/synchronous-corpus.json).
+[`canonical-oracle.test.ts`](./canonical-oracle.test.ts) fails if that file
+drifts from a fresh conversion of this corpus, and separately proves the
+current TypeScript detector, policy, and redaction pipeline reproduces
+exactly the canonical file's findings and redacted output.
+
 The deterministic mutation harness uses fixed grammars and reproducible
 ordering. It covers accepted forms and neighboring invalid prefixes, lengths,
 alphabets, whitespace insertion, truncation, punctuation, quoting, encoded
