@@ -253,15 +253,24 @@ Two modes:
   writes the result to standard output. The input is never modified in place
   and no path is opened for writing.
 
-Exit codes are the enforcement contract a pre-commit hook or CI job branches
-on: `0` when nothing was found, `1` when anything was, and `2` for a usage,
-decoding, or processing failure. A failure outranks a finding, so a run that
-could not read or decode part of its input never reports success. Input that is
-not valid UTF-8 fails closed rather than being scanned in part.
+Check exit codes are the enforcement contract a pre-commit hook or CI job
+branches on: `0` when nothing was found, `1` when anything was, and `2` for a
+usage, decoding, or processing failure. A failure outranks a finding, so a run
+that could not read or decode part of its input never reports success. Input
+that is not valid UTF-8 fails closed rather than being scanned in part.
+Redaction reports `0` or `2` only, because a finding is its purpose rather than
+its failure; enforcement on a finding belongs to check mode.
 
 Standard input uses the incremental session described above, under explicit
 limits the CLI declares and `--help` prints; a path is read whole under the same
-total-input bound. Both paths are the canonical core. Every CLI failure —
+total-input bound. Both paths are the canonical core. The session's construct
+limits bound the streamed path alone, and the core applies the token limit to
+every unresolved logical line, so those limits are sized for the long lines a
+pipeline carries rather than for credential length — otherwise the two paths
+would disagree about ordinary input. Redaction emits each closed unit as it
+streams, so a failure part way through leaves a sanitized but incomplete prefix
+on standard output; the exit code, not the output's presence, is the signal.
+Every CLI failure —
 a partial read, a decoding failure, a limit failure, a closed downstream pipe,
 or an abort — leaves the session holding no retained plaintext, and every
 diagnostic uses a fixed code and an input-free message on the same terms as

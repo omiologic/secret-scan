@@ -64,7 +64,23 @@ impl Report {
     }
 
     /// Records a source that was scanned and the metadata it produced.
+    ///
+    /// Findings are renumbered so that `id` is unique across the whole report.
+    /// The core numbers each scan from `finding-1`, and a multi-file check runs
+    /// one scan per file, so without this a consumer keying findings by `id`
+    /// would collide between sources. A single-source run — every standard
+    /// input run, and the common single-file run — is unaffected: it already
+    /// numbers from one.
     pub fn push_source(&mut self, identity: String, findings: Vec<SafeFinding>) {
+        let mut ordinal = self.finding_count();
+        let findings = findings
+            .into_iter()
+            .map(|mut finding| {
+                ordinal += 1;
+                finding.id = format!("finding-{ordinal}");
+                finding
+            })
+            .collect();
         self.sources.push(SourceReport { identity, findings });
     }
 
@@ -118,6 +134,11 @@ impl Report {
                 )?;
             }
         }
+        // The findings go to a buffered stdout and the summary to an
+        // unbuffered stderr. Without this flush the summary overtakes the
+        // findings whenever both land on one terminal or one redirect.
+        out.flush()?;
+
         let findings = self.finding_count();
         writeln!(
             diagnostics,
@@ -304,6 +325,64 @@ mod tests {
             String::from_utf8(diagnostics)
                 .unwrap()
                 .contains("1 finding(s) in 1 source(s)")
+        );
+    }
+
+    /// One sink standing in for a terminal, or for `2>&1` into one file:
+    /// findings and the summary land in the same place, in write order.
+    #[derive(Clone, Default)]
+    struct SharedSink(std::rc::Rc<std::cell::RefCell<Vec<u8>>>);
+
+    impl Write for SharedSink {
+        fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+            self.0.borrow_mut().extend_from_slice(buffer);
+            Ok(buffer.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn findings_are_numbered_across_the_whole_report() {
+        let mut report = Report::new();
+        report.push_source("first.env".to_owned(), vec![finding("finding-1", 0, 4)]);
+        report.push_source(
+            "second.env".to_owned(),
+            vec![finding("finding-1", 0, 4), finding("finding-2", 8, 12)],
+        );
+
+        let (mut out, mut diagnostics) = (Vec::new(), Vec::new());
+        report.write_text(&mut out, &mut diagnostics).unwrap();
+        let rendered = String::from_utf8(out).unwrap();
+        let ids: Vec<&str> = rendered
+            .lines()
+            .filter_map(|line| line.rsplit_once("id=").map(|(_, id)| id))
+            .collect();
+
+        assert_eq!(ids, ["finding-1", "finding-2", "finding-3"]);
+        assert_eq!(report.finding_count(), 3);
+    }
+
+    #[test]
+    fn the_summary_follows_the_findings_it_summarizes() {
+        let mut report = Report::new();
+        report.push_source("a.txt".to_owned(), vec![finding("finding-1", 8, 48)]);
+
+        // Buffered stdout against unbuffered stderr is exactly the case that
+        // inverts the order without a flush between them.
+        let sink = SharedSink::default();
+        let mut buffered = std::io::BufWriter::new(sink.clone());
+        report.write_text(&mut buffered, &mut sink.clone()).unwrap();
+        buffered.flush().unwrap();
+
+        let rendered = String::from_utf8(sink.0.borrow().clone()).unwrap();
+        let lines: Vec<&str> = rendered.lines().collect();
+        assert!(lines[0].starts_with("a.txt:8-48"), "got {lines:?}");
+        assert!(
+            lines[1].starts_with("secret-scan: 1 finding(s)"),
+            "got {lines:?}"
         );
     }
 

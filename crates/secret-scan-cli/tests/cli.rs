@@ -8,10 +8,10 @@
 //! GitHub detector recognizes and authenticates nothing; no test in this file
 //! reads, writes, or transmits a real credential.
 //!
-//! `clippy.toml` relaxes `unwrap` for test code, but only inside a function
-//! marked `#[test]`. This file is test code end to end, including the helpers
-//! that set up a run, so the same relaxation is declared here.
-#![allow(clippy::unwrap_used)]
+//! `clippy.toml` relaxes `unwrap` and `expect` for test code, but only inside
+//! a function marked `#[test]`. This file is test code end to end, including
+//! the helpers that set up a run, so the same relaxation is declared here.
+#![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use std::fs;
 use std::io::Write;
@@ -279,6 +279,39 @@ fn the_json_report_of_a_clean_run_is_still_a_complete_object() {
     );
 }
 
+/// `id` is the only opaque handle the report exposes, and the core numbers
+/// each scan from `finding-1`. A multi-file check runs one scan per file, so
+/// the report has to renumber or a consumer keyed on `id` collides.
+#[test]
+fn finding_ids_are_unique_across_sources() {
+    let scratch = Scratch::new();
+    let first = scratch.write("first.env", &format!("API_KEY={SYNTHETIC_TOKEN}\n"));
+    let second = scratch.write("second.env", &format!("AWS={SYNTHETIC_AWS_KEY}\n"));
+    let third = scratch.write("third.env", &format!("API_KEY={SYNTHETIC_TOKEN}\n"));
+    let run = run(&[&first, &second, &third], b"");
+
+    assert_eq!(run.code, 1);
+    let ids: Vec<&str> = run
+        .stdout
+        .lines()
+        .filter_map(|line| line.rsplit_once("id=").map(|(_, id)| id))
+        .collect();
+    assert_eq!(ids, ["finding-1", "finding-2", "finding-3"]);
+}
+
+#[test]
+fn a_single_source_keeps_the_numbering_the_core_produced() {
+    let contents = format!("API_KEY={SYNTHETIC_TOKEN}\nAWS={SYNTHETIC_AWS_KEY}\n");
+    let run = run_args(&[], contents.as_bytes());
+
+    let ids: Vec<&str> = run
+        .stdout
+        .lines()
+        .filter_map(|line| line.rsplit_once("id=").map(|(_, id)| id))
+        .collect();
+    assert_eq!(ids, ["finding-1", "finding-2"]);
+}
+
 #[test]
 fn the_json_report_records_a_failed_source_alongside_a_scanned_one() {
     let scratch = Scratch::new();
@@ -397,6 +430,31 @@ fn redact_sanitizes_exactly_one_file_and_leaves_it_untouched() {
     run.leaks_nothing();
 }
 
+/// Redaction reports success when it wrote the whole sanitized stream.
+/// Finding something is what it is for, so a finding — including one the
+/// policy blocks — is not a failure there. Check mode is the mode that fails
+/// a hook on a finding.
+#[test]
+fn redact_exits_zero_even_for_a_finding_the_policy_blocks() {
+    let block = concat!(
+        "-----BEGIN RSA PRIVATE KEY-----\n",
+        "U1lOVEhFVElDUkVWT0tFRFRFU1RLRVlOT1RSRUFMMDAwMDAwMDAwMDAwMDAwMDA=\n",
+        "-----END RSA PRIVATE KEY-----\n",
+    );
+    let checked = run_args(&[], block.as_bytes());
+    let redacted = run_args(&["--redact"], block.as_bytes());
+
+    assert_eq!(checked.code, 1, "check fails a hook on the blocked finding");
+    assert!(checked.stdout.contains("action=block"));
+
+    assert_eq!(
+        redacted.code, 0,
+        "redaction wrote the whole sanitized stream"
+    );
+    assert!(redacted.stdout.contains("<SECRET_1>"));
+    assert!(!redacted.stdout.contains("U1lOVEhFVElD"));
+}
+
 #[test]
 fn redact_refuses_more_than_one_file() {
     let scratch = Scratch::new();
@@ -449,16 +507,64 @@ fn check_and_redact_agree_on_the_same_input() {
 
 // --- limits ------------------------------------------------------------
 
+/// The `max token` limit the binary prints in its own help, so a test builds
+/// input against the limit in force rather than against a copied number.
+fn declared_max_token_bytes() -> usize {
+    let help = run_args(&["--help"], b"").stdout;
+    let line = help
+        .lines()
+        .find(|line| line.trim_start().starts_with("max token "))
+        .expect("help must declare the token limit");
+    line.split_whitespace()
+        .nth(2)
+        .and_then(|bytes| bytes.parse().ok())
+        .expect("the token limit must be a byte count")
+}
+
 #[test]
 fn an_open_construct_past_the_token_limit_fails_the_run() {
-    // One unterminated assignment longer than `MAX_TOKEN_BYTES`.
+    // One unterminated assignment longer than the declared token limit.
     let mut input = b"API_KEY=".to_vec();
-    input.resize(input.len() + 16 * 1024, b'a');
+    input.resize(declared_max_token_bytes() + 1, b'a');
     input.push(b'\n');
     let run = run_args(&[], &input);
 
     assert_eq!(run.code, 2);
     assert!(run.stderr.contains("TOKEN_LIMIT_EXCEEDED"));
+}
+
+/// The construct limits bound a streamed run but not a run over a path, so a
+/// limit tuned to credential length would make the two paths disagree about
+/// ordinary input: a minified bundle, a lockfile entry, or a base64 blob would
+/// scan by path and fail on standard input.
+#[test]
+fn an_ordinary_long_line_behaves_the_same_streamed_or_by_path() {
+    let scratch = Scratch::new();
+    let contents = format!(
+        "var bundle = \"{}\";\nAPI_KEY={SYNTHETIC_TOKEN}\n",
+        "a".repeat(64 * 1024)
+    );
+    let path = scratch.write("bundle.js", &contents);
+
+    let streamed = run_args(&[], contents.as_bytes());
+    let by_path = run(&[&path], b"");
+
+    assert_eq!(streamed.code, 1, "a long line must not fail a streamed run");
+    assert_eq!(by_path.code, 1);
+    assert_eq!(
+        streamed.stdout.replace("<stdin>", "SOURCE"),
+        by_path
+            .stdout
+            .replace(&path.to_string_lossy().into_owned(), "SOURCE"),
+        "the two paths must report the same finding at the same offsets",
+    );
+
+    let streamed_redaction = run_args(&["--redact"], contents.as_bytes());
+    let path_redaction = run(&[Path::new("--redact"), &path], b"");
+    assert_eq!(streamed_redaction.code, 0);
+    assert_eq!(path_redaction.code, 0);
+    assert_eq!(streamed_redaction.stdout, path_redaction.stdout);
+    streamed_redaction.leaks_nothing();
 }
 
 // --- version and help --------------------------------------------------
@@ -500,6 +606,10 @@ fn help_documents_the_modes_the_exit_codes_and_the_reporting_shape() {
         "never modified in place",
         "\"findingCount\"",
         "\"failures\"",
+        "unique across the whole report",
+        "check the exit code before using the output",
+        "redact: never returned",
+        "streamed path only",
     ] {
         assert!(run.stdout.contains(expected), "help omits {expected}");
     }

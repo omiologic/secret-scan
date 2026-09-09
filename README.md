@@ -280,10 +280,11 @@ secret-scan --redact log.txt > safe.txt   # sanitize; the input is untouched
 ```
 
 Check output carries safe file identity and finding metadata only — a range
-names a span in the input, never the bytes in that span. Exit codes are the
-enforcement contract: `0` when nothing was found, `1` when anything was, and
+names a span in the input, never the bytes in that span. Check exit codes are
+the enforcement contract: `0` when nothing was found, `1` when anything was, and
 `2` for a usage, decoding, or processing failure. A failure outranks a finding,
-and input that is not valid UTF-8 fails closed.
+and input that is not valid UTF-8 fails closed. Redaction reports `0` or `2`
+only: finding something is what it is for, not a failure.
 
 Standard input is streamed through the incremental core under explicit limits,
 because a credential may straddle any chunk boundary; a path is read whole under

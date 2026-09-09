@@ -4,8 +4,8 @@ Binary name: `secret-scan`. Path: `crates/secret-scan-cli`.
 
 The CLI is a host adapter over the `secret-scan` core crate. It may use the
 process environment, standard streams, and the filesystem; the core may not.
-Every detection, policy, and redaction decision comes from the core, so the
-CLI, the library, and every binding agree on the same input.
+Every detection, policy, and redaction decision comes from the core, so a given
+input produces the same findings here, in the library, and in every binding.
 
 ```text
 usage: secret-scan [--json] [--] [<path>...]
@@ -36,7 +36,10 @@ has the input available to resolve one.
 `--json` writes one object with `version`, `rangeUnit`, `findingCount`, a
 `sources` array of `{source, findings}`, and a `failures` array of
 `{source, code, message}`. Ranges are UTF-8 byte offsets into the original
-input, the unit `secret_scan::RANGE_UNIT` names.
+input, the unit `secret_scan::RANGE_UNIT` names. `id` is unique across the
+whole report: the core numbers each scan from `finding-1` and a multi-file
+check runs one scan per file, so the report renumbers run-wide rather than
+handing a consumer colliding keys.
 
 ## Redact mode
 
@@ -49,19 +52,29 @@ secret-scan --redact log.txt > log.redacted.txt
 kubectl logs pod | secret-scan --redact
 ```
 
+Standard input is sanitized as it streams, so a failure part way through leaves
+the text written so far on standard output. That prefix is sanitized — every
+unit is redacted before it is written — but it is not the whole input, so check
+the exit code before using the output. Buffering the whole stream until success
+would trade that for unbounded memory, which is what streaming exists to avoid.
+
 ## Exit codes
 
-| Code | Meaning |
-| --- | --- |
-| `0` | Every source was scanned and nothing was found. |
-| `1` | Every source was scanned and at least one finding exists. |
-| `2` | Usage, decoding, or processing failure. |
+| Code | Check mode | Redact mode |
+| --- | --- | --- |
+| `0` | Every source was scanned and nothing was found. | The whole sanitized stream was written. |
+| `1` | Every source was scanned and at least one finding exists. | Never returned. |
+| `2` | Usage, decoding, or processing failure. | Usage, decoding, or processing failure. |
 
-A failure outranks a finding: a run that could not read or decode part of its
-input has not proved that part clean, so it exits `2` even when another source
-produced findings. Input that is not valid UTF-8 fails closed rather than being
-scanned in part, and the diagnostic names the source and a fixed code, never
-the bytes that failed.
+Redaction does not report a finding through its exit code: finding something is
+what redaction is for, not a failure. Run check mode when a finding should fail
+a hook or a job.
+
+In check mode a failure outranks a finding: a run that could not read or decode
+part of its input has not proved that part clean, so it exits `2` even when
+another source produced findings. Input that is not valid UTF-8 fails closed
+rather than being scanned in part, and the diagnostic names the source and a
+fixed code, never the bytes that failed.
 
 ## Streaming, limits, and retention
 
@@ -70,6 +83,14 @@ credential may straddle any chunk boundary; a path is read whole. Both are
 bounded by the explicit limits `--help` prints: total input per source,
 retained unresolved plaintext, an open single-line construct, and an open
 PEM-style block.
+
+The construct limits bound the streamed path only — a path read whole is
+bounded by the input limit alone — so they are sized for what a pipeline
+actually carries rather than for what a credential needs. The core applies the
+token limit to every unresolved logical line, so a limit tuned to credential
+length would reject a minified bundle, a lockfile entry, or a base64 blob on
+standard input while the same file scanned by path succeeded. One mebibyte
+covers those and still bounds retained plaintext.
 
 Every failure path leaves the session holding nothing. A partial read, a
 decoding failure, a limit failure, and a closed downstream pipe each either

@@ -15,10 +15,14 @@
 //! - **redact** (`--redact`) sanitizes standard input, or exactly one path,
 //!   and writes the result to standard output. It never modifies its input.
 //!
-//! Exit codes are the contract a pre-commit hook or CI job keys off: `0` when
-//! nothing was found, `1` when anything was, and `2` for a usage, decoding, or
-//! processing failure. A failure outranks a finding, so a run that could not
-//! read part of its input never reports success.
+//! Exit codes are the contract a pre-commit hook or CI job keys off. In check
+//! mode: `0` when nothing was found, `1` when anything was, and `2` for a
+//! usage, decoding, or processing failure. A failure outranks a finding, so a
+//! run that could not read part of its input never reports success.
+//!
+//! Redact mode returns `0` or `2` only. Finding something is what redaction is
+//! for, so it is not a failure there; a caller that wants a finding to fail a
+//! hook runs check mode.
 
 #![forbid(unsafe_code)]
 
@@ -65,8 +69,10 @@ fn main() -> ExitCode {
 
     let mut outcome = run(env::args_os().skip(1), &mut stdin, &mut stdout, &mut stderr);
     // A buffered write that only fails at flush time must still fail the run:
-    // a redaction whose tail never reached the pipe is not a redaction.
-    if stdout.flush().is_err() {
+    // a redaction whose tail never reached the pipe is not a redaction. A run
+    // that had already failed keeps the failure it started with, because that
+    // one names the cause and this one only names the symptom.
+    if stdout.flush().is_err() && outcome.is_ok() {
         outcome = Err(Failure::WriteFailed);
     }
 
@@ -109,11 +115,16 @@ where
         }
         Command::Check { sources, format } => {
             let report = modes::check(&sources, stdin);
-            match format {
-                Format::Text => report.write_text(stdout, stderr)?,
-                Format::Json => report.write_json(stdout)?,
-            }
+            let written = match format {
+                Format::Text => report.write_text(stdout, stderr),
+                Format::Json => report.write_json(stdout),
+            };
+            // The per-source diagnostics name which sources failed and why, so
+            // they are written even when the report itself could not be: a run
+            // whose downstream pipe closed would otherwise exit 2 saying only
+            // that a write failed.
             report.write_diagnostics(stderr)?;
+            written?;
 
             if report.has_failures() {
                 Ok(Outcome::Failed)
@@ -166,7 +177,8 @@ check mode (the default)
   --json  Write one JSON object instead of one line per finding. The object
           carries \"version\", \"rangeUnit\", \"findingCount\", a \"sources\" array
           of {{\"source\", \"findings\"}}, and a \"failures\" array of
-          {{\"source\", \"code\", \"message\"}}. Every field is safe metadata.
+          {{\"source\", \"code\", \"message\"}}. Every field is safe metadata,
+          and \"id\" is unique across the whole report.
 
   Line format:
     <source>:<start>-<end> <type> detector=<id> confidence=<level> \
@@ -177,11 +189,24 @@ redact mode
   standard output. The input is never modified in place, and no path is ever
   opened for writing.
 
+  Finding something is the normal case here, not a failure, so redaction exits
+  0 whenever it wrote the whole sanitized stream and 2 when it did not. Use
+  check mode when you want a finding to fail a hook or a job.
+
+  Standard input is sanitized as it streams, so a failure part way through
+  leaves the text written so far on standard output. That prefix is sanitized,
+  but it is not the whole input: check the exit code before using the output.
+
 exit codes
-  0  every source was scanned and nothing was found
-  1  every source was scanned and at least one finding exists
+  0  check: every source was scanned and nothing was found
+     redact: the whole sanitized stream was written
+  1  check: every source was scanned and at least one finding exists
+     redact: never returned
   2  usage, decoding, or processing failure — including input that is not
      valid UTF-8, which fails closed rather than being scanned in part
+
+  In check mode a failure outranks a finding: a run that could not read or
+  decode part of its input has not proved that part clean, so it exits 2.
 
 limits
   Standard input is streamed through the incremental core, because a
@@ -192,6 +217,11 @@ limits
     max buffered   {MAX_BUFFERED_BYTES} bytes of unresolved plaintext
     max token      {MAX_TOKEN_BYTES} bytes per open single-line construct
     max multiline  {MAX_MULTILINE_BYTES} bytes per open private-key block
+
+  The construct limits apply to the streamed path only; a path read whole is
+  bounded by the input limit alone. They are sized so an ordinary long line —
+  a minified bundle, a lockfile entry, a base64 blob — streams and scans by
+  path alike.
 
   Ranges are UTF-8 byte offsets into the original input, reported as
   \"{RANGE_UNIT}\"."

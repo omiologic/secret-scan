@@ -71,12 +71,17 @@ select or authorize a release.
   failure; a failure outranks a finding. Reports carry safe file identity and
   finding metadata only, as one line per finding or, with `--json`, one
   machine-consumable object with `version`, `rangeUnit`, `findingCount`,
-  `sources`, and `failures`. `--redact` sanitizes standard input or exactly one
-  path to standard output and never modifies its input in place. Standard input
-  is streamed through the incremental core under explicit declared limits and a
-  path is read whole under the same total-input bound; input that is not valid
-  UTF-8 fails closed with an input-free diagnostic, and a partial read, a limit
-  failure, an abort, or a closed downstream pipe leaves no retained plaintext.
+  `sources`, and `failures`, whose `id` is unique across the whole report.
+  `--redact` sanitizes standard input or exactly one path to standard output,
+  never modifies its input in place, and reports `0` or `2` only, because a
+  finding is its purpose rather than its failure. Standard input is streamed
+  through the incremental core under explicit declared limits and a path is
+  read whole under the same total-input bound; the construct limits are sized
+  for the long lines a pipeline carries, so an ordinary minified bundle,
+  lockfile entry, or base64 blob behaves the same streamed or scanned by path.
+  Input that is not valid UTF-8 fails closed with an input-free diagnostic, and
+  a partial read, a limit failure, an abort, or a closed downstream pipe leaves
+  no retained plaintext.
 
 ## 0.1.0-beta.1 - 2026-08-31
 

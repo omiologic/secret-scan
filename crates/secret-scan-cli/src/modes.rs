@@ -68,6 +68,13 @@ fn check_file(path: &Path) -> Result<Vec<SafeFinding>, Failure> {
 /// The input is read, never written: standard input is consumed and a file is
 /// opened read-only, so redaction cannot modify its input in place.
 ///
+/// Standard input is sanitized as it streams, which means a failure part way
+/// through leaves the units already emitted on `out`. That prefix is
+/// sanitized — every unit is redacted before it is written — but it is not the
+/// whole input, so a caller must check the outcome before treating the output
+/// as complete. Buffering the whole stream until success would trade that for
+/// unbounded memory, which is the thing streaming exists to avoid.
+///
 /// # Errors
 ///
 /// Returns the failure that stopped the run. Every one of them leaves the

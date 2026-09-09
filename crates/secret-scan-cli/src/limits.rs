@@ -4,15 +4,23 @@
 //! retention window: standard input is streamed under an
 //! [`IncrementalLimits`] set derived from these constants, and a file is read
 //! whole under the same total-input bound.
+//!
+//! The construct limits are sized for what a real pipeline carries, not for
+//! what a credential needs. The core applies `max_token_bytes` to *every*
+//! unresolved logical line, so a limit tuned to credential length would reject
+//! a minified bundle, a lockfile line, or a base64 blob arriving on standard
+//! input while the same file scanned by path succeeded — the two paths would
+//! then disagree about what they accept. One mebibyte covers those inputs and
+//! still bounds retained plaintext.
 
 use secret_scan::{IncrementalLimits, SecretScanError};
 
 /// The largest logical input a single source may supply, streamed or whole.
 pub const MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
 /// The largest open single-line construct a streamed run holds unresolved.
-pub const MAX_TOKEN_BYTES: usize = 8 * 1024;
+pub const MAX_TOKEN_BYTES: usize = 1024 * 1024;
 /// The largest open PEM-style block a streamed run holds unresolved.
-pub const MAX_MULTILINE_BYTES: usize = 64 * 1024;
+pub const MAX_MULTILINE_BYTES: usize = 1024 * 1024;
 /// The retained-plaintext bound, derived from the construct limits so the
 /// CLI does not reproduce the core's lookaround arithmetic.
 pub const MAX_BUFFERED_BYTES: usize =
