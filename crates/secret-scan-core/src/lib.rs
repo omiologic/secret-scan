@@ -32,6 +32,53 @@
 //! [`redact`] then applies [`Finding`] actions to the input in one ordered
 //! pass, replacing `redact`/`block` ranges with placeholders from a
 //! [`PlaceholderFormatter`] and validating that formatter's output.
+//! [`scan_and_redact`] runs both and returns a [`ScanResult`].
+//!
+//! # Public surface
+//!
+//! | Concern | API |
+//! | --- | --- |
+//! | Scan | [`scan`], [`run_detector_pipeline`] |
+//! | Redact | [`redact`], [`MAX_PLACEHOLDER_LENGTH`] |
+//! | Scan and redact | [`scan_and_redact`] |
+//! | Incremental | [`IncrementalSanitizer`], [`IncrementalLimits`], [`SessionState`], [`IncrementalPolicy`], [`IncrementalPolicyContext`] |
+//! | Policy | [`Policy`], [`PolicyContext`], [`DefaultPolicy`], [`Action`] |
+//! | Formatter | [`PlaceholderFormatter`], [`PlaceholderContext`], [`default_placeholder_formatter`], [`typed_placeholder_formatter`] |
+//! | Finding | [`Finding`], [`DetectedFinding`], [`ByteRange`], [`Confidence`], [`Specificity`] |
+//! | Result | [`ScanResult`], [`IncrementalResult`] |
+//! | Sanitized error | [`SecretScanError`], [`SecretScanErrorCode`], [`DetectorFailure`], [`PolicyFailure`], [`FormatterFailure`] |
+//! | Custom detectors | [`Detector`], [`Candidate`], [`DetectorContext`], [`DetectorRegistry`], [`RegisteredDetector`] |
+//! | Identifiers and units | [`is_identifier`], [`MAX_IDENTIFIER_LENGTH`], [`RANGE_UNIT`], [`VERSION`] |
+//! | Detector building blocks | [`shannon_entropy`] |
+//!
+//! That table is the whole surface — it lists every name this crate root
+//! exports, and `[workspace.metadata.secret-scan] core-public-api` in the
+//! workspace manifest repeats it so a name cannot join or leave without a
+//! reviewed manifest change. Everything else is private. In particular, the
+//! built-in detector set is reached only through
+//! [`DetectorRegistry::with_built_in`], and the retention tuning the incremental
+//! session depends on is derived through
+//! [`IncrementalLimits::minimum_buffered_bytes`] rather than exposed as a
+//! constant, so both can change without breaking a caller.
+//!
+//! # Examples
+//!
+//! ```
+//! use secret_scan::{
+//!     DefaultPolicy, DetectorRegistry, default_placeholder_formatter, scan_and_redact,
+//! };
+//!
+//! let registry = DetectorRegistry::with_built_in([])?;
+//! let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000\nplain text";
+//!
+//! let result = scan_and_redact(input, &registry, &DefaultPolicy, &default_placeholder_formatter)?;
+//!
+//! assert_eq!(result.text(), "API_KEY=<SECRET_1>\nplain text");
+//! // Ranges index the original input, in UTF-8 bytes.
+//! let range = result.findings()[0].range();
+//! assert_eq!(&input[range.start()..range.end()], "ghp_SYNTHETICREVOKED00000000000000000000");
+//! # Ok::<(), secret_scan::SecretScanError>(())
+//! ```
 //!
 //! # Incremental sanitization contract
 //!
@@ -50,8 +97,9 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![deny(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links, rustdoc::private_intra_doc_links)]
 
-pub mod detectors;
+mod detectors;
 mod entropy;
 mod error;
 mod incremental;
@@ -66,10 +114,10 @@ pub use error::{
     DetectorFailure, FormatterFailure, PolicyFailure, SecretScanError, SecretScanErrorCode,
 };
 pub use incremental::{
-    INCREMENTAL_LOOKAROUND_BYTES, IncrementalLimits, IncrementalPolicy, IncrementalPolicyContext,
-    IncrementalResult, IncrementalSanitizer, SessionState,
+    IncrementalLimits, IncrementalPolicy, IncrementalPolicyContext, IncrementalResult,
+    IncrementalSanitizer, SessionState,
 };
-pub use pipeline::{run_detector_pipeline, scan};
+pub use pipeline::{run_detector_pipeline, scan, scan_and_redact};
 pub use policy::DefaultPolicy;
 pub use redact::{
     MAX_PLACEHOLDER_LENGTH, default_placeholder_formatter, redact, typed_placeholder_formatter,
@@ -78,7 +126,7 @@ pub use registry::{DetectorRegistry, RegisteredDetector};
 pub use types::{
     Action, ByteRange, Candidate, Confidence, DetectedFinding, Detector, DetectorContext, Finding,
     MAX_IDENTIFIER_LENGTH, PlaceholderContext, PlaceholderFormatter, Policy, PolicyContext,
-    Specificity, is_identifier,
+    ScanResult, Specificity, is_identifier,
 };
 
 /// The shared product version. Every crate, binding, and package in the

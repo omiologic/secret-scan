@@ -82,6 +82,76 @@ To add a core dependency, add it and each of its transitive dependencies to
 `allowed-dependencies` in the same change, and state in the pull request why
 the dependency keeps the core deterministic and side-effect free.
 
+### Public API
+
+The core crate is the published library, so its surface is pinned in three
+places that must agree:
+
+- `crates/secret-scan-core/src/lib.rs` declares it. Every module below the
+  crate root is private; the crate root re-exports the names that are public,
+  and its documentation opens with a "Public surface" table that names them
+  all.
+- `[workspace.metadata.secret-scan] core-public-api` in the root `Cargo.toml`
+  lists those names. `npm run rust:check` fails when the crate root exports a
+  name the list does not carry, when the list names an export that is gone,
+  and when the documented table and the list disagree in either direction —
+  so a change to the published surface is always a reviewed manifest change,
+  and the documentation cannot quietly fall behind it.
+- `crates/secret-scan-core/tests/public_api.rs` uses every one of them
+  through a `secret_scan::` path, the way a dependent crate does, and pins
+  the range contract, the `scan_and_redact` ≡ `scan` + `redact` equivalence
+  over the canonical corpus, and the sanitized-error shape.
+
+Two things are deliberately outside the surface and must stay there:
+
+- **The built-in detector registry.** `detectors` is a private module.
+  Callers reach the built-in set only through
+  `DetectorRegistry::with_built_in`, so which detectors exist and how they
+  are constructed can change without breaking a dependent. What is public is
+  the observable consequence of their order: it is the fourth overlap tie
+  breaker, fixed by the conformance corpus.
+- **Retention tuning.** The lookaround reserve the incremental session needs
+  is a private constant that tracks the built-in detector set. Callers derive
+  the requirement with `IncrementalLimits::minimum_buffered_bytes` instead of
+  reproducing the arithmetic.
+
+Ranges in every public value are UTF-8 byte offsets into the *original*
+input, including the findings returned alongside redacted text by
+`scan_and_redact` and by an incremental session — redaction changes lengths,
+so a range read against the sanitized text would select the wrong span.
+
+### No runtime I/O
+
+Two checks in `npm run rust:check` back the claim that the core is
+side-effect free, on top of the dependency boundary above:
+
+- **Source boundary.** No file under `crates/secret-scan-core/src` may name
+  `std::fs`, `std::net`, `std::env`, `std::process`, `std::io`,
+  `std::thread`, `std::time`, `std::os`, `option_env!`, `include_str!`,
+  `include_bytes!`, `println!`, or `eprintln!`, or reach for a crate listed
+  in `binding-dependencies`. The `env!` macro is allowed: the compiler
+  resolves it, and it reads nothing at runtime.
+- **Manifest shape.** The core declares no Cargo features, no optional
+  dependency, no target-specific dependency, and nothing from
+  `binding-dependencies`. There is one shape of this crate, and it is the one
+  the test suite exercises. `binding-dependencies` is separate from
+  `forbidden-dependencies` because the bindings depend on those crates
+  legitimately; only the core may not.
+
+### Package contents
+
+`crates/secret-scan-core/Cargo.toml` declares `include`, so the published
+package is the library, its README, and the manifest metadata cargo
+generates — nothing else. `npm run rust:check` runs `cargo package --list`
+for the core and fails when a file matches no `core-package-globs` entry or
+when a `core-package-required` file is missing.
+
+The integration tests stay out of the package on purpose: they `include_str!`
+the canonical fixtures under `conformance/fixtures/`, which live above the
+package root and cannot travel with it. `cargo package` therefore verifies
+the published crate by building the library alone, and reports the excluded
+test targets as warnings.
+
 ### Unsafe code
 
 `[workspace.lints.rust] unsafe_code = "deny"` applies to every member, and
@@ -122,9 +192,10 @@ The product name is `secret-scan` for every artifact. Registry names may
 differ (`decision-release-bindings-in-lockstep`).
 
 - crates.io: the preferred crate name `secret-scan` was rechecked on
-  2026-09-09 and is available; so is `secret_scan`, which crates.io treats as
-  the same name. `secret-scan-cli` is also available. If `secret-scan` is
-  taken before the first publication, the registry fallback is
+  2026-09-09, before the crate manifests were finalized, and is available; so
+  is `secret_scan`, which crates.io treats as the same name. `secret-scan-cli`
+  and the fallback `omiologic-secret-scan` are also available. If
+  `secret-scan` is taken before the first publication, the registry fallback is
   `omiologic-secret-scan` for the core and `omiologic-secret-scan-cli` for the
   CLI; the product name, binary name, and library path `secret_scan` do not
   change. Recheck before publication with
@@ -141,6 +212,8 @@ differ (`decision-release-bindings-in-lockstep`).
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
+cargo package -p secret-scan --locked
 cargo run --quiet --locked -p secret-scan-cli -- --version
 cargo check -p secret-scan -p secret-scan-wasm --target wasm32-unknown-unknown --locked
 cargo +1.88 check --workspace --all-targets --locked
@@ -151,4 +224,13 @@ npm run rust:check
 Toolchain setup: `rustup toolchain install 1.88 --profile minimal`,
 `rustup target add wasm32-unknown-unknown`, and `cargo install cargo-deny`.
 The CI jobs `rust-policy`, `rust-native`, `rust-msrv`, and `rust-wasm` run
-the same commands.
+the same commands. `cargo test --workspace` includes the doctests on the core
+crate's public API; `cargo doc` fails on a broken intra-doc link because the
+crate root denies `rustdoc::broken_intra_doc_links` and
+`rustdoc::private_intra_doc_links`, and `missing_docs` is denied there too.
+
+To recheck the registry names before a publication:
+
+```bash
+python3 scripts/check-rust-workspace.py --recheck-crate-name
+```

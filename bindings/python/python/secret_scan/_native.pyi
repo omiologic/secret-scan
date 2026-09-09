@@ -20,10 +20,6 @@ RANGE_UNIT: str
 """The Unicode string-index unit every range in this module reports:
 ``"unicode-code-points"``."""
 
-INCREMENTAL_LOOKAROUND_BYTES: int
-"""The lookaround window an incremental session's ``max_buffered_bytes``
-must add on top of its largest construct limit."""
-
 # ---------------------------------------------------------------------
 # Sanitized exceptions
 # ---------------------------------------------------------------------
@@ -162,6 +158,13 @@ class IncrementalLimits:
         max_token_bytes: int,
         max_multiline_bytes: int,
     ) -> None: ...
+    @staticmethod
+    def minimum_buffered_bytes(
+        max_token_bytes: int, max_multiline_bytes: int
+    ) -> int:
+        """The smallest ``max_buffered_bytes`` this class accepts alongside
+        these construct limits."""
+
     @property
     def max_input_bytes(self) -> int: ...
     @property

@@ -4,6 +4,14 @@ description = "Deterministic secret detection and redaction core. Side-effect fr
 keywords = ["secret-detection", "redaction", "security"]
 categories = ["text-processing"]
 readme = "README.md"
+documentation = "https://docs.rs/secret-scan"
+# The published package is the library and nothing else. The integration
+# tests deliberately stay out of it: they `include_str!` the canonical
+# fixtures under `conformance/fixtures/`, which live above this package root
+# and therefore cannot travel with it. `scripts/check-rust-workspace.py`
+# pins the resulting file list so a stray file cannot enter the package
+# unnoticed.
+include = ["src/**/*.rs", "README.md"]
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

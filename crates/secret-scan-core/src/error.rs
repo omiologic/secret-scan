@@ -136,6 +136,29 @@ impl fmt::Display for SecretScanErrorCode {
 }
 
 /// A sanitized scan error. It holds nothing but its code.
+///
+/// Every failure this crate reports is one of these: a fixed
+/// [`SecretScanErrorCode`] and its fixed message, with no payload. No error
+/// carries the scanned input, a matched value, a candidate field, or a
+/// placeholder, so an error can be logged or returned to a caller without
+/// leaking what was being scanned.
+///
+/// # Examples
+///
+/// ```
+/// use secret_scan::{DetectorRegistry, SecretScanErrorCode, redact, scan, DefaultPolicy};
+///
+/// let registry = DetectorRegistry::with_built_in([])?;
+/// let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000";
+/// let findings = scan(input, &registry, &DefaultPolicy)?;
+///
+/// // The same findings do not describe a shorter input.
+/// let error = redact("short", &findings, &secret_scan::default_placeholder_formatter).unwrap_err();
+/// assert_eq!(error.code(), SecretScanErrorCode::InvalidFindings);
+/// assert_eq!(error.to_string(), "Redaction findings are invalid.");
+/// assert!(!error.to_string().contains("ghp_"));
+/// # Ok::<(), secret_scan::SecretScanError>(())
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SecretScanError {
     code: SecretScanErrorCode,

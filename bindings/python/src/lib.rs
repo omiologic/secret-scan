@@ -4,7 +4,8 @@
 //! Exposes an idiomatic synchronous `secret_scan` module: immutable finding
 //! and result types, sanitized exceptions, `scan`, `redact`,
 //! `scan_and_redact`, the default policy and formatter helpers, and the
-//! bounded incremental session in [`incremental`]. Every built-in detector
+//! bounded incremental session in the private `incremental` module. Every
+//! built-in detector
 //! runs; there is no custom detector callback surface
 //! (`decision-define-runtime-bindings`). A Python `policy` or `formatter`
 //! callback only ever receives safe metadata objects defined in this crate,

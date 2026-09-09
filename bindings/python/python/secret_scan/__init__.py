@@ -46,7 +46,6 @@ propagates its own error: it becomes one of the fixed exceptions below.
 from __future__ import annotations
 
 from secret_scan._native import (
-    INCREMENTAL_LOOKAROUND_BYTES,
     RANGE_UNIT,
     VERSION,
     BufferLimitExceededError,
@@ -87,7 +86,6 @@ from secret_scan._native import (
 __version__ = VERSION
 
 __all__ = [
-    "INCREMENTAL_LOOKAROUND_BYTES",
     "RANGE_UNIT",
     "VERSION",
     "BufferLimitExceededError",

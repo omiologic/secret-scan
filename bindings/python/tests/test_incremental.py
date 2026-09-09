@@ -107,7 +107,7 @@ def test_buffer_limit_must_cover_the_documented_lookaround_window() -> None:
         "max_token_bytes": construct,
         "max_multiline_bytes": construct,
     }
-    exact = construct + secret_scan.INCREMENTAL_LOOKAROUND_BYTES
+    exact = secret_scan.IncrementalLimits.minimum_buffered_bytes(construct, construct)
     assert secret_scan.IncrementalLimits(max_buffered_bytes=exact, **base)
     with pytest.raises(secret_scan.InvalidLimitsError):
         secret_scan.IncrementalLimits(max_buffered_bytes=exact - 1, **base)
@@ -532,7 +532,9 @@ def test_a_failure_leaves_no_marker_bearing_text_reachable() -> None:
     exact = len(OPEN_CONSTRUCT)
     limits = secret_scan.IncrementalLimits(
         max_input_bytes=exact,
-        max_buffered_bytes=exact + secret_scan.INCREMENTAL_LOOKAROUND_BYTES,
+        max_buffered_bytes=secret_scan.IncrementalLimits.minimum_buffered_bytes(
+            exact, exact
+        ),
         max_token_bytes=exact,
         max_multiline_bytes=exact,
     )

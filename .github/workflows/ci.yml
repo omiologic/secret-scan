@@ -73,8 +73,16 @@ jobs:
       - name: Lint
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
-      - name: Check workspace metadata, boundaries, versions, and MSRV
+      - name: Check API surface, boundaries, versions, MSRV, and package contents
         run: npm run rust:check
+
+      - name: Check the public API documents without a warning
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --no-deps --locked
+
+      - name: Verify the published core package builds on its own
+        run: cargo package -p secret-scan --locked
 
       - name: Check dependency sources, licenses, advisories, and bans
         uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1

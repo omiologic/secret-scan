@@ -5,10 +5,11 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use crate::error::{SecretScanError, SecretScanErrorCode};
+use crate::redact::redact;
 use crate::registry::{DetectorRegistry, RegisteredDetector};
 use crate::types::{
-    Action, ByteRange, Candidate, Confidence, DetectedFinding, DetectorContext, Finding, Policy,
-    PolicyContext, Specificity, is_identifier,
+    Action, ByteRange, Candidate, Confidence, DetectedFinding, DetectorContext, Finding,
+    PlaceholderFormatter, Policy, PolicyContext, ScanResult, Specificity, is_identifier,
 };
 
 /// A validated candidate with the keys overlap resolution sorts on.
@@ -167,6 +168,27 @@ pub fn run_detector_pipeline(
 
 /// Runs the detector pipeline and evaluates `policy` once per finding.
 ///
+/// Findings are ordered by their offset in `input` and their ranges are
+/// UTF-8 byte offsets into `input` ([`crate::RANGE_UNIT`]).
+///
+/// # Examples
+///
+/// ```
+/// use secret_scan::{Action, DefaultPolicy, DetectorRegistry, scan};
+///
+/// let registry = DetectorRegistry::with_built_in([])?;
+/// let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000";
+///
+/// let findings = scan(input, &registry, &DefaultPolicy)?;
+///
+/// assert_eq!(findings.len(), 1);
+/// assert_eq!(findings[0].id(), "finding-1");
+/// assert_eq!(findings[0].action(), Action::Redact);
+/// assert_eq!(findings[0].detector(), "github-token");
+/// assert_eq!(findings[0].range().start(), 8);
+/// # Ok::<(), secret_scan::SecretScanError>(())
+/// ```
+///
 /// # Errors
 ///
 /// Every [`run_detector_pipeline`] error, plus
@@ -189,6 +211,49 @@ pub fn scan(
             Ok(finding.with_action(action))
         })
         .collect()
+}
+
+/// Scans `input` and redacts it in one call, returning the sanitized text
+/// and the findings that produced it.
+///
+/// Equivalent to [`scan`] followed by [`redact`](crate::redact) with the
+/// same arguments, and identical to that pair for every input: this function
+/// exists so a caller that needs both does not have to keep the two in step.
+///
+/// The returned findings carry UTF-8 byte offsets into `input`, not into
+/// [`ScanResult::text`]; see [`ScanResult`].
+///
+/// # Examples
+///
+/// ```
+/// use secret_scan::{
+///     DefaultPolicy, DetectorRegistry, default_placeholder_formatter, scan_and_redact,
+/// };
+///
+/// let registry = DetectorRegistry::with_built_in([])?;
+/// let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000 trailing";
+///
+/// let result = scan_and_redact(input, &registry, &DefaultPolicy, &default_placeholder_formatter)?;
+///
+/// assert_eq!(result.text(), "API_KEY=<SECRET_1> trailing");
+/// assert_eq!(result.findings().len(), 1);
+/// # Ok::<(), secret_scan::SecretScanError>(())
+/// ```
+///
+/// # Errors
+///
+/// Every [`scan`] error, plus every [`redact`](crate::redact) error when the
+/// formatter fails or returns an invalid placeholder. Errors never carry
+/// input, a matched value, or a placeholder.
+pub fn scan_and_redact(
+    input: &str,
+    registry: &DetectorRegistry,
+    policy: &dyn Policy,
+    formatter: &dyn PlaceholderFormatter,
+) -> Result<ScanResult, SecretScanError> {
+    let findings = scan(input, registry, policy)?;
+    let text = redact(input, &findings, formatter)?;
+    Ok(ScanResult::new(text, findings))
 }
 
 #[cfg(test)]

@@ -24,9 +24,9 @@ use pyo3::prelude::*;
 
 use secret_scan::{
     Action, ByteRange, DefaultPolicy, DetectedFinding, Finding as CoreFinding, FormatterFailure,
-    INCREMENTAL_LOOKAROUND_BYTES, IncrementalLimits, IncrementalPolicy, IncrementalPolicyContext,
-    IncrementalResult, IncrementalSanitizer, PlaceholderContext, PlaceholderFormatter,
-    PolicyFailure, SecretScanError as CoreError, SecretScanErrorCode, SessionState,
+    IncrementalLimits, IncrementalPolicy, IncrementalPolicyContext, IncrementalResult,
+    IncrementalSanitizer, PlaceholderContext, PlaceholderFormatter, PolicyFailure,
+    SecretScanError as CoreError, SecretScanErrorCode, SessionState,
     default_placeholder_formatter as core_default_formatter,
 };
 
@@ -249,9 +249,10 @@ impl PlaceholderFormatter for PyIncrementalFormatterAdapter {
 /// requires. There are no defaults: a session that does not declare its
 /// bounds is not created.
 ///
-/// `max_buffered_bytes` must be at least the larger of `max_token_bytes`
-/// and `max_multiline_bytes` plus `INCREMENTAL_LOOKAROUND_BYTES`, and
-/// neither construct limit may exceed `max_input_bytes`. Limits are byte
+/// `max_buffered_bytes` must be at least
+/// `IncrementalLimits.minimum_buffered_bytes()` for the construct limits it
+/// accompanies, and neither construct limit may exceed
+/// `max_input_bytes`. Limits are byte
 /// counts, not code point counts, because they bound memory rather than
 /// index into a string; `len(chunk.encode("utf-8"))` is what they measure.
 #[pyclass(
@@ -290,6 +291,20 @@ impl PyIncrementalLimits {
         )
         .map_err(map_core_error)?;
         Ok(Self { inner })
+    }
+
+    /// The smallest `max_buffered_bytes` this constructor accepts alongside
+    /// these construct limits: the larger of the two plus the boundary
+    /// lookaround the built-in detectors need to decide whether a construct
+    /// is still open.
+    ///
+    /// The lookaround reserve itself is an implementation detail of the core
+    /// that tracks the built-in detector set. Deriving the limit through
+    /// this method keeps a caller correct when that reserve changes.
+    #[staticmethod]
+    #[pyo3(signature = (max_token_bytes, max_multiline_bytes))]
+    const fn minimum_buffered_bytes(max_token_bytes: usize, max_multiline_bytes: usize) -> usize {
+        IncrementalLimits::minimum_buffered_bytes(max_token_bytes, max_multiline_bytes)
     }
 
     /// Total logical input the session accepts across every `append` call.
@@ -673,7 +688,6 @@ pub(crate) fn default_incremental_policy(
 ///
 /// Propagates any `CPython` failure while adding a name to the module.
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add("INCREMENTAL_LOOKAROUND_BYTES", INCREMENTAL_LOOKAROUND_BYTES)?;
     module.add_function(wrap_pyfunction!(default_incremental_policy, module)?)?;
     module.add_class::<PyIncrementalLimits>()?;
     module.add_class::<PyIncrementalPolicyContext>()?;

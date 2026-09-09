@@ -7,12 +7,14 @@
 //!   call made before it has succeeded fails the same way, before touching
 //!   its input.
 //! - Ranges exposed here (see [`RangeJs`]) use UTF-16 code units; conversion
-//!   from the core's UTF-8 byte offsets happens in [`range`] without
+//!   from the core's UTF-8 byte offsets happens in the private `range`
+//!   module without
 //!   changing the selected span
 //!   (`decision-govern-cross-language-conformance`).
 //! - A custom `policy` or `formatter` callback ([`scan`], [`redact`],
-//!   [`scan_and_redact`]) receives only the safe metadata [`metadata`]
-//!   builds; it never sees the scanned input or a matched value, and any
+//!   [`scan_and_redact`]) receives only the safe metadata the private
+//!   `metadata` module builds; it never sees the scanned input or a matched
+//!   value, and any
 //!   failure (a thrown exception or an unexpected return value) becomes a
 //!   fixed, input-free error, never the exception's own message.
 //! - This crate's dependency graph contains only `wasm-bindgen`, `js-sys`,

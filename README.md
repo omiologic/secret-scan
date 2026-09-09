@@ -67,7 +67,8 @@ host callbacks, errors, and string ranges while preserving the selected spans.
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for processing, trust boundaries,
 incremental safety, package ownership, conformance, and release design. See
 [docs/rust-workspace.md](./docs/rust-workspace.md) for workspace dependency,
-lint, unsafe-code, MSRV, and registry-name policies.
+lint, unsafe-code, MSRV, public-API, package-content, and registry-name
+policies.
 
 ## JavaScript quick start
 
@@ -297,6 +298,8 @@ npm run rust:check
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
+cargo package -p secret-scan --locked
 ```
 
 The repository layout is:
