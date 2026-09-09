@@ -1,0 +1,214 @@
+//! The deterministic synchronous pipeline: collect, validate, prioritize,
+//! resolve overlaps, number, then apply policy.
+
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+
+use crate::error::{SecretScanError, SecretScanErrorCode};
+use crate::registry::{DetectorRegistry, RegisteredDetector};
+use crate::types::{
+    Action, ByteRange, Candidate, Confidence, DetectedFinding, DetectorContext, Finding, Policy,
+    PolicyContext, Specificity, is_identifier,
+};
+
+/// A validated candidate with the keys overlap resolution sorts on.
+struct RankedCandidate<'a> {
+    type_name: &'a str,
+    detector: &'a str,
+    confidence: Confidence,
+    specificity: Specificity,
+    range: ByteRange,
+    detector_order: usize,
+    candidate_order: usize,
+}
+
+impl RankedCandidate<'_> {
+    /// Conflict precedence: specificity, confidence, narrower span, registry
+    /// order, then emission order. The last two keys are unique per
+    /// candidate, so the ordering is total and needs no further tie breaker.
+    fn priority(&self, other: &Self) -> Ordering {
+        other
+            .specificity
+            .cmp(&self.specificity)
+            .then_with(|| other.confidence.cmp(&self.confidence))
+            .then_with(|| self.range.len().cmp(&other.range.len()))
+            .then_with(|| self.detector_order.cmp(&other.detector_order))
+            .then_with(|| self.candidate_order.cmp(&other.candidate_order))
+    }
+}
+
+fn validate_candidate<'a>(
+    input: &str,
+    registered: &'a RegisteredDetector,
+    candidate: &'a Candidate,
+    detector_order: usize,
+    candidate_order: usize,
+) -> Result<RankedCandidate<'a>, SecretScanError> {
+    let type_name = candidate.type_name();
+    let range = candidate.range();
+
+    if !is_identifier(type_name) || !range.is_char_aligned_in(input) {
+        return Err(SecretScanErrorCode::InvalidCandidate.into());
+    }
+
+    // A candidate whose matched text is exactly its public type or detector
+    // id would let a public field mirror input; reject it as malformed.
+    let matched = &input[range.start()..range.end()];
+    if matched == type_name || matched == registered.id() {
+        return Err(SecretScanErrorCode::InvalidCandidate.into());
+    }
+
+    Ok(RankedCandidate {
+        type_name,
+        detector: registered.id(),
+        confidence: candidate.confidence(),
+        specificity: candidate.effective_specificity(),
+        range,
+        detector_order,
+        candidate_order,
+    })
+}
+
+fn collect_candidates(
+    input: &str,
+    registry: &DetectorRegistry,
+) -> Result<Vec<Vec<Candidate>>, SecretScanError> {
+    let context = DetectorContext::new(input.len());
+    registry
+        .detectors()
+        .iter()
+        .map(|registered| {
+            registered
+                .detector()
+                .detect(input, &context)
+                .map_err(|_| SecretScanErrorCode::DetectorFailure.into())
+        })
+        .collect()
+}
+
+/// Greedy acceptance over an ordered map of disjoint accepted spans keyed by
+/// start offset. Because accepted spans are disjoint, the span with the
+/// greatest start below `candidate.end()` is the only one that can overlap.
+fn try_accept(accepted: &mut BTreeMap<usize, usize>, range: ByteRange) -> bool {
+    if let Some((_, &end)) = accepted.range(..range.end()).next_back()
+        && end > range.start()
+    {
+        return false;
+    }
+    accepted.insert(range.start(), range.end());
+    true
+}
+
+/// Runs every registered detector over `input`, validates each candidate,
+/// resolves overlaps with the documented precedence, and returns the
+/// surviving findings ordered by input offset with ids `finding-1`,
+/// `finding-2`, and so on.
+///
+/// Identical input and registry always produce identical findings.
+///
+/// # Errors
+///
+/// - [`SecretScanErrorCode::DetectorFailure`] when a detector fails.
+/// - [`SecretScanErrorCode::InvalidCandidate`] when a candidate has a
+///   malformed type, a range outside the input or off a character
+///   boundary, or a range whose text equals its type or detector id.
+///
+/// Errors never carry input or candidate content.
+pub fn run_detector_pipeline(
+    input: &str,
+    registry: &DetectorRegistry,
+) -> Result<Vec<DetectedFinding>, SecretScanError> {
+    if input.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let per_detector = collect_candidates(input, registry)?;
+
+    let mut ranked: Vec<RankedCandidate<'_>> = Vec::new();
+    for ((detector_order, registered), candidates) in
+        registry.detectors().iter().enumerate().zip(&per_detector)
+    {
+        for (candidate_order, candidate) in candidates.iter().enumerate() {
+            ranked.push(validate_candidate(
+                input,
+                registered,
+                candidate,
+                detector_order,
+                candidate_order,
+            )?);
+        }
+    }
+
+    ranked.sort_unstable_by(RankedCandidate::priority);
+
+    let mut accepted_spans = BTreeMap::new();
+    let mut accepted: Vec<RankedCandidate<'_>> = ranked
+        .into_iter()
+        .filter(|candidate| try_accept(&mut accepted_spans, candidate.range))
+        .collect();
+
+    // Accepted spans are disjoint, so start offsets are unique.
+    accepted.sort_unstable_by_key(|candidate| candidate.range.start());
+
+    accepted
+        .into_iter()
+        .enumerate()
+        .map(|(index, candidate)| {
+            DetectedFinding::new(
+                format!("finding-{}", index + 1),
+                candidate.type_name,
+                candidate.detector,
+                candidate.confidence,
+                candidate.range,
+            )
+        })
+        .collect()
+}
+
+/// Runs the detector pipeline and evaluates `policy` once per finding.
+///
+/// # Errors
+///
+/// Every [`run_detector_pipeline`] error, plus
+/// [`SecretScanErrorCode::PolicyFailure`] when the policy fails.
+pub fn scan(
+    input: &str,
+    registry: &DetectorRegistry,
+    policy: &dyn Policy,
+) -> Result<Vec<Finding>, SecretScanError> {
+    let detected = run_detector_pipeline(input, registry)?;
+    let finding_count = detected.len();
+    detected
+        .into_iter()
+        .enumerate()
+        .map(|(finding_index, finding)| {
+            let context = PolicyContext::new(finding_index, finding_count);
+            let action: Action = policy
+                .evaluate(&finding, &context)
+                .map_err(|_| SecretScanError::new(SecretScanErrorCode::PolicyFailure))?;
+            Ok(finding.with_action(action))
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn try_accept_keeps_disjoint_spans_only() {
+        let mut spans = BTreeMap::new();
+        let range = |s, e| ByteRange::new(s, e).unwrap();
+        assert!(try_accept(&mut spans, range(10, 20)));
+        assert!(try_accept(&mut spans, range(30, 40)));
+        assert!(!try_accept(&mut spans, range(15, 35)));
+        assert!(!try_accept(&mut spans, range(5, 11)));
+        assert!(!try_accept(&mut spans, range(19, 25)));
+        assert!(!try_accept(&mut spans, range(0, 100)));
+        assert!(!try_accept(&mut spans, range(12, 13)));
+        assert!(try_accept(&mut spans, range(20, 30)));
+        assert!(try_accept(&mut spans, range(0, 10)));
+        assert!(try_accept(&mut spans, range(40, 41)));
+        assert_eq!(spans.len(), 5);
+    }
+}

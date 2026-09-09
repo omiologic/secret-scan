@@ -16,7 +16,20 @@
 //! Ranges reported by this crate use UTF-8 byte offsets; each binding converts
 //! them to its documented native unit (`decision-define-runtime-bindings`).
 //!
-//! Detection, overlap resolution, policy, redaction, and incremental
+//! # Pipeline contract
+//!
+//! [`run_detector_pipeline`] runs every detector in a [`DetectorRegistry`]
+//! in registration order, validates each [`Candidate`], resolves overlapping
+//! candidates with the documented precedence (specificity, confidence,
+//! narrower span, registration order, emission order), and numbers the
+//! disjoint survivors by input offset. [`scan`] then evaluates a [`Policy`]
+//! once per finding. Identical input and configuration always produce
+//! identical findings and ids.
+//!
+//! Every failure is a [`SecretScanError`] with a fixed code and message and
+//! no payload; no public value carries an input fragment or a matched value.
+//!
+//! Built-in detectors, the default policy, redaction, and incremental
 //! sanitization are not implemented yet. Until the Rust core passes the shared
 //! conformance corpus, the TypeScript implementation in `src/` remains the
 //! behavioral oracle.
@@ -24,6 +37,25 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![deny(missing_docs)]
+
+pub mod detectors;
+mod entropy;
+mod error;
+mod pipeline;
+mod registry;
+mod types;
+
+pub use entropy::shannon_entropy;
+pub use error::{
+    DetectorFailure, FormatterFailure, PolicyFailure, SecretScanError, SecretScanErrorCode,
+};
+pub use pipeline::{run_detector_pipeline, scan};
+pub use registry::{DetectorRegistry, RegisteredDetector};
+pub use types::{
+    Action, ByteRange, Candidate, Confidence, DetectedFinding, Detector, DetectorContext, Finding,
+    MAX_IDENTIFIER_LENGTH, PlaceholderContext, PlaceholderFormatter, Policy, PolicyContext,
+    Specificity, is_identifier,
+};
 
 /// The shared product version. Every crate, binding, and package in the
 /// workspace reports the same version (`decision-release-bindings-in-lockstep`).
