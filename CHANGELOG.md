@@ -13,6 +13,12 @@ select or authorize a release.
 - Explicit workspace format, lint, test, dependency, unsafe-code, and MSRV
   (Rust 1.88) policies enforced by `npm run rust:check`, `cargo deny`, and new
   Rust CI jobs covering native hosts, the MSRV toolchain, and the wasm32 target.
+- Rust core pipeline contracts: immutable candidate, finding, confidence,
+  specificity, action, policy, formatter, and UTF-8 byte-range types; Shannon
+  entropy; an ordered detector registry; candidate validation on character
+  boundaries; the documented overlap precedence; and sanitized errors with fixed
+  public codes and messages. Built-in detectors, the default policy, and
+  redaction are not ported yet.
 
 ## 0.1.0-beta.1 - 2026-08-31
 
