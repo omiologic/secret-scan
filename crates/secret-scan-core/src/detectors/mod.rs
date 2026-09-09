@@ -2,17 +2,25 @@
 //!
 //! The order of the list returned by [`built_in_detectors`] is a public
 //! contract: it is the registry order used as an overlap tie breaker, so it
-//! must match the TypeScript oracle and the conformance corpus. Provider,
-//! structural, contextual, and entropy detectors are ported in follow-up
-//! work; until then the list is empty and every scan runs only custom
-//! detectors.
+//! must match the TypeScript oracle and the conformance corpus. Provider and
+//! structural (private-key, connection-string) detectors are ported in
+//! follow-up work.
+
+mod bearer_token;
+mod generic_token;
+mod jwt;
+mod text;
 
 use crate::types::Detector;
 
 /// Every built-in detector, in canonical registration order.
 #[must_use]
 pub fn built_in_detectors() -> Vec<Box<dyn Detector>> {
-    Vec::new()
+    vec![
+        jwt::jwt_detector(),
+        bearer_token::bearer_token_detector(),
+        generic_token::generic_token_detector(),
+    ]
 }
 
 #[cfg(test)]
