@@ -17,6 +17,10 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 secret-scan.workspace = true
 wasm-bindgen.workspace = true
+js-sys = "0.3"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
 
 [lints]
 workspace = true

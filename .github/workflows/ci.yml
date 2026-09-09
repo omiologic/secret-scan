@@ -168,3 +168,15 @@ jobs:
 
       - name: Check the core and browser binding for wasm32
         run: cargo check -p secret-scan -p secret-scan-wasm --target wasm32-unknown-unknown --locked
+
+      - name: Install wasm-bindgen-cli
+        # Must match the `wasm-bindgen` version in Cargo.toml exactly: the
+        # test runner refuses to run a Wasm binary built against a different
+        # `wasm-bindgen` version than its own.
+        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+
+      - name: Test the browser binding for wasm32 (via Node, no browser needed)
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
+          WASM_BINDGEN_TEST_ONLY_NODE: "1"
+        run: cargo test -p secret-scan-wasm --target wasm32-unknown-unknown --locked
