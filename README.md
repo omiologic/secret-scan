@@ -267,6 +267,31 @@ return modelGateway.respond({ input: result.text });
 
 Never log raw request or tool bodies before authoritative scanning.
 
+## CLI quick start
+
+The `secret-scan` binary is a host adapter over the same core, for CI,
+pre-commit hooks, and safe redaction pipelines.
+
+```bash
+secret-scan src/config.ts src/client.ts   # check files; exit 1 on a finding
+git diff --cached | secret-scan           # check a staged diff
+secret-scan --json .env.example           # machine-consumable safe report
+secret-scan --redact log.txt > safe.txt   # sanitize; the input is untouched
+```
+
+Check output carries safe file identity and finding metadata only — a range
+names a span in the input, never the bytes in that span. Check exit codes are
+the enforcement contract: `0` when nothing was found, `1` when anything was, and
+`2` for a usage, decoding, or processing failure. A failure outranks a finding,
+and input that is not valid UTF-8 fails closed. Redaction reports `0` or `2`
+only: finding something is what it is for, not a failure.
+
+Standard input is streamed through the incremental core under explicit limits,
+because a credential may straddle any chunk boundary; a path is read whole under
+the same total-input bound. See
+[`crates/secret-scan-cli/README.md`](./crates/secret-scan-cli/README.md) for
+the full surface and `secret-scan --help` for the limits in force.
+
 ## Conformance
 
 [`conformance/`](./conformance/README.md) is the single language-neutral,
