@@ -701,9 +701,24 @@ mod tests {
     #[test]
     fn unicode_conversion_corpus_byte_offsets_are_char_aligned() {
         let cases = [
-            ("🔑 TOKEN_SYNTHETIC_REVOKED_VALUE", 5, 34, "TOKEN_SYNTHETIC_REVOKED_VALUE"),
-            ("TOKEN_🔑_SYNTHETIC_REVOKED", 0, 28, "TOKEN_🔑_SYNTHETIC_REVOKED"),
-            ("TOKEN_SYNTHETIC_REVOKED_VALUE 🔑", 0, 29, "TOKEN_SYNTHETIC_REVOKED_VALUE"),
+            (
+                "🔑 TOKEN_SYNTHETIC_REVOKED_VALUE",
+                5,
+                34,
+                "TOKEN_SYNTHETIC_REVOKED_VALUE",
+            ),
+            (
+                "TOKEN_🔑_SYNTHETIC_REVOKED",
+                0,
+                28,
+                "TOKEN_🔑_SYNTHETIC_REVOKED",
+            ),
+            (
+                "TOKEN_SYNTHETIC_REVOKED_VALUE 🔑",
+                0,
+                29,
+                "TOKEN_SYNTHETIC_REVOKED_VALUE",
+            ),
         ];
         for (input, start, end, expected_slice) in cases {
             let range = ByteRange::new(start, end).unwrap();
