@@ -140,6 +140,74 @@ output += session.finalize().text;
 A session is `accepting`, then terminally `finalized`, `aborted`, or `failed`.
 `abort()` discards retained plaintext and emits nothing further.
 
+## Streams
+
+Two subpaths wrap one incremental session in the host's own stream contract,
+so byte streams do not have to be buffered whole. Both accept UTF-8 byte
+chunks through a single fatal, stateful decoder, so a multibyte character may
+be split across chunks; malformed bytes fail rather than becoming `U+FFFD`.
+Both emit only text whose detection window is closed and expose the findings
+that have been finalized so far, frozen and with absolute offsets into the
+whole stream. Both require `await initialize()` first.
+
+`@omiologic/secret-scan/node-stream` is a `Transform`. Backpressure, error
+propagation, and teardown are Node's own; a `destroy()`, a failed `pipeline`,
+or a downstream error aborts the session, so the plaintext it was still
+deciding about is discarded instead of flushed.
+
+```ts
+import { pipeline } from "node:stream/promises";
+import { initialize } from "@omiologic/secret-scan";
+import { createNodeStreamSanitizer } from "@omiologic/secret-scan/node-stream";
+
+await initialize();
+
+const sanitizer = createNodeStreamSanitizer({
+  limits: {
+    maxInputCodeUnits: 1_048_576,
+    maxBufferedCodeUnits: 16_512,
+    maxTokenCodeUnits: 8_192,
+    maxMultilineCodeUnits: 16_384,
+  },
+});
+
+await pipeline(process.stdin, sanitizer, process.stdout);
+
+console.log(sanitizer.findings.length);
+```
+
+`@omiologic/secret-scan/web-stream` is a `TransformStream<Uint8Array, string>`
+and resolves no `node:` module, so a browser bundle that uses it pulls in none
+of the Node adapter. Cancelling the readable side, aborting the writable side,
+and its own `abort()` all discard retained plaintext.
+
+```ts
+import { initialize } from "@omiologic/secret-scan";
+import { createWebStreamSanitizer } from "@omiologic/secret-scan/web-stream";
+
+await initialize();
+
+const sanitizer = createWebStreamSanitizer({
+  limits: {
+    maxInputCodeUnits: 1_048_576,
+    maxBufferedCodeUnits: 16_512,
+    maxTokenCodeUnits: 8_192,
+    maxMultilineCodeUnits: 16_384,
+  },
+});
+
+const response = await fetch("/upload-preview");
+
+await response.body
+  ?.pipeThrough(sanitizer)
+  .pipeTo(new WritableStream({ write: (text) => void text }));
+```
+
+Each adapter also takes an already-open session directly —
+`new NodeStreamSanitizer(session)`, `new WebStreamSanitizer(session)` — which
+is the same thing the factories build: one session per stream, owned by the
+stream.
+
 ## Errors
 
 Every failure is a `SecretScanError` carrying nothing but a fixed `code` and
@@ -161,8 +229,9 @@ try {
 }
 ```
 
-`NOT_INITIALIZED` and `INITIALIZATION_FAILED` come from the binding layer;
-every other code comes from the Rust core.
+`NOT_INITIALIZED` and `INITIALIZATION_FAILED` come from the binding layer,
+and `INVALID_CHUNK` and `INVALID_UTF8` from the stream adapters; every other
+code comes from the Rust core.
 
 ## Public API
 
@@ -178,8 +247,14 @@ Types: `DetectedSecretFinding`, `SecretFinding`, `SecretAction`,
 `IncrementalLimits`, `IncrementalSecretPolicy`, `IncrementalPolicyContext`,
 `RangeUnit`, `SecretScanErrorCode`.
 
-The root export is the whole public API. There are no other public subpaths,
-and internal modules are unreachable through the `exports` map. `VERSION` is
+Stream subpaths: `@omiologic/secret-scan/node-stream` exports
+`createNodeStreamSanitizer`, `NodeStreamSanitizer`, and `SecretScanError`;
+`@omiologic/secret-scan/web-stream` exports `createWebStreamSanitizer`,
+`WebStreamSanitizer`, and `SecretScanError`.
+
+The root export and those two subpaths are the whole public API. There are no
+other public subpaths, and internal modules are unreachable through the
+`exports` map. `VERSION` is
 the shared product version; the Rust crate, this package, the Python package,
 and the CLI are released in lockstep
 (`decision-release-bindings-in-lockstep`), and `initialize()` refuses an

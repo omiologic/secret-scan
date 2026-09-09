@@ -4,7 +4,16 @@ import { describe, expect, it } from "vitest";
 
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
-async function bundle(platform: "browser" | "node") {
+const ROOT_CONSUMER =
+  'import { initialize, scanAndRedact } from "@omiologic/secret-scan"; globalThis.secretScanEntry = [initialize, scanAndRedact];';
+
+const WEB_STREAM_CONSUMER =
+  'import { createWebStreamSanitizer } from "@omiologic/secret-scan/web-stream"; globalThis.secretScanEntry = [createWebStreamSanitizer];';
+
+async function bundle(
+  platform: "browser" | "node",
+  contents: string = ROOT_CONSUMER,
+) {
   const result = await build({
     bundle: true,
     format: "esm",
@@ -12,8 +21,7 @@ async function bundle(platform: "browser" | "node") {
     platform,
     external: ["@omiologic/secret-scan-wasm", "@omiologic/secret-scan-node"],
     stdin: {
-      contents:
-        'import { initialize, scanAndRedact } from "@omiologic/secret-scan"; globalThis.secretScanEntry = [initialize, scanAndRedact];',
+      contents,
       loader: "js",
       resolveDir: PACKAGE_ROOT,
       sourcefile: `${platform}-consumer.js`,
@@ -52,6 +60,39 @@ describe("bundler conditions", () => {
     );
     expect(inputs.some((path) => path.endsWith("dist/runtime/browser.js"))).toBe(
       false,
+    );
+  });
+
+  it("routes the Web adapter through the WebAssembly adapter only", async () => {
+    const { inputs, output } = await bundle("browser", WEB_STREAM_CONSUMER);
+
+    expect(
+      inputs.some((path) => path.endsWith("dist/adapters/web-stream.js")),
+    ).toBe(true);
+    expect(inputs.some((path) => path.endsWith("dist/runtime/browser.js"))).toBe(
+      true,
+    );
+    expect(inputs.some((path) => path.endsWith("dist/runtime/node.js"))).toBe(
+      false,
+    );
+    expect(
+      inputs.some((path) => path.endsWith("dist/adapters/node-stream.js")),
+    ).toBe(false);
+    expect(inputs.some((path) => path.startsWith("node:"))).toBe(false);
+    expect(output).not.toContain("node:stream");
+  });
+
+  it("bundles the Node adapter for Node, and only there", async () => {
+    const { inputs } = await bundle(
+      "node",
+      'import { createNodeStreamSanitizer } from "@omiologic/secret-scan/node-stream"; globalThis.secretScanEntry = [createNodeStreamSanitizer];',
+    );
+
+    expect(
+      inputs.some((path) => path.endsWith("dist/adapters/node-stream.js")),
+    ).toBe(true);
+    expect(inputs.some((path) => path.endsWith("dist/runtime/node.js"))).toBe(
+      true,
     );
   });
 
