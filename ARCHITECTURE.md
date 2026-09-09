@@ -236,6 +236,38 @@ with `Transform`; browser adapters integrate with `TransformStream`. Bindings
 handle host backpressure, cancellation, destruction, and decoding, while the
 Rust core owns scan semantics and retained-plaintext safety.
 
+## Command-line host behavior
+
+The CLI is a host adapter, never another detector. It owns process arguments,
+standard streams, files, and exit codes; the core owns every detection, policy,
+and redaction decision, so the CLI and the bindings agree on the same input.
+
+Two modes:
+
+- **check** (the default) scans standard input, or every path given, and
+  reports safe file identity and finding metadata. Reports carry a source
+  identity, finding id, type, detector, confidence, action, and UTF-8 byte
+  range. They never carry matched plaintext, in either the line format or the
+  JSON format, and no renderer has the input available to resolve a range.
+- **redact** (`--redact`) sanitizes standard input, or exactly one path, and
+  writes the result to standard output. The input is never modified in place
+  and no path is opened for writing.
+
+Exit codes are the enforcement contract a pre-commit hook or CI job branches
+on: `0` when nothing was found, `1` when anything was, and `2` for a usage,
+decoding, or processing failure. A failure outranks a finding, so a run that
+could not read or decode part of its input never reports success. Input that is
+not valid UTF-8 fails closed rather than being scanned in part.
+
+Standard input uses the incremental session described above, under explicit
+limits the CLI declares and `--help` prints; a path is read whole under the same
+total-input bound. Both paths are the canonical core. Every CLI failure —
+a partial read, a decoding failure, a limit failure, a closed downstream pipe,
+or an abort — leaves the session holding no retained plaintext, and every
+diagnostic uses a fixed code and an input-free message on the same terms as
+[Error and telemetry constraints](#error-and-telemetry-constraints). A rejected
+command line names the rule it broke, never the argument text that broke it.
+
 ## Cross-language conformance
 
 The top-level [`conformance/`](./conformance/README.md) corpus is the single

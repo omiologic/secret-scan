@@ -1,0 +1,356 @@
+//! Safe reporting for check mode.
+//!
+//! A report carries file identity and finding metadata, and nothing else. A
+//! range names a span in the input; it never carries the bytes in that span,
+//! and no renderer here has access to the input to resolve one.
+
+use std::io::{self, Write};
+
+use secret_scan::{Finding, RANGE_UNIT, VERSION};
+
+use crate::failure::Failure;
+
+/// The safe metadata reported for one finding.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SafeFinding {
+    id: String,
+    type_name: String,
+    detector: String,
+    confidence: &'static str,
+    action: &'static str,
+    start: usize,
+    end: usize,
+}
+
+impl From<&Finding> for SafeFinding {
+    fn from(finding: &Finding) -> Self {
+        Self {
+            id: finding.id().to_owned(),
+            type_name: finding.type_name().to_owned(),
+            detector: finding.detector().to_owned(),
+            confidence: finding.confidence().as_str(),
+            action: finding.action().as_str(),
+            start: finding.range().start(),
+            end: finding.range().end(),
+        }
+    }
+}
+
+/// One scanned source and the findings it produced.
+#[derive(Clone, Debug)]
+struct SourceReport {
+    identity: String,
+    findings: Vec<SafeFinding>,
+}
+
+/// One source that could not be scanned.
+#[derive(Clone, Debug)]
+struct SourceFailure {
+    identity: String,
+    failure: Failure,
+}
+
+/// The result of one check run over every requested source.
+#[derive(Clone, Debug, Default)]
+pub struct Report {
+    sources: Vec<SourceReport>,
+    failures: Vec<SourceFailure>,
+}
+
+impl Report {
+    /// Creates an empty report.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Records a source that was scanned and the metadata it produced.
+    pub fn push_source(&mut self, identity: String, findings: Vec<SafeFinding>) {
+        self.sources.push(SourceReport { identity, findings });
+    }
+
+    /// Records a source that could not be scanned.
+    pub fn push_failure(&mut self, identity: String, failure: Failure) {
+        self.failures.push(SourceFailure { identity, failure });
+    }
+
+    /// How many findings every scanned source produced together.
+    pub fn finding_count(&self) -> usize {
+        self.sources
+            .iter()
+            .map(|source| source.findings.len())
+            .sum()
+    }
+
+    /// Whether any source failed. A failure outranks a finding: a run that
+    /// could not read part of its input has not proved that part clean.
+    pub fn has_failures(&self) -> bool {
+        !self.failures.is_empty()
+    }
+
+    /// Writes one line per finding, then a one-line summary to `diagnostics`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Failure::WriteFailed`] when either stream cannot be written.
+    pub fn write_text(
+        &self,
+        out: &mut dyn Write,
+        diagnostics: &mut dyn Write,
+    ) -> Result<(), Failure> {
+        self.render_text(out, diagnostics)
+            .map_err(|_| Failure::WriteFailed)
+    }
+
+    fn render_text(&self, out: &mut dyn Write, diagnostics: &mut dyn Write) -> io::Result<()> {
+        for source in &self.sources {
+            for finding in &source.findings {
+                writeln!(
+                    out,
+                    "{}:{}-{} {} detector={} confidence={} action={} id={}",
+                    source.identity,
+                    finding.start,
+                    finding.end,
+                    finding.type_name,
+                    finding.detector,
+                    finding.confidence,
+                    finding.action,
+                    finding.id,
+                )?;
+            }
+        }
+        let findings = self.finding_count();
+        writeln!(
+            diagnostics,
+            "secret-scan: {findings} finding(s) in {} source(s); ranges are {RANGE_UNIT}",
+            self.sources.len(),
+        )
+    }
+
+    /// Writes one JSON object describing the whole run.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Failure::WriteFailed`] when the stream cannot be written.
+    pub fn write_json(&self, out: &mut dyn Write) -> Result<(), Failure> {
+        self.render_json(out).map_err(|_| Failure::WriteFailed)
+    }
+
+    fn render_json(&self, out: &mut dyn Write) -> io::Result<()> {
+        writeln!(out, "{{")?;
+        write!(out, "  \"version\": ")?;
+        write_json_string(out, VERSION)?;
+        writeln!(out, ",")?;
+        write!(out, "  \"rangeUnit\": ")?;
+        write_json_string(out, RANGE_UNIT)?;
+        writeln!(out, ",")?;
+        writeln!(out, "  \"findingCount\": {},", self.finding_count())?;
+
+        if self.sources.is_empty() {
+            writeln!(out, "  \"sources\": [],")?;
+        } else {
+            writeln!(out, "  \"sources\": [")?;
+        }
+        for (index, source) in self.sources.iter().enumerate() {
+            writeln!(out, "    {{")?;
+            write!(out, "      \"source\": ")?;
+            write_json_string(out, &source.identity)?;
+            writeln!(out, ",")?;
+            if source.findings.is_empty() {
+                writeln!(out, "      \"findings\": []")?;
+            } else {
+                writeln!(out, "      \"findings\": [")?;
+            }
+            for (position, finding) in source.findings.iter().enumerate() {
+                writeln!(out, "        {{")?;
+                write!(out, "          \"id\": ")?;
+                write_json_string(out, &finding.id)?;
+                writeln!(out, ",")?;
+                write!(out, "          \"type\": ")?;
+                write_json_string(out, &finding.type_name)?;
+                writeln!(out, ",")?;
+                write!(out, "          \"detector\": ")?;
+                write_json_string(out, &finding.detector)?;
+                writeln!(out, ",")?;
+                write!(out, "          \"confidence\": ")?;
+                write_json_string(out, finding.confidence)?;
+                writeln!(out, ",")?;
+                write!(out, "          \"action\": ")?;
+                write_json_string(out, finding.action)?;
+                writeln!(out, ",")?;
+                writeln!(out, "          \"start\": {},", finding.start)?;
+                writeln!(out, "          \"end\": {}", finding.end)?;
+                writeln!(
+                    out,
+                    "        }}{}",
+                    separator(position, source.findings.len())
+                )?;
+            }
+            if !source.findings.is_empty() {
+                writeln!(out, "      ]")?;
+            }
+            writeln!(out, "    }}{}", separator(index, self.sources.len()))?;
+        }
+        if !self.sources.is_empty() {
+            writeln!(out, "  ],")?;
+        }
+
+        if self.failures.is_empty() {
+            writeln!(out, "  \"failures\": []")?;
+        } else {
+            writeln!(out, "  \"failures\": [")?;
+        }
+        for (index, failure) in self.failures.iter().enumerate() {
+            writeln!(out, "    {{")?;
+            write!(out, "      \"source\": ")?;
+            write_json_string(out, &failure.identity)?;
+            writeln!(out, ",")?;
+            write!(out, "      \"code\": ")?;
+            write_json_string(out, failure.failure.code())?;
+            writeln!(out, ",")?;
+            write!(out, "      \"message\": ")?;
+            write_json_string(out, failure.failure.message())?;
+            writeln!(out)?;
+            writeln!(out, "    }}{}", separator(index, self.failures.len()))?;
+        }
+        if !self.failures.is_empty() {
+            writeln!(out, "  ]")?;
+        }
+        writeln!(out, "}}")
+    }
+
+    /// Writes one input-free diagnostic line per failed source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Failure::WriteFailed`] when the stream cannot be written.
+    pub fn write_diagnostics(&self, diagnostics: &mut dyn Write) -> Result<(), Failure> {
+        for failure in &self.failures {
+            writeln!(
+                diagnostics,
+                "secret-scan: {}: {}: {}",
+                failure.identity,
+                failure.failure.code(),
+                failure.failure.message(),
+            )
+            .map_err(|_| Failure::WriteFailed)?;
+        }
+        Ok(())
+    }
+}
+
+/// The comma a JSON array needs after every element but its last.
+fn separator(index: usize, length: usize) -> &'static str {
+    if index + 1 < length { "," } else { "" }
+}
+
+/// Writes `value` as a JSON string literal.
+fn write_json_string(out: &mut dyn Write, value: &str) -> io::Result<()> {
+    out.write_all(b"\"")?;
+    for character in value.chars() {
+        match character {
+            '"' => out.write_all(b"\\\"")?,
+            '\\' => out.write_all(b"\\\\")?,
+            '\n' => out.write_all(b"\\n")?,
+            '\r' => out.write_all(b"\\r")?,
+            '\t' => out.write_all(b"\\t")?,
+            '\u{08}' => out.write_all(b"\\b")?,
+            '\u{0c}' => out.write_all(b"\\f")?,
+            control if control < '\u{20}' => write!(out, "\\u{:04x}", u32::from(control))?,
+            other => write!(out, "{other}")?,
+        }
+    }
+    out.write_all(b"\"")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use secret_scan::SecretScanErrorCode;
+
+    fn finding(id: &str, start: usize, end: usize) -> SafeFinding {
+        SafeFinding {
+            id: id.to_owned(),
+            type_name: "github_token".to_owned(),
+            detector: "github-token".to_owned(),
+            confidence: "high",
+            action: "redact",
+            start,
+            end,
+        }
+    }
+
+    #[test]
+    fn a_clean_report_writes_no_finding_line() {
+        let mut report = Report::new();
+        report.push_source("<stdin>".to_owned(), Vec::new());
+        let (mut out, mut diagnostics) = (Vec::new(), Vec::new());
+        report.write_text(&mut out, &mut diagnostics).unwrap();
+        assert_eq!(out, b"");
+        assert_eq!(report.finding_count(), 0);
+        assert!(!report.has_failures());
+    }
+
+    #[test]
+    fn a_finding_line_names_identity_and_metadata_only() {
+        let mut report = Report::new();
+        report.push_source("a.txt".to_owned(), vec![finding("finding-1", 8, 48)]);
+        let (mut out, mut diagnostics) = (Vec::new(), Vec::new());
+        report.write_text(&mut out, &mut diagnostics).unwrap();
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            "a.txt:8-48 github_token detector=github-token confidence=high action=redact id=finding-1\n"
+        );
+        assert!(
+            String::from_utf8(diagnostics)
+                .unwrap()
+                .contains("1 finding(s) in 1 source(s)")
+        );
+    }
+
+    #[test]
+    fn the_json_report_is_one_object_with_every_section() {
+        let mut report = Report::new();
+        report.push_source("a.txt".to_owned(), vec![finding("finding-1", 8, 48)]);
+        report.push_failure("b.bin".to_owned(), Failure::NotUtf8);
+        let mut out = Vec::new();
+        report.write_json(&mut out).unwrap();
+        let rendered = String::from_utf8(out).unwrap();
+
+        assert!(rendered.starts_with("{\n"));
+        assert!(rendered.ends_with("}\n"));
+        assert!(rendered.contains("\"rangeUnit\": \"utf8-bytes\""));
+        assert!(rendered.contains("\"findingCount\": 1"));
+        assert!(rendered.contains("\"source\": \"a.txt\""));
+        assert!(rendered.contains("\"type\": \"github_token\""));
+        assert!(rendered.contains("\"start\": 8"));
+        assert!(rendered.contains("\"end\": 48"));
+        assert!(rendered.contains("\"code\": \"NOT_UTF8\""));
+        assert!(report.has_failures());
+    }
+
+    #[test]
+    fn json_escapes_an_awkward_identity() {
+        let mut report = Report::new();
+        let identity = format!("a\"b\\c{}d{}.txt", '\u{09}', '\u{01}');
+        report.push_source(identity, Vec::new());
+        let mut out = Vec::new();
+        report.write_json(&mut out).unwrap();
+        let rendered = String::from_utf8(out).unwrap();
+        assert!(rendered.contains(r#""source": "a\"b\\c\td\u0001.txt""#));
+    }
+
+    #[test]
+    fn diagnostics_name_the_source_and_a_fixed_code() {
+        let mut report = Report::new();
+        report.push_failure(
+            "b.bin".to_owned(),
+            Failure::Core(SecretScanErrorCode::InputLimitExceeded),
+        );
+        let mut diagnostics = Vec::new();
+        report.write_diagnostics(&mut diagnostics).unwrap();
+        assert_eq!(
+            String::from_utf8(diagnostics).unwrap(),
+            "secret-scan: b.bin: INPUT_LIMIT_EXCEEDED: Incremental sanitizer input limit exceeded.\n"
+        );
+    }
+}
