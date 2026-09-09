@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/omiologic/secret-scan/conformance/schema.json",
+  "title": "Canonical conformance fixture corpus",
+  "description": "Language-neutral fixture schema for decision-govern-cross-language-conformance. Expected ranges (`expected[].start`/`end`) are UTF-8 byte offsets into `input` encoded as UTF-8, not UTF-16 code units and not Unicode scalar counts. Structural constraints this document cannot express — no overlapping expectations, ranges within input bounds, and detector-per-fixture consistency rules — are enforced by the accompanying validator (conformance/schema.ts and equivalent tooling in other languages) and MUST be checked in addition to this schema.",
+  "type": "object",
+  "required": ["offsetUnit", "fixtureCount", "fixtures"],
+  "additionalProperties": false,
+  "properties": {
+    "offsetUnit": {
+      "const": "utf8-byte"
+    },
+    "fixtureCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "fixtures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fixture" }
+    }
+  },
+  "$defs": {
+    "caseId": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*([._-][a-z0-9]+)*$"
+    },
+    "kind": {
+      "enum": ["positive", "negative", "boundary", "overlap", "adversarial"]
+    },
+    "support": {
+      "enum": ["supported", "intentionally-unsupported", "not-yet-evaluated"]
+    },
+    "tier": {
+      "enum": [
+        "canonical",
+        "negative",
+        "malformed",
+        "contextual",
+        "adversarial",
+        "regression"
+      ]
+    },
+    "context": {
+      "enum": [
+        "plain-text", "dotenv", "json", "yaml", "toml", "shell", "powershell",
+        "docker-compose", "github-actions", "terraform", "kubernetes",
+        "javascript", "typescript", "python", "http", "curl", "log",
+        "terminal", "stack-trace", "chat", "markdown", "xml"
+      ]
+    },
+    "confidence": {
+      "enum": ["high", "medium", "low"]
+    },
+    "specificity": {
+      "enum": [
+        "private-key",
+        "provider",
+        "structural",
+        "contextual",
+        "entropy"
+      ]
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grammar", "seedId", "operation", "ordinal"],
+      "properties": {
+        "grammar": { "$ref": "#/$defs/identifier" },
+        "seedId": { "$ref": "#/$defs/caseId" },
+        "operation": { "$ref": "#/$defs/identifier" },
+        "ordinal": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxInputBytes", "maxFindings", "maxRuntimeMs"],
+      "properties": {
+        "maxInputBytes": { "type": "integer", "minimum": 0 },
+        "maxFindings": { "type": "integer", "minimum": 0 },
+        "maxRuntimeMs": { "type": "integer", "exclusiveMinimum": 0 }
+      }
+    },
+    "expectation": {
+      "type": "object",
+      "description": "Deliberately closed: no field here may carry matched plaintext. A converter or hand-authored fixture that adds any other key (e.g. a matched value) is not schema-valid.",
+      "additionalProperties": false,
+      "required": ["detector", "type", "confidence", "specificity", "start", "end"],
+      "properties": {
+        "detector": { "$ref": "#/$defs/identifier" },
+        "type": { "$ref": "#/$defs/identifier" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "specificity": { "$ref": "#/$defs/specificity" },
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "UTF-8 byte offset, inclusive."
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "UTF-8 byte offset, exclusive."
+        }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "detector", "kind", "support", "tier", "contexts",
+        "input", "expected", "note"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/caseId" },
+        "detector": {
+          "oneOf": [
+            { "$ref": "#/$defs/identifier" },
+            { "const": "unassigned" }
+          ]
+        },
+        "kind": { "$ref": "#/$defs/kind" },
+        "support": { "$ref": "#/$defs/support" },
+        "tier": { "$ref": "#/$defs/tier" },
+        "contexts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/context" }
+        },
+        "mutation": { "$ref": "#/$defs/mutation" },
+        "resource": { "$ref": "#/$defs/resource" },
+        "input": {
+          "type": "string",
+          "description": "Synthetic input only. Never an active or reported credential."
+        },
+        "expected": {
+          "oneOf": [
+            { "type": "array", "items": { "$ref": "#/$defs/expectation" } },
+            { "type": "null" }
+          ]
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Describes the grammar or boundary under test, never plaintext or the reported value that motivated a regression fixture."
+        }
+      }
+    }
+  }
+}

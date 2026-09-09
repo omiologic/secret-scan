@@ -21,6 +21,8 @@
   },
   "include": [
     "../src/**/*.ts",
+    "../conformance/**/*.ts",
+    "../scripts/**/*.ts",
     "./**/*.ts"
   ]
 }
