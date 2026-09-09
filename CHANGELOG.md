@@ -5,6 +5,15 @@ select or authorize a release.
 
 ## Unreleased
 
+### Added
+
+- Rust workspace scaffold with the `secret-scan` core crate, the `secret-scan`
+  CLI, Node, WebAssembly, and Python binding crates, and a `packages/javascript`
+  ownership boundary; the TypeScript implementation is unchanged.
+- Explicit workspace format, lint, test, dependency, unsafe-code, and MSRV
+  (Rust 1.88) policies enforced by `npm run rust:check`, `cargo deny`, and new
+  Rust CI jobs covering native hosts, the MSRV toolchain, and the wasm32 target.
+
 ## 0.1.0-beta.1 - 2026-08-31
 
 ### Added

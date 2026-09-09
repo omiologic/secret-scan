@@ -1,0 +1,22 @@
+[package]
+name = "secret-scan-cli"
+description = "Command-line interface built on the secret-scan core."
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "secret-scan"
+path = "src/main.rs"
+
+[dependencies]
+secret-scan.workspace = true
+
+[lints]
+workspace = true

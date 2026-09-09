@@ -1,0 +1,29 @@
+[package]
+name = "secret-scan-python"
+description = "PyO3 extension module exposing the secret-scan core to CPython."
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+name = "secret_scan_python"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Enabled by maturin (see pyproject.toml). Off by default so `cargo test` can
+# link the crate as a normal library on every host.
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+secret-scan.workspace = true
+pyo3 = { workspace = true, features = ["abi3-py310"] }
+
+[lints]
+workspace = true

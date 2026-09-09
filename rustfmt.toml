@@ -1,0 +1,7 @@
+# Only stable rustfmt options are allowed here so `cargo fmt --check` behaves
+# identically on the MSRV and the current stable toolchain.
+edition = "2024"
+style_edition = "2024"
+newline_style = "Unix"
+use_field_init_shorthand = true
+use_try_shorthand = true
