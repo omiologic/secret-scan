@@ -1,0 +1,568 @@
+//! Bounded incremental sanitizer session.
+//!
+//! A session consumes text in chunks and returns, from each [`append`] and
+//! from [`finalize`], only the sanitized text and findings whose detection
+//! window is closed: a chunk boundary, a minimum token length, or a
+//! provisional match is never a closing boundary by itself. An open logical
+//! line, structural authorization header, contextual assignment, or
+//! PEM-style private-key block is retained until it closes or a configured
+//! limit fails. Because retained plaintext is scanned fresh only once per
+//! closed unit and never rescanned once finalized, whole-input acceptance
+//! does not depend on how the caller partitions it into chunks.
+//!
+//! The state machine has four terminally distinct states: `accepting` may
+//! receive [`append`], `finalize` (exactly once), or [`abort`]; `finalized`,
+//! `aborted`, and `failed` are terminal and reject every further call. A
+//! limit, detector, policy, or placeholder failure discards retained
+//! plaintext and enters `failed`.
+//!
+//! [`append`]: IncrementalSanitizer::append
+//! [`finalize`]: IncrementalSanitizer::finalize
+//! [`abort`]: IncrementalSanitizer::abort
+
+use std::collections::HashMap;
+
+use crate::detectors::{
+    PrivateKeyRetentionTracker, has_open_bearer_authorization, has_open_contextual_assignment,
+};
+use crate::error::{FormatterFailure, PolicyFailure, SecretScanError, SecretScanErrorCode};
+use crate::pipeline::run_detector_pipeline;
+use crate::policy::DefaultPolicy;
+use crate::redact::{default_placeholder_formatter, redact};
+use crate::registry::DetectorRegistry;
+use crate::types::{
+    Action, ByteRange, DetectedFinding, Finding, PlaceholderContext, PlaceholderFormatter, Policy,
+    PolicyContext,
+};
+
+/// Reserve in bytes for the longest built-in fixed match and its boundary
+/// lookaround, that `max_buffered_bytes` must accommodate on top of the
+/// larger of `max_token_bytes` and `max_multiline_bytes`.
+pub const INCREMENTAL_LOOKAROUND_BYTES: usize = 128;
+
+/// Explicit, positive byte limits every incremental session requires. There
+/// are no environment-derived or silent defaults.
+///
+/// `max_buffered_bytes` must accommodate the larger of `max_token_bytes` and
+/// `max_multiline_bytes` plus [`INCREMENTAL_LOOKAROUND_BYTES`]. A construct
+/// that reaches its limit without a closing boundary is not reclassified as
+/// ordinary text: the session fails before any of its bytes are emitted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[allow(clippy::struct_field_names)]
+pub struct IncrementalLimits {
+    max_input_bytes: usize,
+    max_buffered_bytes: usize,
+    max_token_bytes: usize,
+    max_multiline_bytes: usize,
+}
+
+impl IncrementalLimits {
+    /// Validates and creates a limit set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretScanErrorCode::InvalidLimits`] when any limit is
+    /// zero, when `max_token_bytes` or `max_multiline_bytes` exceeds
+    /// `max_input_bytes`, or when `max_buffered_bytes` is smaller than the
+    /// larger construct limit plus [`INCREMENTAL_LOOKAROUND_BYTES`].
+    pub fn new(
+        max_input_bytes: usize,
+        max_buffered_bytes: usize,
+        max_token_bytes: usize,
+        max_multiline_bytes: usize,
+    ) -> Result<Self, SecretScanError> {
+        let construct_max = max_token_bytes.max(max_multiline_bytes);
+        let invalid = max_input_bytes == 0
+            || max_buffered_bytes == 0
+            || max_token_bytes == 0
+            || max_multiline_bytes == 0
+            || max_token_bytes > max_input_bytes
+            || max_multiline_bytes > max_input_bytes
+            || construct_max > usize::MAX - INCREMENTAL_LOOKAROUND_BYTES
+            || max_buffered_bytes < construct_max + INCREMENTAL_LOOKAROUND_BYTES;
+        if invalid {
+            return Err(SecretScanErrorCode::InvalidLimits.into());
+        }
+        Ok(Self {
+            max_input_bytes,
+            max_buffered_bytes,
+            max_token_bytes,
+            max_multiline_bytes,
+        })
+    }
+
+    /// Total logical input this session accepts across every `append` call.
+    #[must_use]
+    pub const fn max_input_bytes(self) -> usize {
+        self.max_input_bytes
+    }
+
+    /// Unresolved plaintext this session may retain but not yet have
+    /// emitted.
+    #[must_use]
+    pub const fn max_buffered_bytes(self) -> usize {
+        self.max_buffered_bytes
+    }
+
+    /// Bound for an open logical line, single-line credential, or other
+    /// delimiter-terminated token.
+    #[must_use]
+    pub const fn max_token_bytes(self) -> usize {
+        self.max_token_bytes
+    }
+
+    /// Bound for an open PEM-style private-key block.
+    #[must_use]
+    pub const fn max_multiline_bytes(self) -> usize {
+        self.max_multiline_bytes
+    }
+}
+
+/// Position information an incremental policy receives.
+///
+/// Unlike [`PolicyContext`], there is no total finding count: progressive
+/// evaluation cannot know how many findings the whole session will
+/// eventually produce.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct IncrementalPolicyContext {
+    finding_index: usize,
+}
+
+impl IncrementalPolicyContext {
+    /// Creates a context for the given zero-based finalized finding index.
+    #[must_use]
+    pub const fn new(finding_index: usize) -> Self {
+        Self { finding_index }
+    }
+
+    /// Zero-based position among findings finalized so far in this session.
+    #[must_use]
+    pub const fn finding_index(self) -> usize {
+        self.finding_index
+    }
+}
+
+/// Maps a finalized finding to an [`Action`] within an incremental session.
+///
+/// A policy never sees the input, a matched value, or a total finding
+/// count.
+pub trait IncrementalPolicy {
+    /// Chooses the action for `finding`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PolicyFailure`] on any internal failure. The session
+    /// reports it as [`SecretScanErrorCode::PolicyFailure`] and fails.
+    fn evaluate(
+        &self,
+        finding: &DetectedFinding,
+        context: &IncrementalPolicyContext,
+    ) -> Result<Action, PolicyFailure>;
+}
+
+impl<F> IncrementalPolicy for F
+where
+    F: Fn(&DetectedFinding, &IncrementalPolicyContext) -> Result<Action, PolicyFailure>,
+{
+    fn evaluate(
+        &self,
+        finding: &DetectedFinding,
+        context: &IncrementalPolicyContext,
+    ) -> Result<Action, PolicyFailure> {
+        self(finding, context)
+    }
+}
+
+/// The default incremental policy has the same action mapping as
+/// [`DefaultPolicy`]'s whole-input evaluation: it does not depend on
+/// [`PolicyContext`], so adapting it to [`IncrementalPolicyContext`] changes
+/// nothing observable.
+impl IncrementalPolicy for DefaultPolicy {
+    fn evaluate(
+        &self,
+        finding: &DetectedFinding,
+        _context: &IncrementalPolicyContext,
+    ) -> Result<Action, PolicyFailure> {
+        Policy::evaluate(self, finding, &PolicyContext::new(0, 0))
+    }
+}
+
+/// The terminally distinct lifecycle states of an [`IncrementalSanitizer`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SessionState {
+    /// May receive `append`, `finalize`, or `abort`.
+    Accepting,
+    /// Reached by exactly one successful `finalize`. Terminal.
+    Finalized,
+    /// Reached by `abort`. Terminal.
+    Aborted,
+    /// Reached by a limit, detector, policy, or placeholder failure.
+    /// Terminal.
+    Failed,
+}
+
+/// The sanitized text and final findings produced by one `append` or
+/// `finalize` call.
+///
+/// Findings use absolute byte offsets into the logical whole-session input
+/// and are immutable; ids and ordering follow the synchronous pipeline.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IncrementalResult {
+    text: String,
+    findings: Vec<Finding>,
+}
+
+impl IncrementalResult {
+    /// The sanitized text produced by this call. Concatenating every
+    /// `append`/`finalize` result's text, in call order, reconstructs the
+    /// whole sanitized output.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// The findings finalized by this call.
+    #[must_use]
+    pub fn findings(&self) -> &[Finding] {
+        &self.findings
+    }
+
+    /// Consumes the result, returning its parts.
+    #[must_use]
+    pub fn into_parts(self) -> (String, Vec<Finding>) {
+        (self.text, self.findings)
+    }
+}
+
+/// Finds the byte offset of the next `\n` or `\r` at or after `from`, or
+/// `None` when `chunk` has no more line terminators.
+fn find_next_newline(chunk: &str, from: usize) -> Option<usize> {
+    chunk.as_bytes()[from..]
+        .iter()
+        .position(|&byte| byte == b'\n' || byte == b'\r')
+        .map(|index| index + from)
+}
+
+/// A bounded, side-effect-free incremental sanitizer session over built-in
+/// detectors. Custom detectors are not accepted: each has no retention
+/// declaration, so the session cannot bound what it must hold open.
+pub struct IncrementalSanitizer {
+    registry: DetectorRegistry,
+    policy: Box<dyn IncrementalPolicy>,
+    formatter: Box<dyn PlaceholderFormatter>,
+    limits: IncrementalLimits,
+    state: SessionState,
+    retained: String,
+    finalized_bytes: usize,
+    total_input_bytes: usize,
+    finding_count: usize,
+    placeholder_count: usize,
+    private_key: PrivateKeyRetentionTracker,
+    multiline_open: bool,
+    multiline_detected: bool,
+}
+
+impl std::fmt::Debug for IncrementalSanitizer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IncrementalSanitizer")
+            .field("state", &self.state)
+            .field("limits", &self.limits)
+            .finish_non_exhaustive()
+    }
+}
+
+impl IncrementalSanitizer {
+    /// Creates a session using [`DefaultPolicy`] and
+    /// [`default_placeholder_formatter`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretScanErrorCode::InvalidDetector`] only if the
+    /// built-in detector registry itself is malformed, which cannot happen
+    /// for the detectors this crate ships.
+    pub fn new(limits: IncrementalLimits) -> Result<Self, SecretScanError> {
+        Self::with_policy_and_formatter(
+            limits,
+            Box::new(DefaultPolicy),
+            Box::new(default_placeholder_formatter),
+        )
+    }
+
+    /// Creates a session with an explicit policy and placeholder formatter.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretScanErrorCode::InvalidDetector`] only if the
+    /// built-in detector registry itself is malformed, which cannot happen
+    /// for the detectors this crate ships.
+    pub fn with_policy_and_formatter(
+        limits: IncrementalLimits,
+        policy: Box<dyn IncrementalPolicy>,
+        formatter: Box<dyn PlaceholderFormatter>,
+    ) -> Result<Self, SecretScanError> {
+        let registry = DetectorRegistry::with_built_in([])?;
+        Ok(Self {
+            registry,
+            policy,
+            formatter,
+            limits,
+            state: SessionState::Accepting,
+            retained: String::new(),
+            finalized_bytes: 0,
+            total_input_bytes: 0,
+            finding_count: 0,
+            placeholder_count: 0,
+            private_key: PrivateKeyRetentionTracker::new(),
+            multiline_open: false,
+            multiline_detected: false,
+        })
+    }
+
+    /// The session's current lifecycle state.
+    #[must_use]
+    pub const fn state(&self) -> SessionState {
+        self.state
+    }
+
+    fn require_accepting(&self) -> Result<(), SecretScanError> {
+        if matches!(self.state, SessionState::Accepting) {
+            Ok(())
+        } else {
+            Err(SecretScanErrorCode::InvalidState.into())
+        }
+    }
+
+    /// Discards retained plaintext and parser state and transitions to
+    /// `failed`, returning `error` unchanged so callers can propagate it
+    /// with `return Err(self.fail_with(error))`.
+    fn fail_with(&mut self, error: SecretScanError) -> SecretScanError {
+        self.retained.clear();
+        self.private_key.reset();
+        self.multiline_open = false;
+        self.multiline_detected = false;
+        self.state = SessionState::Failed;
+        error
+    }
+
+    fn has_open_single_line_construct(&self) -> bool {
+        has_open_contextual_assignment(&self.retained)
+            || has_open_bearer_authorization(&self.retained)
+    }
+
+    fn append_retained(&mut self, piece: &str, closes_line: bool) -> Result<(), SecretScanError> {
+        self.retained.push_str(piece);
+        let (has_begin, has_open) = self.private_key.append(piece);
+        self.multiline_detected |= has_begin;
+        self.multiline_open = has_open;
+
+        let construct_limit = if self.multiline_detected {
+            self.limits.max_multiline_bytes()
+        } else {
+            self.limits.max_token_bytes()
+        };
+        let open_length = if closes_line {
+            self.retained.len() - 1
+        } else {
+            self.retained.len()
+        };
+        if open_length > construct_limit {
+            let code = if self.multiline_detected {
+                SecretScanErrorCode::MultilineLimitExceeded
+            } else {
+                SecretScanErrorCode::TokenLimitExceeded
+            };
+            return Err(self.fail_with(code.into()));
+        }
+        if self.retained.len() > self.limits.max_buffered_bytes() {
+            return Err(self.fail_with(SecretScanErrorCode::BufferLimitExceeded.into()));
+        }
+        Ok(())
+    }
+
+    /// Runs detection, policy, and redaction over `self.retained` as one
+    /// closed unit, without mutating any lifecycle or retention state.
+    /// Callers finish the unit (advance `finalized_bytes`, clear retained
+    /// state) on success, or call [`fail_with`](Self::fail_with) on error.
+    fn process_unit(&mut self) -> Result<IncrementalResult, SecretScanError> {
+        let input_offset = self.finalized_bytes;
+        let detected = run_detector_pipeline(&self.retained, &self.registry)?;
+
+        let mut findings: Vec<Finding> = Vec::with_capacity(detected.len());
+        for local in &detected {
+            let range = local.range();
+            let global_range =
+                ByteRange::new(range.start() + input_offset, range.end() + input_offset)
+                    .ok_or_else(|| SecretScanError::from(SecretScanErrorCode::InvalidCandidate))?;
+            let global_id = format!("finding-{}", self.finding_count + 1);
+            let global_detected = DetectedFinding::new(
+                global_id,
+                local.type_name(),
+                local.detector(),
+                local.confidence(),
+                global_range,
+            )?;
+            let context = IncrementalPolicyContext::new(self.finding_count);
+            let action = self
+                .policy
+                .evaluate(&global_detected, &context)
+                .map_err(|_| SecretScanError::from(SecretScanErrorCode::PolicyFailure))?;
+            findings.push(global_detected.with_action(action));
+            self.finding_count += 1;
+        }
+
+        let local_findings: Vec<Finding> = findings
+            .iter()
+            .map(|finding| {
+                let range = finding.range();
+                let local_range =
+                    ByteRange::new(range.start() - input_offset, range.end() - input_offset)
+                        .ok_or_else(|| {
+                            SecretScanError::from(SecretScanErrorCode::InvalidCandidate)
+                        })?;
+                Finding::new(
+                    finding.id(),
+                    finding.type_name(),
+                    finding.detector(),
+                    finding.confidence(),
+                    finding.action(),
+                    local_range,
+                )
+            })
+            .collect::<Result<Vec<_>, SecretScanError>>()?;
+
+        let by_id: HashMap<&str, &Finding> = findings
+            .iter()
+            .map(|finding| (finding.id(), finding))
+            .collect();
+        let placeholder_offset = self.placeholder_count;
+        let formatter = self.formatter.as_ref();
+        let wrapped = |local_finding: &Finding, local_context: &PlaceholderContext| {
+            let Some(global_finding) = by_id.get(local_finding.id()) else {
+                return Err(FormatterFailure);
+            };
+            let global_context =
+                PlaceholderContext::new(placeholder_offset + local_context.placeholder_index());
+            formatter.format(global_finding, &global_context)
+        };
+
+        let text = redact(&self.retained, &local_findings, &wrapped)?;
+
+        self.placeholder_count += findings
+            .iter()
+            .filter(|finding| finding.action().replaces_text())
+            .count();
+
+        Ok(IncrementalResult { text, findings })
+    }
+
+    /// Appends `chunk` to the logical input.
+    ///
+    /// Returns only text and findings whose detection window is closed: a
+    /// complete logical line with no open single-line construct or private
+    /// key block. Remaining retained plaintext is held until a later
+    /// `append` closes it or `finalize` supplies the end-of-input boundary.
+    ///
+    /// # Errors
+    ///
+    /// - [`SecretScanErrorCode::InvalidState`] outside the `accepting`
+    ///   state.
+    /// - [`SecretScanErrorCode::InputLimitExceeded`] when accepting `chunk`
+    ///   would exceed `max_input_bytes`.
+    /// - [`SecretScanErrorCode::BufferLimitExceeded`],
+    ///   [`SecretScanErrorCode::TokenLimitExceeded`], or
+    ///   [`SecretScanErrorCode::MultilineLimitExceeded`] when retained
+    ///   plaintext exceeds the applicable limit.
+    /// - [`SecretScanErrorCode::DetectorFailure`],
+    ///   [`SecretScanErrorCode::InvalidCandidate`],
+    ///   [`SecretScanErrorCode::PolicyFailure`],
+    ///   [`SecretScanErrorCode::PlaceholderFailure`], or
+    ///   [`SecretScanErrorCode::InvalidPlaceholder`] when finalizing a
+    ///   closed unit fails.
+    ///
+    /// Every error discards retained plaintext and enters `failed`; no
+    /// error carries input or a matched value.
+    pub fn append(&mut self, chunk: &str) -> Result<IncrementalResult, SecretScanError> {
+        self.require_accepting()?;
+
+        let remaining = self
+            .limits
+            .max_input_bytes()
+            .saturating_sub(self.total_input_bytes);
+        if chunk.len() > remaining {
+            return Err(self.fail_with(SecretScanErrorCode::InputLimitExceeded.into()));
+        }
+        self.total_input_bytes += chunk.len();
+
+        let mut emitted = String::new();
+        let mut findings = Vec::new();
+        let mut cursor = 0usize;
+        while cursor < chunk.len() {
+            let Some(newline) = find_next_newline(chunk, cursor) else {
+                self.append_retained(&chunk[cursor..], false)?;
+                break;
+            };
+            self.append_retained(&chunk[cursor..=newline], true)?;
+
+            if !self.multiline_open && !self.has_open_single_line_construct() {
+                match self.process_unit() {
+                    Ok(result) => {
+                        self.finalized_bytes += self.retained.len();
+                        self.retained.clear();
+                        self.private_key.reset();
+                        self.multiline_open = false;
+                        self.multiline_detected = false;
+                        emitted.push_str(&result.text);
+                        findings.extend(result.findings);
+                    }
+                    Err(error) => return Err(self.fail_with(error)),
+                }
+            }
+            cursor = newline + 1;
+        }
+        Ok(IncrementalResult {
+            text: emitted,
+            findings,
+        })
+    }
+
+    /// Supplies the end-of-input boundary, finalizing any remaining
+    /// retained plaintext. May be called exactly once, from the `accepting`
+    /// state.
+    ///
+    /// # Errors
+    ///
+    /// The same codes as [`append`](Self::append), for finalizing the last
+    /// retained unit, plus [`SecretScanErrorCode::InvalidState`] outside
+    /// the `accepting` state (including a second `finalize`).
+    pub fn finalize(&mut self) -> Result<IncrementalResult, SecretScanError> {
+        self.require_accepting()?;
+        match self.process_unit() {
+            Ok(result) => {
+                self.finalized_bytes += self.retained.len();
+                self.retained.clear();
+                self.private_key.reset();
+                self.multiline_open = false;
+                self.multiline_detected = false;
+                self.state = SessionState::Finalized;
+                Ok(result)
+            }
+            Err(error) => Err(self.fail_with(error)),
+        }
+    }
+
+    /// Discards retained plaintext and emits no further text or findings.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecretScanErrorCode::InvalidState`] outside the
+    /// `accepting` state.
+    pub fn abort(&mut self) -> Result<(), SecretScanError> {
+        self.require_accepting()?;
+        self.retained.clear();
+        self.private_key.reset();
+        self.multiline_open = false;
+        self.multiline_detected = false;
+        self.state = SessionState::Aborted;
+        Ok(())
+    }
+}

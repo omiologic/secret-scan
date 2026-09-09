@@ -5,7 +5,9 @@
 //! intentionally misses short development tokens. Only the credential
 //! value, not the header, is selected.
 
-use super::text::{ascii_run_len, starts_with_ci};
+use super::text::{
+    ascii_run_len, ends_with_ci, is_js_whitespace, prev_char, rskip_while_chars, starts_with_ci,
+};
 use crate::error::DetectorFailure;
 use crate::types::{ByteRange, Candidate, Confidence, Detector, DetectorContext, Specificity};
 
@@ -49,6 +51,42 @@ fn match_scheme_at(input: &str, pos: usize) -> Option<usize> {
         return starts_with_ci(input, cursor, "bearer").then(|| cursor + "bearer".len());
     }
     starts_with_ci(input, pos, "bearer").then(|| pos + "bearer".len())
+}
+
+fn trim_end_js_whitespace(input: &str) -> &str {
+    &input[..rskip_while_chars(input, input.len(), is_js_whitespace)]
+}
+
+/// `true` for the identifier-boundary charset `[A-Za-z0-9_-]`, checked as a
+/// `char` for use against a backward-scanned lookbehind character.
+fn is_identifier_boundary_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-')
+}
+
+/// `true` when `s` ends with `authorization` (case-insensitive) and the
+/// character immediately before it, if any, is outside the identifier
+/// boundary charset.
+fn ends_with_authorization_boundary(s: &str) -> bool {
+    if !ends_with_ci(s, "authorization") {
+        return false;
+    }
+    let prefix_len = s.len() - "authorization".len();
+    prev_char(s, prefix_len).is_none_or(|ch| !is_identifier_boundary_char(ch))
+}
+
+/// Internal retention hint for the built-in incremental scanner: `true` when
+/// `input` still looks like an in-progress `authorization` header name, so a
+/// caller should keep holding the line open in case an explicit `Bearer`
+/// scheme and credential follow. Mirrors `hasOpenBearerAuthorization` in
+/// `src/detectors/bearer-token.ts` (`decision-govern-cross-language-conformance`).
+pub(crate) fn has_open_bearer_authorization(input: &str) -> bool {
+    let trimmed = trim_end_js_whitespace(input);
+    match trimmed.strip_suffix(':') {
+        Some(before_colon) => {
+            ends_with_authorization_boundary(trim_end_js_whitespace(before_colon))
+        }
+        None => ends_with_authorization_boundary(trimmed),
+    }
 }
 
 struct BearerTokenDetector;
@@ -161,6 +199,36 @@ mod tests {
     fn long_invalid_alphabet_terminates_without_a_finding() {
         let input = format!("Bearer {}", "!".repeat(100_000));
         assert!(detect(&input).is_empty());
+    }
+
+    #[test]
+    fn open_bearer_authorization_hint_recognizes_a_pending_header_name() {
+        for open in [
+            "authorization",
+            "Authorization",
+            "AUTHORIZATION",
+            "authorization:",
+            "authorization: ",
+            "authorization \t: ",
+            "line one\nauthorization:",
+        ] {
+            assert!(has_open_bearer_authorization(open), "{open:?}");
+        }
+    }
+
+    #[test]
+    fn open_bearer_authorization_hint_rejects_resolved_or_unrelated_text() {
+        for closed in [
+            "",
+            "authorization: bearer",
+            "authorizationx",
+            "notauthorization",
+            "x-authorization",
+            "authorization: Bearer SYNTHETIC_REVOKED_VALUE",
+            "plain text",
+        ] {
+            assert!(!has_open_bearer_authorization(closed), "{closed:?}");
+        }
     }
 
     #[test]

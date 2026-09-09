@@ -33,9 +33,19 @@
 //! pass, replacing `redact`/`block` ranges with placeholders from a
 //! [`PlaceholderFormatter`] and validating that formatter's output.
 //!
-//! Built-in detectors and incremental sanitization are not implemented yet.
-//! Until the Rust core passes the shared conformance corpus, the TypeScript
-//! implementation in `src/` remains the behavioral oracle.
+//! # Incremental sanitization contract
+//!
+//! [`IncrementalSanitizer`] runs the same built-in detectors, default
+//! policy, and redaction over text supplied in chunks. It is a bounded,
+//! four-state session (`accepting`, `finalized`, `aborted`, `failed`) that
+//! emits only text whose detection window is closed, never rescans
+//! finalized input, and accepts input independently of how a caller
+//! partitions it into chunks. See the module documentation for the full
+//! contract.
+//!
+//! Until the Rust core passes the shared conformance corpus, the
+//! TypeScript implementation in `src/` remains the behavioral oracle
+//! (`decision-govern-cross-language-conformance`).
 
 #![forbid(unsafe_code)]
 #![deny(clippy::print_stdout, clippy::print_stderr)]
@@ -44,6 +54,7 @@
 pub mod detectors;
 mod entropy;
 mod error;
+mod incremental;
 mod pipeline;
 mod policy;
 mod redact;
@@ -53,6 +64,10 @@ mod types;
 pub use entropy::shannon_entropy;
 pub use error::{
     DetectorFailure, FormatterFailure, PolicyFailure, SecretScanError, SecretScanErrorCode,
+};
+pub use incremental::{
+    INCREMENTAL_LOOKAROUND_BYTES, IncrementalLimits, IncrementalPolicy, IncrementalPolicyContext,
+    IncrementalResult, IncrementalSanitizer, SessionState,
 };
 pub use pipeline::{run_detector_pipeline, scan};
 pub use policy::DefaultPolicy;

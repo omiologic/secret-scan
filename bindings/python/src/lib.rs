@@ -106,6 +106,47 @@ create_exception!(
     SecretScanError,
     "The placeholder formatter returned an empty, oversized, or matched-value-reproducing placeholder."
 );
+// The six codes below belong to the incremental sanitizer
+// (`decision-define-runtime-bindings`), which this module's synchronous
+// `scan`/`redact`/`scan_and_redact` never triggers. Their exception classes
+// are still declared here to keep this module's exception hierarchy a
+// complete, future-proof mirror of `SecretScanErrorCode::ALL`.
+create_exception!(
+    secret_scan._native,
+    InvalidLimitsError,
+    SecretScanError,
+    "An incremental session's limits were missing, non-positive, or did not satisfy the documented relationship between them."
+);
+create_exception!(
+    secret_scan._native,
+    InputLimitExceededError,
+    SecretScanError,
+    "An incremental session's total accepted input would exceed its input limit."
+);
+create_exception!(
+    secret_scan._native,
+    BufferLimitExceededError,
+    SecretScanError,
+    "An incremental session's retained, unresolved plaintext would exceed its buffer limit."
+);
+create_exception!(
+    secret_scan._native,
+    TokenLimitExceededError,
+    SecretScanError,
+    "An incremental session's open single-line construct would exceed its token limit without closing."
+);
+create_exception!(
+    secret_scan._native,
+    MultilineLimitExceededError,
+    SecretScanError,
+    "An incremental session's open PEM-style private-key block would exceed its multiline limit without closing."
+);
+create_exception!(
+    secret_scan._native,
+    InvalidStateError,
+    SecretScanError,
+    "An incremental session received an operation after it left the accepting state."
+);
 
 /// Maps a fixed core error code to its exception type and fixed message.
 fn map_error_code(code: SecretScanErrorCode) -> PyErr {
@@ -127,6 +168,20 @@ fn map_error_code(code: SecretScanErrorCode) -> PyErr {
         SecretScanErrorCode::InvalidPlaceholder => {
             PyErr::new::<InvalidPlaceholderError, _>(message)
         }
+        SecretScanErrorCode::InvalidLimits => PyErr::new::<InvalidLimitsError, _>(message),
+        SecretScanErrorCode::InputLimitExceeded => {
+            PyErr::new::<InputLimitExceededError, _>(message)
+        }
+        SecretScanErrorCode::BufferLimitExceeded => {
+            PyErr::new::<BufferLimitExceededError, _>(message)
+        }
+        SecretScanErrorCode::TokenLimitExceeded => {
+            PyErr::new::<TokenLimitExceededError, _>(message)
+        }
+        SecretScanErrorCode::MultilineLimitExceeded => {
+            PyErr::new::<MultilineLimitExceededError, _>(message)
+        }
+        SecretScanErrorCode::InvalidState => PyErr::new::<InvalidStateError, _>(message),
     }
 }
 
@@ -196,6 +251,36 @@ fn register_exceptions(module: &Bound<'_, PyModule>) -> PyResult<()> {
         "InvalidPlaceholderError",
         InvalidPlaceholderError,
         SecretScanErrorCode::InvalidPlaceholder
+    );
+    register!(
+        "InvalidLimitsError",
+        InvalidLimitsError,
+        SecretScanErrorCode::InvalidLimits
+    );
+    register!(
+        "InputLimitExceededError",
+        InputLimitExceededError,
+        SecretScanErrorCode::InputLimitExceeded
+    );
+    register!(
+        "BufferLimitExceededError",
+        BufferLimitExceededError,
+        SecretScanErrorCode::BufferLimitExceeded
+    );
+    register!(
+        "TokenLimitExceededError",
+        TokenLimitExceededError,
+        SecretScanErrorCode::TokenLimitExceeded
+    );
+    register!(
+        "MultilineLimitExceededError",
+        MultilineLimitExceededError,
+        SecretScanErrorCode::MultilineLimitExceeded
+    );
+    register!(
+        "InvalidStateError",
+        InvalidStateError,
+        SecretScanErrorCode::InvalidState
     );
 
     Ok(())

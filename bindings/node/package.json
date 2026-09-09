@@ -22,5 +22,13 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "smoke": "node smoke-test.mjs"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.9.0"
   }
 }

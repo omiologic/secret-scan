@@ -18,3 +18,12 @@ __pycache__/
 # maturin builds the native extension in place for `maturin develop`
 /bindings/python/python/secret_scan/_native*.so
 /bindings/python/python/secret_scan/_native*.pyd
+
+# Generated N-API build output (regenerate with `npm install && npm run
+# build` in bindings/node); the compiled addon is platform-specific and the
+# JS/TypeScript glue is regenerated from src/lib.rs by napi-rs.
+/bindings/node/node_modules/
+/bindings/node/package-lock.json
+/bindings/node/index.js
+/bindings/node/index.d.ts
+/bindings/node/*.node
