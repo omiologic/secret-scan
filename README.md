@@ -172,6 +172,31 @@ const safeText = first.text + second.text + final.text;
 // api_key=<SECRET_1>\nordinary text
 ```
 
+The same session is available to Python, where limits are UTF-8 byte counts and
+findings carry absolute Unicode code point offsets into the joined input:
+
+```python
+import secret_scan
+
+limits = secret_scan.IncrementalLimits(
+    max_input_bytes=1_000_000,
+    max_buffered_bytes=32_896,
+    max_token_bytes=8_192,
+    max_multiline_bytes=32_768,
+)
+
+with secret_scan.IncrementalSanitizer(limits) as session:
+    first = session.append("api_key=SYNTHETIC_REVOKED_")
+    second = session.append("INCREMENTAL_VALUE\nordinary text")
+    final = session.finalize()
+
+safe_text = first.text + second.text + final.text
+# api_key=<SECRET_1>\nordinary text
+```
+
+Leaving the `with` block aborts a session that was not finalized, so whatever it
+still retained is discarded.
+
 Every session requires explicit total-input, retained-plaintext, token, and
 multiline limits. Abort, lifecycle misuse, callback failure, and limit failure
 drop retained plaintext and return only fixed, input-free errors. For accepted

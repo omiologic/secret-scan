@@ -22,6 +22,24 @@ const PUBLIC_RUNTIME_EXPORTS = [
   "typedPlaceholderFormatter",
 ];
 
+/**
+ * Each stream adapter subpath, in full. Both re-export `SecretScanError` so a
+ * consumer of one adapter can catch its failures without also importing the
+ * root, and neither adds an error type of its own.
+ */
+const PUBLIC_ADAPTER_EXPORTS = {
+  "@omiologic/secret-scan/node-stream": [
+    "NodeStreamSanitizer",
+    "SecretScanError",
+    "createNodeStreamSanitizer",
+  ],
+  "@omiologic/secret-scan/web-stream": [
+    "SecretScanError",
+    "WebStreamSanitizer",
+    "createWebStreamSanitizer",
+  ],
+};
+
 describe("exact exports", () => {
   it("exposes only the reviewed root runtime values", async () => {
     const publicApi = await import("@omiologic/secret-scan");
@@ -37,10 +55,20 @@ describe("exact exports", () => {
     expect(VERSION).toBe(manifest.default.version);
   });
 
+  it("exposes only the reviewed values on each stream adapter subpath", async () => {
+    for (const [subpath, expected] of Object.entries(PUBLIC_ADAPTER_EXPORTS)) {
+      const adapter = await import(subpath);
+
+      expect(Object.keys(adapter).sort(), subpath).toEqual(expected);
+    }
+  });
+
   it("keeps every documented internal module unreachable", async () => {
     for (const subpath of [
       "@omiologic/secret-scan/native",
       "@omiologic/secret-scan/runtime",
+      "@omiologic/secret-scan/session",
+      "@omiologic/secret-scan/adapters/shared",
       "@omiologic/secret-scan/dist/index.js",
       "@omiologic/secret-scan/runtime/node",
     ]) {

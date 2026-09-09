@@ -29,12 +29,14 @@ function typeScriptExamples(): readonly string[] {
   );
 }
 
-/** Every name a README example imports from the package. */
-function importedNames(example: string): readonly string[] {
+/** Every name a README example imports from `subpath` of the package. */
+function importedNames(example: string, subpath = ""): readonly string[] {
   const names: string[] = [];
-  for (const [, clause] of example.matchAll(
-    /import(?:\s+type)?\s+\{([^}]*)\}\s+from\s+"@omiologic\/secret-scan"/g,
-  )) {
+  const pattern = new RegExp(
+    `import(?:\\s+type)?\\s+\\{([^}]*)\\}\\s+from\\s+"@omiologic/secret-scan${subpath}"`,
+    "g",
+  );
+  for (const [, clause] of example.matchAll(pattern)) {
     for (const name of (clause ?? "").split(",")) {
       const trimmed = name.trim();
       if (trimmed !== "") names.push(trimmed);
@@ -46,7 +48,9 @@ function importedNames(example: string): readonly string[] {
 describe("README examples", () => {
   it("documents at least one example per public capability", () => {
     const examples = typeScriptExamples();
-    const imported = new Set(examples.flatMap(importedNames));
+    const imported = new Set(
+      examples.flatMap((example) => importedNames(example)),
+    );
 
     expect(examples.length).toBeGreaterThanOrEqual(6);
     for (const name of [
@@ -63,16 +67,42 @@ describe("README examples", () => {
     }
   });
 
-  it("imports only names the package actually exports", async () => {
-    const publicApi = await import("@omiologic/secret-scan");
-    const declared = readFileSync(
-      join(PACKAGE_ROOT, "dist", "index.d.ts"),
-      "utf8",
-    );
+  it("documents both stream adapter subpaths", () => {
+    const examples = typeScriptExamples();
 
-    for (const name of new Set(typeScriptExamples().flatMap(importedNames))) {
-      const exported = name in publicApi || declared.includes(name);
-      expect(exported, `README imports "${name}"`).toBe(true);
+    for (const [subpath, name] of [
+      ["/node-stream", "createNodeStreamSanitizer"],
+      ["/web-stream", "createWebStreamSanitizer"],
+    ]) {
+      const imported = new Set(
+        examples.flatMap((example) => importedNames(example, subpath)),
+      );
+
+      expect(imported, `@omiologic/secret-scan${subpath}`).toContain(name);
+    }
+  });
+
+  it("imports only names the package actually exports", async () => {
+    for (const [subpath, declarations] of [
+      ["", "index.d.ts"],
+      ["/node-stream", "adapters/node-stream.d.ts"],
+      ["/web-stream", "adapters/web-stream.d.ts"],
+    ]) {
+      const module = `@omiologic/secret-scan${subpath}`;
+      const publicApi = (await import(module)) as Record<string, unknown>;
+      const declared = readFileSync(
+        join(PACKAGE_ROOT, "dist", declarations ?? ""),
+        "utf8",
+      );
+
+      for (const name of new Set(
+        typeScriptExamples().flatMap((example) =>
+          importedNames(example, subpath),
+        ),
+      )) {
+        const exported = name in publicApi || declared.includes(name);
+        expect(exported, `${module} imports "${name}"`).toBe(true);
+      }
     }
   });
 
@@ -101,7 +131,10 @@ describe("README examples", () => {
               noEmit: true,
               declaration: false,
               lib: ["ES2022", "DOM"],
-              types: [],
+              // The Node adapter's own example needs `node:stream/promises`.
+              // That the Web adapter and the root export resolve nothing
+              // Node-only is proved by the browser bundle tests, not here.
+              types: ["node"],
             },
             include: ["./*.ts"],
           },

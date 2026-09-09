@@ -10,6 +10,14 @@
 
 import * as publicApi from "../src/index.js";
 import {
+  createNodeStreamSanitizer,
+  NodeStreamSanitizer,
+} from "../src/adapters/node-stream.js";
+import {
+  createWebStreamSanitizer,
+  WebStreamSanitizer,
+} from "../src/adapters/web-stream.js";
+import {
   createIncrementalSanitizer,
   defaultPlaceholderFormatter,
   initialize,
@@ -147,3 +155,37 @@ async function documentedUsage(input: string): Promise<void> {
 }
 
 void documentedUsage;
+
+/**
+ * The stream adapters. Neither is reachable from the root export: they are
+ * published as their own subpaths, `./node-stream` being the only module that
+ * resolves `node:stream` and `./web-stream` resolving nothing Node-only.
+ */
+
+type NodeSanitizerFindings = Expect<
+  Equal<NodeStreamSanitizer["findings"], readonly SecretFinding[]>
+>;
+type WebSanitizerFindings = Expect<
+  Equal<WebStreamSanitizer["findings"], readonly SecretFinding[]>
+>;
+type WebSanitizerReadsStrings = Expect<
+  Equal<ReturnType<typeof createWebStreamSanitizer>["readable"], ReadableStream<string>>
+>;
+
+/** Each adapter owns exactly one session, and takes it as its constructor. */
+function documentedStreamUsage(session: IncrementalSanitizer): void {
+  const fromSession: NodeStreamSanitizer = new NodeStreamSanitizer(session);
+  const fromOptions: NodeStreamSanitizer = createNodeStreamSanitizer(
+    incrementalOptions,
+  );
+  const web: WebStreamSanitizer = createWebStreamSanitizer(incrementalOptions);
+  const wrapped: WebStreamSanitizer = new WebStreamSanitizer(session);
+
+  const nodeFindings: readonly SecretFinding[] = fromOptions.findings;
+  const webFindings: readonly SecretFinding[] = web.findings;
+  web.abort();
+
+  void [fromSession, wrapped, nodeFindings, webFindings];
+}
+
+void documentedStreamUsage;

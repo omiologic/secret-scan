@@ -26,14 +26,15 @@
  * Built-in detectors all run in Rust; there is no custom detector callback in
  * this API, and no internal module of this package is reachable through its
  * `exports` map.
+ *
+ * Byte streams are served by the two adapter subpaths,
+ * `@omiologic/secret-scan/node-stream` and
+ * `@omiologic/secret-scan/web-stream`, each of which drives one incremental
+ * session per stream. This root module never resolves a `node:` module.
  */
 
-import { loadNativeBinding } from "#native";
-
-import { createSecretScanRuntime } from "./runtime.js";
+import { runtime } from "./session.js";
 import type { RangeUnit } from "./types.js";
-
-const runtime = createSecretScanRuntime(loadNativeBinding);
 
 /**
  * Loads this runtime's binding and prepares it for use.

@@ -6,6 +6,7 @@ are re-exported there.
 
 from __future__ import annotations
 
+from types import TracebackType
 from typing import Callable
 
 # ---------------------------------------------------------------------
@@ -56,6 +57,24 @@ class PlaceholderFailureError(SecretScanError):
 class InvalidPlaceholderError(SecretScanError):
     code: str
 
+class InvalidLimitsError(SecretScanError):
+    code: str
+
+class InputLimitExceededError(SecretScanError):
+    code: str
+
+class BufferLimitExceededError(SecretScanError):
+    code: str
+
+class TokenLimitExceededError(SecretScanError):
+    code: str
+
+class MultilineLimitExceededError(SecretScanError):
+    code: str
+
+class InvalidStateError(SecretScanError):
+    code: str
+
 # ---------------------------------------------------------------------
 # Safe metadata types
 #
@@ -102,12 +121,83 @@ class ScanResult:
     text: str
     findings: list[Finding]
 
+class IncrementalPolicyContext:
+    """Position of a finding among those an incremental session has
+    finalized so far, passed to an incremental policy callback. There is no
+    total count: progressive evaluation cannot know one."""
+
+    finding_index: int
+
+class IncrementalResult:
+    """The immutable result of one append() or finalize() call."""
+
+    text: str
+    findings: list[Finding]
+
 # ---------------------------------------------------------------------
 # Callback protocols
 # ---------------------------------------------------------------------
 
 Policy = Callable[[DetectedFinding, PolicyContext], str]
+IncrementalPolicy = Callable[[DetectedFinding, IncrementalPolicyContext], str]
 Formatter = Callable[[Finding, PlaceholderContext], str]
+
+# ---------------------------------------------------------------------
+# Incremental sanitization
+# ---------------------------------------------------------------------
+
+class IncrementalLimits:
+    """The mandatory, positive UTF-8 byte limits of one session. All four
+    are keyword-only and have no defaults."""
+
+    def __init__(
+        self,
+        *,
+        max_input_bytes: int,
+        max_buffered_bytes: int,
+        max_token_bytes: int,
+        max_multiline_bytes: int,
+    ) -> None: ...
+    @staticmethod
+    def minimum_buffered_bytes(
+        max_token_bytes: int, max_multiline_bytes: int
+    ) -> int:
+        """The smallest ``max_buffered_bytes`` this class accepts alongside
+        these construct limits."""
+
+    @property
+    def max_input_bytes(self) -> int: ...
+    @property
+    def max_buffered_bytes(self) -> int: ...
+    @property
+    def max_token_bytes(self) -> int: ...
+    @property
+    def max_multiline_bytes(self) -> int: ...
+
+class IncrementalSanitizer:
+    """A bounded incremental sanitization session. Findings carry absolute
+    Unicode code point offsets into the logical whole-session input."""
+
+    def __init__(
+        self,
+        limits: IncrementalLimits,
+        policy: IncrementalPolicy | None = None,
+        formatter: Formatter | None = None,
+    ) -> None: ...
+    @property
+    def state(self) -> str: ...
+    @property
+    def limits(self) -> IncrementalLimits: ...
+    def append(self, chunk: str) -> IncrementalResult: ...
+    def finalize(self) -> IncrementalResult: ...
+    def abort(self) -> None: ...
+    def __enter__(self) -> IncrementalSanitizer: ...
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool: ...
 
 # ---------------------------------------------------------------------
 # Functions
@@ -130,4 +220,7 @@ def default_placeholder_formatter(
 ) -> str: ...
 def typed_placeholder_formatter(
     finding: Finding, context: PlaceholderContext
+) -> str: ...
+def default_incremental_policy(
+    finding: DetectedFinding, context: IncrementalPolicyContext
 ) -> str: ...

@@ -28,7 +28,11 @@ select or authorize a release.
 - The built-in detector registry and the incremental retention tuning are now
   private: the built-in set is reached only through
   `DetectorRegistry::with_built_in`, and `INCREMENTAL_LOOKAROUND_BYTES` is
-  replaced by `IncrementalLimits::minimum_buffered_bytes`.
+  replaced by `IncrementalLimits::minimum_buffered_bytes`. The Python binding
+  mirrors that: its `INCREMENTAL_LOOKAROUND_BYTES` module constant is replaced
+  by the `IncrementalLimits.minimum_buffered_bytes(max_token_bytes,
+  max_multiline_bytes)` static method, so no binding exposes tuning the core
+  keeps private.
 - `npm run rust:check` gained public-API, source-boundary, core-manifest-shape,
   and package-content checks, so the core keeps no runtime I/O, no Cargo
   features, and no binding-specific dependency, and the published package
@@ -36,6 +40,14 @@ select or authorize a release.
   warnings denied and verifies that the published core package builds on its
   own. The crates.io names `secret-scan` and `secret_scan` were rechecked on
   2026-09-09 before the manifests were finalized.
+- Bounded incremental sanitization in the Python binding:
+  `IncrementalSanitizer` with mandatory `IncrementalLimits`, an explicit
+  `accepting`/`finalized`/`aborted`/`failed` lifecycle, immutable per-call
+  results, incremental `policy` and `formatter` callbacks that receive only safe
+  metadata, and a `with` block that aborts a session left unfinalized. Findings
+  carry absolute Unicode code point offsets into the whole-session input and
+  keep stable ids across calls; `abort` and every failure discard retained
+  plaintext and raise a fixed, input-free exception.
 - Unified `@omiologic/secret-scan` npm package in `packages/javascript`: one
   typed API whose conditional `exports` select the Node N-API addon or the
   browser WebAssembly build, a shared `await initialize()` contract that gates
@@ -43,6 +55,16 @@ select or authorize a release.
   offsets, one sanitized `SecretScanError`, and a lockstep version check. It is
   not published yet; the repository-root TypeScript implementation remains the
   released package and the behavioral oracle.
+- Node and Web stream adapters on that package, published as the
+  `@omiologic/secret-scan/node-stream` and `@omiologic/secret-scan/web-stream`
+  subpaths. Each drives one incremental session per stream through a single
+  fatal, stateful UTF-8 decoder, emits only text whose detection window is
+  closed, exposes frozen findings with absolute whole-stream offsets, and
+  discards retained plaintext on Node destruction, Web cancellation, writable
+  abort, and explicit abort. Backpressure and errors travel through the host's
+  own stream contract, and two new `SecretScanError` codes, `INVALID_CHUNK` and
+  `INVALID_UTF8`, report malformed adapter input. The root export and the Web
+  subpath resolve no Node-only module.
 
 ## 0.1.0-beta.1 - 2026-08-31
 
