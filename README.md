@@ -376,6 +376,11 @@ including the gaps that remain open, is recorded in
 [docs/audits/closed-issue-acceptance-evidence-ledger.md](./docs/audits/closed-issue-acceptance-evidence-ledger.md).
 It records evidence only; it does not authorize any release operation.
 
+An independent review of the canonical core, the conformance contract, and the
+CLI boundary, with its findings and their exit conditions, is recorded in
+[docs/audits/core-conformance-cli-boundary-review.md](./docs/audits/core-conformance-cli-boundary-review.md).
+It records evidence only; it does not authorize any release operation.
+
 ## License
 
 [MIT](./LICENSE)
