@@ -281,17 +281,19 @@ function redact(binary, fixtures, paths, reported) {
       cursor = finding.end;
     });
     pieces.push(source.subarray(cursor));
+    // The byte-exact comparison above already pins every replaced span to
+    // its placeholder and leaves everything else untouched, so it is a
+    // stronger check than searching the output for leftover matched text.
+    // That search would also be wrong on its own: some fixtures (e.g.
+    // `contextual-positive-remaining-declared-names`) legitimately repeat
+    // the same synthetic value across findings that resolve to different
+    // actions, so a `warn`/`allow` finding can leave a byte-identical copy
+    // of a `redact`/`block` finding's value elsewhere in the output.
     assertEqual(
       result.stdout.toString("base64"),
       Buffer.concat(pieces).toString("base64"),
       `${fixture.id}: redacted output`,
     );
-    for (const finding of redacted) {
-      assert(
-        !result.stdout.includes(source.subarray(finding.start, finding.end)),
-        `${fixture.id}: a redacted span survived in the output`,
-      );
-    }
   });
   assert(checked >= 50, `only ${checked} fixture(s) exercised redaction`);
 }
