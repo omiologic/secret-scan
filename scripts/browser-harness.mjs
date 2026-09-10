@@ -51,6 +51,33 @@ function assertEqual(actual, expected, message) {
   if (left !== right) throw new Error(`${message}: expected ${right}, got ${left}`);
 }
 
+/**
+ * The exact text `redact()`'s default formatter produces from `input` and
+ * `findings`: `<SECRET_N>` (`N` one-based among `redact`/`block` findings,
+ * `crates/secret-scan-core/src/redact.rs`) in place of each such finding's
+ * span, everything else — including a `warn`/`allow` finding's own span —
+ * passed through unchanged. An independent reconstruction from the fixture's
+ * own findings, not a search over the output: a fixture can reuse one
+ * literal secret value across findings with different actions or lengths
+ * (`slack-positive-all-prefixes` has one finding's matched text as a literal
+ * substring of another's), which makes "does this value still appear
+ * anywhere" and "how many times does it appear" both unsound.
+ */
+function expectedRedaction(input, findings) {
+  const redacted = findings
+    .filter((finding) => finding.action === "redact" || finding.action === "block")
+    .sort((a, b) => a.range.start - b.range.start);
+  const pieces = [];
+  let cursor = 0;
+  redacted.forEach((finding, index) => {
+    pieces.push(input.slice(cursor, finding.range.start));
+    pieces.push(`<SECRET_${index + 1}>`);
+    cursor = finding.range.end;
+  });
+  pieces.push(input.slice(cursor));
+  return pieces.join("");
+}
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -174,9 +201,15 @@ export async function qualify(fixtures) {
   // detector — none matches a span containing an astral character — and is
   // asserted at the unit level by `bindings/wasm/src/range.rs`.
   check("an astral character around a finding does not perturb its span", () => {
-    // "\u{1F511} " is 3 UTF-16 code units and 5 UTF-8 bytes, so a binding
-    // that leaked byte offsets would shift every span by 5 instead of 3.
-    const PREFIX = "\u{1F511} ";
+    // "\u{1F511}\n" is 3 UTF-16 code units and 5 UTF-8 bytes, so a binding
+    // that leaked byte offsets would shift every span by 5 instead of 3. The
+    // second character is a newline rather than a space: `generic-token`'s
+    // `authorization_credential` match is deliberately anchored to the start
+    // of a line (`(?:^|[\r\n])[ \t]*authorization[ \t]*:...`,
+    // `crates/secret-scan-core/src/detectors/generic_token.rs`), so a prefix
+    // that does not end a line would make that finding vanish instead of
+    // shift — a fixture-anchoring mismatch, not an offset bug.
+    const PREFIX = "\u{1F511}\n";
     const SHIFT = PREFIX.length;
     const perturbed = [];
     for (const fixture of fixtures.synchronous) {
@@ -211,17 +244,11 @@ export async function qualify(fixtures) {
         separate,
         `fixture ${fixture.id} scanAndRedact disagreed with scan + redact`,
       );
-      for (const finding of combined.findings) {
-        if (finding.action !== "redact" && finding.action !== "block") continue;
-        const matched = fixture.input.slice(
-          finding.range.start,
-          finding.range.end,
-        );
-        assert(
-          !combined.text.includes(matched),
-          `fixture ${fixture.id} left a redacted span in the output`,
-        );
-      }
+      assertEqual(
+        combined.text,
+        expectedRedaction(fixture.input, combined.findings),
+        `fixture ${fixture.id} left a redacted span in the output`,
+      );
     }
   });
 
