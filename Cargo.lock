@@ -438,6 +438,7 @@ name = "secret-scan-cli"
 version = "0.1.0-beta.1"
 dependencies = [
  "secret-scan",
+ "serde_json",
 ]
 
 [[package]]
