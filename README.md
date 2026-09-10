@@ -371,6 +371,11 @@ repository. See the version-neutral [Unreleased changelog](./CHANGELOG.md).
 The accepted architectural decisions are indexed in
 [docs/decisions/DECISIONS.md](./docs/decisions/DECISIONS.md).
 
+Criterion-level acceptance evidence for the closed Rust-core migration issues,
+including the gaps that remain open, is recorded in
+[docs/audits/closed-issue-acceptance-evidence-ledger.md](./docs/audits/closed-issue-acceptance-evidence-ledger.md).
+It records evidence only; it does not authorize any release operation.
+
 ## License
 
 [MIT](./LICENSE)
