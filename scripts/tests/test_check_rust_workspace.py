@@ -75,6 +75,7 @@ class Workspace:
         self.write(".github/workflows/ci.yml", f'name: CI\nenv:\n  MSRV: "{MSRV}"\n')
         self.write("package.json", json.dumps({"version": VERSION}))
         self.write("bindings/node/package.json", json.dumps({"version": VERSION}))
+        self.write("packages/javascript/package.json", json.dumps({"version": VERSION}))
         self.add_member("secret-scan", "crates/secret-scan-core", "src/lib.rs", CORE_LIB, manifest=CORE_MANIFEST)
         self.add_member("secret-scan-cli", "crates/secret-scan-cli", "src/main.rs", "#![forbid(unsafe_code)]\n", deps=["secret-scan"])
 
@@ -195,12 +196,26 @@ class RustWorkspaceCheckTests(unittest.TestCase):
         errors = self.run_check(configure)
         self.assertTrue(any("must set [lints] workspace = true" in error for error in errors), errors)
 
-    def test_version_lockstep_covers_npm_manifests(self) -> None:
+    def test_root_package_json_drift_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("package.json", json.dumps({"version": "0.2.0"}))
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("package.json: version 0.2.0" in error for error in errors), errors)
+
+    def test_node_package_json_drift_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
             workspace.write("bindings/node/package.json", json.dumps({"version": "0.2.0"}))
 
         errors = self.run_check(configure)
         self.assertTrue(any("bindings/node/package.json: version 0.2.0" in error for error in errors), errors)
+
+    def test_javascript_package_json_drift_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("packages/javascript/package.json", json.dumps({"version": "0.2.0"}))
+
+        errors = self.run_check(configure)
+        self.assertTrue(any("packages/javascript/package.json: version 0.2.0" in error for error in errors), errors)
 
     def test_member_version_drift_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
