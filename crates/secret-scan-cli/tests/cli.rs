@@ -616,6 +616,93 @@ fn help_documents_the_modes_the_exit_codes_and_the_reporting_shape() {
     assert_eq!(run_args(&["-h"], b"").stdout, run.stdout);
 }
 
+// --- canonical corpus: redact mode --------------------------------------
+
+/// The canonical synchronous corpus, loaded the same way
+/// `crates/secret-scan-core/tests/support/mod.rs` loads it: `include_str!`,
+/// so a fixture change forces a rebuild of this test.
+const SYNCHRONOUS_CORPUS: &str =
+    include_str!("../../../conformance/fixtures/synchronous-corpus.json");
+
+/// One `canonical`-tier corpus fixture. That tier declares exactly one
+/// high-confidence expectation per fixture, and `DefaultPolicy`
+/// (`crates/secret-scan-core/src/policy.rs`) always redacts or blocks a
+/// high-confidence finding — both actions replace the range with
+/// `<SECRET_1>`. The corpus-expected redacted text is therefore computable
+/// from `expected[0].start`/`end` alone, without calling the redaction code
+/// under test.
+struct CanonicalRedactFixture {
+    id: String,
+    input: String,
+    start: usize,
+    end: usize,
+}
+
+/// Every `canonical`-tier fixture in `synchronous-corpus.json`. Neither this
+/// helper nor its caller embeds a fixture input or a matched value; every
+/// value here is read out of the corpus file at run time.
+fn canonical_redact_fixtures() -> Vec<CanonicalRedactFixture> {
+    let document: serde_json::Value =
+        serde_json::from_str(SYNCHRONOUS_CORPUS).expect("synchronous-corpus.json is valid JSON");
+    document["fixtures"]
+        .as_array()
+        .expect("synchronous-corpus.json has a fixtures array")
+        .iter()
+        .filter(|fixture| fixture["tier"].as_str() == Some("canonical"))
+        .map(|fixture| {
+            let id = fixture["id"]
+                .as_str()
+                .expect("canonical fixture has an id")
+                .to_owned();
+            let expected = fixture["expected"]
+                .as_array()
+                .filter(|expected| expected.len() == 1)
+                .expect("canonical fixture must declare exactly one expectation");
+            let expectation = &expected[0];
+            CanonicalRedactFixture {
+                input: fixture["input"]
+                    .as_str()
+                    .expect("canonical fixture has an input")
+                    .to_owned(),
+                start: usize::try_from(
+                    expectation["start"]
+                        .as_u64()
+                        .expect("canonical fixture expectation has a start"),
+                )
+                .expect("start fits in usize"),
+                end: usize::try_from(
+                    expectation["end"]
+                        .as_u64()
+                        .expect("canonical fixture expectation has an end"),
+                )
+                .expect("end fits in usize"),
+                id,
+            }
+        })
+        .collect()
+}
+
+/// Runs the real `secret-scan --redact` binary over every canonical-tier
+/// corpus fixture and asserts its stdout equals the corpus-expected redacted
+/// text, exercising argument parsing, standard I/O, and the redaction
+/// pipeline together the way a pre-commit hook actually invokes them.
+#[test]
+fn redact_matches_the_canonical_corpus_redacted_text() {
+    let fixtures = canonical_redact_fixtures();
+    assert!(!fixtures.is_empty(), "canonical tier must not be empty");
+
+    for fixture in fixtures {
+        let expected = format!(
+            "{}<SECRET_1>{}",
+            &fixture.input[..fixture.start],
+            &fixture.input[fixture.end..],
+        );
+        let run = run_args(&["--redact"], fixture.input.as_bytes());
+        assert_eq!(run.code, 0, "{}", fixture.id);
+        assert_eq!(run.stdout, expected, "{}", fixture.id);
+    }
+}
+
 // --- broken pipe -------------------------------------------------------
 
 /// A downstream reader that exits early must not hang the binary, must not
