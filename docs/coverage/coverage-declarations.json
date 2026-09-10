@@ -1805,8 +1805,14 @@
             "contextual-host-shell",
             "contextual-positive-assignment",
             "contextual-positive-aws-secret-access-key",
+            "contextual-positive-aws-secret-access-key-quoted-colon",
             "contextual-positive-aws-session-token",
-            "contextual-positive-escaped-quote"
+            "contextual-positive-colon-spaced-operator",
+            "contextual-positive-crlf-line-start",
+            "contextual-positive-escaped-quote",
+            "contextual-positive-minimum-length-is-medium-confidence",
+            "contextual-positive-remaining-declared-names",
+            "contextual-positive-single-quoted-value"
           ],
           "state": "supported"
         },
@@ -1836,9 +1842,16 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
+            "contextual-negative-generic-name-high-entropy",
+            "contextual-negative-hash-non-credential-name",
+            "contextual-negative-identifier-non-credential-name",
             "contextual-negative-json-env-reference",
+            "contextual-negative-placeholder-redacted",
+            "contextual-negative-placeholder-replaceme",
+            "contextual-negative-prose-colon-unrecognized-name",
             "contextual-negative-shell-placeholder",
-            "contextual-negative-token-name"
+            "contextual-negative-token-name",
+            "contextual-negative-unqualified-random-text"
           ],
           "state": "supported"
         },
@@ -1859,13 +1872,26 @@
             "contextual-host-javascript",
             "contextual-host-log",
             "contextual-host-shell",
+            "contextual-negative-generic-name-high-entropy",
+            "contextual-negative-hash-non-credential-name",
+            "contextual-negative-identifier-non-credential-name",
             "contextual-negative-json-env-reference",
+            "contextual-negative-placeholder-redacted",
+            "contextual-negative-placeholder-replaceme",
+            "contextual-negative-prose-colon-unrecognized-name",
             "contextual-negative-shell-placeholder",
             "contextual-negative-token-name",
+            "contextual-negative-unqualified-random-text",
             "contextual-positive-assignment",
             "contextual-positive-aws-secret-access-key",
+            "contextual-positive-aws-secret-access-key-quoted-colon",
             "contextual-positive-aws-session-token",
-            "contextual-positive-escaped-quote"
+            "contextual-positive-colon-spaced-operator",
+            "contextual-positive-crlf-line-start",
+            "contextual-positive-escaped-quote",
+            "contextual-positive-minimum-length-is-medium-confidence",
+            "contextual-positive-remaining-declared-names",
+            "contextual-positive-single-quoted-value"
           ],
           "state": "supported"
         },
@@ -1923,7 +1949,8 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "authorization-negative-unsupported-scheme"
+            "authorization-negative-unsupported-scheme",
+            "contextual-negative-unqualified-random-text"
           ],
           "state": "supported"
         },

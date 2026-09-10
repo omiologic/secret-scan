@@ -772,7 +772,7 @@
     {
       "detector": "generic-token",
       "evidence": {
-        "fixtureCount": 31,
+        "fixtureCount": 44,
         "hostContextsExercised": [
           "chat",
           "dotenv",
@@ -803,8 +803,14 @@
         "contextual-host-shell",
         "contextual-positive-assignment",
         "contextual-positive-aws-secret-access-key",
+        "contextual-positive-aws-secret-access-key-quoted-colon",
         "contextual-positive-aws-session-token",
-        "contextual-positive-escaped-quote"
+        "contextual-positive-colon-spaced-operator",
+        "contextual-positive-crlf-line-start",
+        "contextual-positive-escaped-quote",
+        "contextual-positive-minimum-length-is-medium-confidence",
+        "contextual-positive-remaining-declared-names",
+        "contextual-positive-single-quoted-value"
       ],
       "policyClass": "confidence-gated",
       "schemeRows": "not-applicable",
@@ -814,7 +820,7 @@
     {
       "detector": "generic-token",
       "evidence": {
-        "fixtureCount": 31,
+        "fixtureCount": 44,
         "hostContextsExercised": [
           "chat",
           "dotenv",
