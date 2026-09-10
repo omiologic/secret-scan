@@ -74,6 +74,7 @@ WRITE_SCOPE_ALLOWLIST = {
     ("release.yml", "publish", "contents"),
     ("release.yml", "publish-pypi", "id-token"),
     ("reconcile-release.yml", "reconcile", "contents"),
+    ("reconcile-release.yml", "reconcile", "id-token"),
 }
 
 # A named top-level job block: `  <job-name>:` through the line before the
