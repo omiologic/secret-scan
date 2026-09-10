@@ -17,6 +17,7 @@ SPEC.loader.exec_module(CHECK)
 
 VERSION = "0.1.0-beta.1"
 MSRV = "1.88"
+NODE_ENGINES = "20.x || 22.x"
 
 CORE_LIB = """//! # Public surface
 //!
@@ -72,10 +73,13 @@ class Workspace:
         self.package_globs: list[str] = list(PACKAGE_GLOBS)
         self.package_required: list[str] = list(PACKAGE_REQUIRED)
         self.package_list: list[str] = list(PACKAGE_LIST)
-        self.write(".github/workflows/ci.yml", f'name: CI\nenv:\n  MSRV: "{MSRV}"\n')
-        self.write("package.json", json.dumps({"version": VERSION}))
-        self.write("bindings/node/package.json", json.dumps({"version": VERSION}))
-        self.write("packages/javascript/package.json", json.dumps({"version": VERSION}))
+        self.write(
+            ".github/workflows/ci.yml",
+            f'name: CI\nenv:\n  MSRV: "{MSRV}"\njobs:\n  test:\n    strategy:\n      matrix:\n        node-version:\n          - 20\n          - 22\n',
+        )
+        self.write("package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
+        self.write("bindings/node/package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
+        self.write("packages/javascript/package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
         self.add_member("secret-scan", "crates/secret-scan-core", "src/lib.rs", CORE_LIB, manifest=CORE_MANIFEST)
         self.add_member("secret-scan-cli", "crates/secret-scan-cli", "src/main.rs", "#![forbid(unsafe_code)]\n", deps=["secret-scan"])
 
@@ -245,6 +249,45 @@ class RustWorkspaceCheckTests(unittest.TestCase):
 
         errors = self.run_check(configure)
         self.assertTrue(any("expected exactly one MSRV: 1.88" in error for error in errors), errors)
+
+    def test_node_engines_narrower_than_ci_matrix_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("package.json", json.dumps({"version": VERSION, "engines": {"node": "20.x"}}))
+
+        errors = self.run_check(configure)
+        self.assertTrue(
+            any("package.json: engines.node '20.x' must be '20.x || 22.x'" in error for error in errors),
+            errors,
+        )
+
+    def test_node_engines_open_ended_range_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("package.json", json.dumps({"version": VERSION, "engines": {"node": ">=20"}}))
+
+        errors = self.run_check(configure)
+        self.assertTrue(
+            any("package.json: engines.node '>=20' must be '20.x || 22.x'" in error for error in errors),
+            errors,
+        )
+
+    def test_node_engines_drift_is_rejected_in_every_lockstep_manifest(self) -> None:
+        for relative in ("bindings/node/package.json", "packages/javascript/package.json"):
+
+            def configure(workspace: Workspace, relative: str = relative) -> None:
+                workspace.write(relative, json.dumps({"version": VERSION, "engines": {"node": "20.x"}}))
+
+            errors = self.run_check(configure)
+            self.assertTrue(any(f"{relative}: engines.node" in error for error in errors), errors)
+
+    def test_ci_matrix_without_node_versions_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write(".github/workflows/ci.yml", f'name: CI\nenv:\n  MSRV: "{MSRV}"\n')
+
+        errors = self.run_check(configure)
+        self.assertTrue(
+            any("no Node major versions found" in error for error in errors),
+            errors,
+        )
 
     def test_member_msrv_drift_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:

@@ -181,6 +181,21 @@ python-wheel-targets = [
   "x86_64-unknown-linux-musl",
 ]
 
+# Every target a CLI release must build and smoke-test a `secret-scan` binary
+# for, checked against `.github/workflows/artifact-qualification.yml` by
+# `scripts/check-artifact-matrix.py`. The CLI ships no musl variant, so this
+# is a subset of `python-wheel-targets`; it is kept as the same six triples as
+# `bindings/node/package.json`'s `napi.targets` so both artifact families
+# share one workflow and one set of runners.
+cli-release-targets = [
+  "aarch64-apple-darwin",
+  "aarch64-pc-windows-msvc",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+]
+
 [profile.release]
 codegen-units = 1
 lto = "fat"
