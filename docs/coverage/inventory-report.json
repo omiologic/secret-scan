@@ -719,10 +719,16 @@
     {
       "detector": "generic-token",
       "evidence": {
-        "fixtureCount": 23,
+        "fixtureCount": 31,
         "hostContextsExercised": [
+          "chat",
+          "dotenv",
+          "http",
           "javascript",
-          "plain-text"
+          "json",
+          "log",
+          "plain-text",
+          "shell"
         ],
         "kindsWithSupportedEvidence": [
           "adversarial",
@@ -736,6 +742,12 @@
         ]
       },
       "evidenceFixtureIds": [
+        "contextual-host-chat",
+        "contextual-host-dotenv",
+        "contextual-host-http",
+        "contextual-host-javascript",
+        "contextual-host-log",
+        "contextual-host-shell",
         "contextual-positive-assignment",
         "contextual-positive-aws-secret-access-key",
         "contextual-positive-aws-session-token",
@@ -749,10 +761,16 @@
     {
       "detector": "generic-token",
       "evidence": {
-        "fixtureCount": 23,
+        "fixtureCount": 31,
         "hostContextsExercised": [
+          "chat",
+          "dotenv",
+          "http",
           "javascript",
-          "plain-text"
+          "json",
+          "log",
+          "plain-text",
+          "shell"
         ],
         "kindsWithSupportedEvidence": [
           "adversarial",
