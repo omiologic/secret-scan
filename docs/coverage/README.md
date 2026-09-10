@@ -46,10 +46,16 @@ Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_cover
 
 ## Scope
 
-This is the baseline only. It does not yet:
+This is the baseline, plus the evidence model that defines what a row needs
+to resolve honestly:
 
-- define the minimum required evidence dimensions or exception rules
-  (issue [#102](https://github.com/omiologic/secret-scan/issues/102)),
+- [`evidence-requirements.md`](./evidence-requirements.md) — the minimum
+  evidence dimensions per behavior class and the bounded-rationale exception
+  rule (issue [#102](https://github.com/omiologic/secret-scan/issues/102)),
+  applied against every row of `detector-inventory.json` and `consumers`.
+
+It does not yet:
+
 - encode coverage declarations into the canonical corpus schema itself
   (issue [#103](https://github.com/omiologic/secret-scan/issues/103)), or
 - make coverage drift a CI failure (issue
