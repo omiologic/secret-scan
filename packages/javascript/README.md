@@ -118,6 +118,12 @@ findings whose detection window is closed. Limits are explicit UTF-16
 code-unit counts; there are no defaults. Findings carry absolute offsets into
 the logical whole-session input.
 
+Incremental sanitization is not available in the browser: `bindings/wasm`
+does not build a streaming session, so `createIncrementalSanitizer` (and
+`@omiologic/secret-scan/web-stream`, below) rejects with the fixed
+`INCREMENTAL_UNAVAILABLE` code there. `await initialize()` and the
+synchronous `scan`/`redact`/`scanAndRedact` operations are unaffected.
+
 ```ts
 import { createIncrementalSanitizer, initialize } from "@omiologic/secret-scan";
 
@@ -179,7 +185,10 @@ console.log(sanitizer.findings.length);
 `@omiologic/secret-scan/web-stream` is a `TransformStream<Uint8Array, string>`
 and resolves no `node:` module, so a browser bundle that uses it pulls in none
 of the Node adapter. Cancelling the readable side, aborting the writable side,
-and its own `abort()` all discard retained plaintext.
+and its own `abort()` all discard retained plaintext. On the WebAssembly
+runtime this subpath's `createWebStreamSanitizer` rejects with the same fixed
+`INCREMENTAL_UNAVAILABLE` code as `createIncrementalSanitizer`, since incremental
+sanitization is not available there (see above).
 
 ```ts
 import { initialize } from "@omiologic/secret-scan";
@@ -230,8 +239,10 @@ try {
 ```
 
 `NOT_INITIALIZED` and `INITIALIZATION_FAILED` come from the binding layer,
-and `INVALID_CHUNK` and `INVALID_UTF8` from the stream adapters; every other
-code comes from the Rust core.
+`INVALID_CHUNK` and `INVALID_UTF8` from the stream adapters, and
+`INCREMENTAL_UNAVAILABLE` from the WebAssembly binding, which does not
+implement incremental sanitization; every other code comes from the Rust
+core.
 
 ## Public API
 

@@ -39,6 +39,20 @@ import type {
   SecretFinding,
 } from "./types.js";
 
+/** Freezes the five documented fields a policy callback is allowed to see. */
+function toDetectedSecretFinding(
+  finding: NativeDetectedFinding,
+): DetectedSecretFinding {
+  return Object.freeze({
+    id: finding.id,
+    type: finding.type,
+    detector: finding.detector,
+    confidence: finding.confidence as DetectedSecretFinding["confidence"],
+    start: finding.start,
+    end: finding.end,
+  });
+}
+
 /** Freezes the seven documented fields, preserving any binding handle. */
 function toSecretFinding(finding: NativeFinding): SecretFinding {
   const published: SecretFinding = {
@@ -94,8 +108,8 @@ function toPolicyCallback(
   if (typeof policy !== "object" || typeof policy.evaluate !== "function") {
     throw new SecretScanError("INVALID_OPTIONS");
   }
-  return (finding: NativeDetectedFinding, context) =>
-    policy.evaluate(finding as DetectedSecretFinding, context);
+  return (finding, context) =>
+    policy.evaluate(toDetectedSecretFinding(finding), context);
 }
 
 /**
@@ -136,7 +150,7 @@ function toNativeIncrementalOptions(
     policy === undefined
       ? undefined
       : (finding, context) =>
-          policy.evaluate(finding as DetectedSecretFinding, context);
+          policy.evaluate(toDetectedSecretFinding(finding), context);
   return {
     limits: {
       maxInputCodeUnits: limits.maxInputCodeUnits,

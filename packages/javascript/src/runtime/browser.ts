@@ -11,23 +11,27 @@
  * generated `init()` that fetches and instantiates the `.wasm` binary, and the
  * binding's own idempotent `initialize()` that builds the detector registry.
  * Wrapping both is exactly this adapter's job.
+ *
+ * `bindings/wasm` does not export a `createIncrementalSanitizer` (see its
+ * `README.md`): incremental sanitization is deliberately unavailable on this
+ * runtime, so this adapter's `createIncrementalSanitizer` always rejects with
+ * the fixed `INCREMENTAL_UNAVAILABLE` code. `./web-stream` rejects the same
+ * way, through this same binding, and `initialize()` itself still resolves.
  */
 
 import { SecretScanError } from "../errors.js";
 import {
   NATIVE_HANDLE,
   type NativeBinding,
+  type NativeDetectedFinding,
   type NativeFinding,
   type NativeFormatterCallback,
-  type NativeIncrementalOptions,
-  type NativeIncrementalResult,
-  type NativeIncrementalSanitizer,
   type NativePolicyCallback,
 } from "../native.js";
-import type { IncrementalSanitizerState } from "../types.js";
+import type { PlaceholderContext, PolicyContext } from "../types.js";
 
-/** One opaque finding handle, as the WebAssembly build returns it. */
-interface WasmFinding {
+/** One opaque finding handle, as `scan`/`redact`/`scanAndRedact` return it. */
+export interface WasmFinding {
   readonly id: string;
   readonly type: string;
   readonly detector: string;
@@ -36,36 +40,54 @@ interface WasmFinding {
   readonly range: { readonly start: number; readonly end: number };
 }
 
-interface WasmIncrementalResult {
-  readonly text: string;
-  readonly findings: readonly WasmFinding[];
+/**
+ * The safe metadata a `policy` callback is actually invoked with
+ * (`bindings/wasm/src/metadata.rs`'s `policy_finding`): the same fields as
+ * {@link WasmFinding} minus `action`, with the range still nested rather than
+ * flattened onto the object.
+ */
+export interface WasmDetectedFindingMetadata {
+  readonly id: string;
+  readonly type: string;
+  readonly detector: string;
+  readonly confidence: string;
+  readonly range: { readonly start: number; readonly end: number };
 }
 
-interface WasmIncrementalSanitizer {
-  readonly state: IncrementalSanitizerState;
-  append(chunk: string): WasmIncrementalResult;
-  finalize(): WasmIncrementalResult;
-  abort(): void;
+/**
+ * The safe metadata a `formatter` callback is actually invoked with
+ * (`metadata.rs`'s `formatter_finding`): adds the `action` the policy already
+ * chose.
+ */
+export interface WasmFindingMetadata extends WasmDetectedFindingMetadata {
+  readonly action: string;
 }
 
-interface WasmModule {
+type WasmPolicyCallback = (
+  finding: WasmDetectedFindingMetadata,
+  context: PolicyContext,
+) => string;
+
+type WasmFormatterCallback = (
+  finding: WasmFindingMetadata,
+  context: PlaceholderContext,
+) => string;
+
+export interface WasmModule {
   default(): Promise<unknown>;
   version(): string;
   initialize(): void;
-  scan(input: string, policy?: NativePolicyCallback): readonly WasmFinding[];
+  scan(input: string, policy?: WasmPolicyCallback): readonly WasmFinding[];
   redact(
     input: string,
     findings: readonly WasmFinding[],
-    formatter?: NativeFormatterCallback,
+    formatter?: WasmFormatterCallback,
   ): string;
   scanAndRedact(
     input: string,
-    policy?: NativePolicyCallback,
-    formatter?: NativeFormatterCallback,
+    policy?: WasmPolicyCallback,
+    formatter?: WasmFormatterCallback,
   ): { readonly text: string; readonly findings: readonly WasmFinding[] };
-  createIncrementalSanitizer(
-    options: NativeIncrementalOptions,
-  ): WasmIncrementalSanitizer;
 }
 
 /**
@@ -94,10 +116,55 @@ function toWasmFinding(finding: NativeFinding): WasmFinding {
   return handle as WasmFinding;
 }
 
-function toNativeIncrementalResult(
-  result: WasmIncrementalResult,
-): NativeIncrementalResult {
-  return { text: result.text, findings: result.findings.map(toNativeFinding) };
+/**
+ * Flattens and freezes the nested-`range` metadata a `policy` callback is
+ * actually invoked with, so a callback crossing this boundary sees the same
+ * numeric `start`/`end` fields it sees on Node, matching `types.ts`.
+ */
+function toNativeDetectedFinding(
+  finding: WasmDetectedFindingMetadata,
+): NativeDetectedFinding {
+  const { start, end } = finding.range;
+  return Object.freeze({
+    id: finding.id,
+    type: finding.type,
+    detector: finding.detector,
+    confidence: finding.confidence,
+    start,
+    end,
+  });
+}
+
+/** As {@link toNativeDetectedFinding}, plus the `action` a formatter sees. */
+function toNativeFormatterMetadata(
+  finding: WasmFindingMetadata,
+): NativeFinding {
+  const { start, end } = finding.range;
+  return Object.freeze({
+    id: finding.id,
+    type: finding.type,
+    detector: finding.detector,
+    confidence: finding.confidence,
+    action: finding.action,
+    start,
+    end,
+  });
+}
+
+function toWasmPolicyCallback(
+  policy: NativePolicyCallback | undefined,
+): WasmPolicyCallback | undefined {
+  if (policy === undefined) return undefined;
+  return (finding, context) =>
+    policy(toNativeDetectedFinding(finding), context);
+}
+
+function toWasmFormatterCallback(
+  formatter: NativeFormatterCallback | undefined,
+): WasmFormatterCallback | undefined {
+  if (formatter === undefined) return undefined;
+  return (finding, context) =>
+    formatter(toNativeFormatterMetadata(finding), context);
 }
 
 /**
@@ -118,7 +185,6 @@ async function loadWasmModule(): Promise<WasmModule> {
     "scan",
     "redact",
     "scanAndRedact",
-    "createIncrementalSanitizer",
   ] as const) {
     if (typeof module[name] !== "function") {
       throw new SecretScanError("INITIALIZATION_FAILED");
@@ -127,38 +193,48 @@ async function loadWasmModule(): Promise<WasmModule> {
   return module as WasmModule;
 }
 
-export const loadNativeBinding = async (): Promise<NativeBinding> => {
-  const wasm = await loadWasmModule();
-  await wasm.default();
+/**
+ * Builds the internal binding contract from an already-loaded WebAssembly
+ * module.
+ *
+ * Exported so a test double can exercise this exact normalization — the
+ * nested-metadata flattening above and the fixed `INCREMENTAL_UNAVAILABLE`
+ * rejection below — against a fake module shaped like the real artifact,
+ * without loading the artifact itself.
+ */
+export function createBindingFromWasmModule(wasm: WasmModule): NativeBinding {
   return {
     version: () => wasm.version(),
     initialize: () => {
       wasm.initialize();
     },
-    scan: (input, policy) => wasm.scan(input, policy).map(toNativeFinding),
+    scan: (input, policy) =>
+      wasm.scan(input, toWasmPolicyCallback(policy)).map(toNativeFinding),
     redact: (input, findings, formatter) =>
-      wasm.redact(input, findings.map(toWasmFinding), formatter),
+      wasm.redact(
+        input,
+        findings.map(toWasmFinding),
+        toWasmFormatterCallback(formatter),
+      ),
     scanAndRedact: (input, policy, formatter) => {
-      const result = wasm.scanAndRedact(input, policy, formatter);
+      const result = wasm.scanAndRedact(
+        input,
+        toWasmPolicyCallback(policy),
+        toWasmFormatterCallback(formatter),
+      );
       return {
         text: result.text,
         findings: result.findings.map(toNativeFinding),
       };
     },
-    createIncrementalSanitizer: (
-      options,
-    ): NativeIncrementalSanitizer => {
-      const session = wasm.createIncrementalSanitizer(options);
-      return {
-        get state() {
-          return session.state;
-        },
-        append: (chunk) => toNativeIncrementalResult(session.append(chunk)),
-        finalize: () => toNativeIncrementalResult(session.finalize()),
-        abort: () => {
-          session.abort();
-        },
-      };
+    createIncrementalSanitizer: () => {
+      throw new SecretScanError("INCREMENTAL_UNAVAILABLE");
     },
   };
+}
+
+export const loadNativeBinding = async (): Promise<NativeBinding> => {
+  const wasm = await loadWasmModule();
+  await wasm.default();
+  return createBindingFromWasmModule(wasm);
 };
