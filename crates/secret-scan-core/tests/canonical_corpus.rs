@@ -67,6 +67,14 @@ fn scan_matches_the_canonical_synchronous_corpus() {
 fn the_evaluated_fixture_set_is_not_empty() {
     let fixtures = evaluated_fixtures();
     assert!(!fixtures.is_empty());
-    assert!(fixtures.iter().any(|fixture| !fixture.declared_expectations().is_empty()));
-    assert!(fixtures.iter().any(|fixture| fixture.declared_expectations().is_empty()));
+    assert!(
+        fixtures
+            .iter()
+            .any(|fixture| !fixture.declared_expectations().is_empty())
+    );
+    assert!(
+        fixtures
+            .iter()
+            .any(|fixture| fixture.declared_expectations().is_empty())
+    );
 }

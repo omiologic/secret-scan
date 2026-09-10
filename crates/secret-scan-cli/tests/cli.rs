@@ -642,8 +642,8 @@ struct CanonicalRedactFixture {
 /// helper nor its caller embeds a fixture input or a matched value; every
 /// value here is read out of the corpus file at run time.
 fn canonical_redact_fixtures() -> Vec<CanonicalRedactFixture> {
-    let document: serde_json::Value = serde_json::from_str(SYNCHRONOUS_CORPUS)
-        .expect("synchronous-corpus.json is valid JSON");
+    let document: serde_json::Value =
+        serde_json::from_str(SYNCHRONOUS_CORPUS).expect("synchronous-corpus.json is valid JSON");
     document["fixtures"]
         .as_array()
         .expect("synchronous-corpus.json has a fixtures array")
