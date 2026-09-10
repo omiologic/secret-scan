@@ -7,6 +7,33 @@
 # manifest claims. See scripts/reconcile-guard.py for the guard this workflow
 # defers to, and AGENTS.md's "Release authority" section for the approval
 # reconcile still requires before it is dispatched.
+#
+# Registry publication is not transactional across npm (the wrapper and its
+# seven runtime dependency packages), crates.io (two crates), and PyPI (one
+# distribution), so a single Release dispatch can leave any subset of those
+# ten artifacts unpublished while the rest succeeded
+# (`docs/decisions/2026-09-09-release-bindings-in-lockstep.md`). This workflow
+# reconciles every one of them, independently, from the exact
+# release-manifest-<version> artifact the failed (or partial) run produced:
+#
+# - the npm wrapper's identity is read from `packages/javascript/package.json`
+#   -- the public package that is actually published -- never the private
+#   workspace `package.json` at the repository root;
+# - each missing npm dependency package is reconciled with
+#   `scripts/publish-dependency-package.mjs`, from the exact qualified
+#   artifact the original run built, never rebuilt here;
+# - `secret-scan-cli` is only published after `secret-scan` (core) is
+#   verified, by content checksum, to belong to this source revision --
+#   `scripts/reconcile-artifact-plan.py` enforces that ordering so a
+#   conflicting or unverifiable core publication can never let a CLI crate
+#   ship against it;
+# - the PyPI distribution is reconciled from the original run's qualified
+#   wheels and source distribution, never rebuilt here.
+#
+# `dry_run: true` computes and prints every artifact's plan (skip, publish, or
+# block) without publishing anything -- the no-publication rehearsal this
+# workflow supports for every state transition, the same way
+# `package-release-rehearsal.yml` rehearses the npm dependency cutover.
 name: Reconcile Release
 
 on:
@@ -22,6 +49,13 @@ on:
           when no manifest artifact exists for this version).
         required: false
         type: string
+      dry_run:
+        description: >-
+          Compute and print every artifact's reconciliation plan without
+          publishing anything.
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -37,6 +71,7 @@ jobs:
     permissions:
       contents: write
       actions: read
+      id-token: write
     steps:
       - name: Require main
         if: github.ref != 'refs/heads/main'
@@ -47,6 +82,21 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          scope: '@omiologic'
+
+      - name: Set up stable Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: Locate release manifest artifact
         id: locate
@@ -106,14 +156,18 @@ jobs:
           fi
           echo "source_revision=$(jq -r '.source_revision' <<<"$decision")" >> "$GITHUB_OUTPUT"
 
-      - name: Verify immutable publication and reconcile tag
+      # `packages/javascript/package.json` is the public identity actually
+      # published to npm; the private workspace `package.json` at the
+      # repository root never carries a real, publishable version and must
+      # never be read here.
+      - name: Verify npm wrapper publication and reconcile tag
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           REQUESTED_VERSION: ${{ inputs.version }}
           SOURCE_REVISION: ${{ steps.guard.outputs.source_revision }}
         run: |
-          git show "$SOURCE_REVISION:package.json" > /tmp/reconcile-package.json
+          git show "$SOURCE_REVISION:packages/javascript/package.json" > /tmp/reconcile-package.json
           package_name=$(node -p "require('/tmp/reconcile-package.json').name")
           package_version=$(node -p "require('/tmp/reconcile-package.json').version")
           if [[ "$REQUESTED_VERSION" != "$package_version" ]]; then
@@ -140,8 +194,227 @@ jobs:
             exit 0
           fi
 
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "dry run: would create tag $tag_name at $SOURCE_REVISION."
+            exit 0
+          fi
+
           tag_object=$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/tags" \
             --field tag="$tag_name" --field message="Release $package_version" \
             --field object="$SOURCE_REVISION" --field type=commit --jq .sha)
           gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
             --field ref="refs/tags/$tag_name" --field sha="$tag_object"
+
+      # Reconciles each of the six native `@omiologic/secret-scan-<platform>`
+      # packages and `@omiologic/secret-scan-wasm` independently
+      # (`scripts/reconcile-artifact-plan.py`'s `plan_independent` shape):
+      # already-published packages are left alone,
+      # `scripts/publish-dependency-package.mjs` republishes nothing whose
+      # content differs from this source revision (it fails loudly instead),
+      # and a package whose qualified build artifact expired out of the
+      # original run blocks with a clear diagnostic rather than guessing at a
+      # rebuild.
+      - name: Reconcile npm dependency packages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.locate.outputs.run_id }}
+          SOURCE_REVISION: ${{ steps.guard.outputs.source_revision }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          declare -A PLATFORM_TARGETS=(
+            [darwin-arm64]=aarch64-apple-darwin
+            [darwin-x64]=x86_64-apple-darwin
+            [linux-arm64-gnu]=aarch64-unknown-linux-gnu
+            [linux-x64-gnu]=x86_64-unknown-linux-gnu
+            [win32-arm64-msvc]=aarch64-pc-windows-msvc
+            [win32-x64-msvc]=x86_64-pc-windows-msvc
+          )
+
+          reconcile_dependency() {
+            local package_dir=$1 artifact_name=$2 asset_glob=$3
+            git show "$SOURCE_REVISION:$package_dir/package.json" > "$package_dir/package.json"
+            local name version tag
+            name=$(node -p "require('./$package_dir/package.json').name")
+            version=$(node -p "require('./$package_dir/package.json').version")
+            if [[ "$version" == *-* ]]; then tag=beta; else tag=latest; fi
+
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is already published; nothing to reconcile."
+              return
+            fi
+
+            rm -rf "reconcile-artifact/$artifact_name"
+            if ! gh run download "$RUN_ID" --name "$artifact_name" --dir "reconcile-artifact/$artifact_name"; then
+              echo "$name@$version is not published and its qualified artifact ($artifact_name) is no longer available (expired). A full release run is required to republish it." >&2
+              exit 1
+            fi
+            cp reconcile-artifact/"$artifact_name"/$asset_glob "$package_dir/"
+
+            if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+              node scripts/publish-dependency-package.mjs --package-dir "$package_dir" --tag "$tag" --dry-run
+            else
+              node scripts/publish-dependency-package.mjs --package-dir "$package_dir" --tag "$tag"
+            fi
+          }
+
+          for platform in "${!PLATFORM_TARGETS[@]}"; do
+            target=${PLATFORM_TARGETS[$platform]}
+            reconcile_dependency "bindings/node/npm/$platform" "node-addon-$target" "secret-scan.$platform.node"
+          done
+
+          reconcile_dependency "bindings/wasm/npm" "wasm-web" "secret_scan_wasm*"
+
+      # `secret-scan-cli`'s Cargo.toml depends on `secret-scan`'s registry
+      # release, so publishing it after only checking crates.io's raw
+      # "is a version there" status would let a CLI ship against a core
+      # publication nobody verified belongs to this source revision.
+      # `cargo package` recreates the exact tarball crates.io would compute
+      # for `source_revision` -- publishing is source-based and
+      # deterministic, unlike a compiled native addon -- so its SHA-256 is
+      # compared against crates.io's recorded checksum before either crate is
+      # trusted as "already published and correct".
+      - name: Reconcile crates.io
+        shell: bash
+        env:
+          SOURCE_REVISION: ${{ steps.guard.outputs.source_revision }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          # A clean worktree, not a targeted `git checkout -- <paths>` onto
+          # the current tree: the latter only overlays files the historical
+          # commit has and never removes ones it doesn't, so a workspace
+          # restructured after `source_revision` could leak stray files into
+          # the packaged tarball. `cargo package`/`cargo publish` always run
+          # against this exact, uncontaminated snapshot instead.
+          git worktree add --quiet --detach reconcile-source "$SOURCE_REVISION"
+          trap 'git worktree remove --force reconcile-source' EXIT
+          manifest_path=reconcile-source/Cargo.toml
+          version=$(python3 -B -c "
+          import tomllib
+          with open('$manifest_path', 'rb') as handle:
+              print(tomllib.load(handle)['workspace']['package']['version'])
+          ")
+
+          observe() {
+            local crate=$1
+            local status
+            status=$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/$crate/$version")
+            if [[ "$status" == "200" ]]; then
+              local published_checksum local_checksum
+              published_checksum=$(curl -sS "https://crates.io/api/v1/crates/$crate/$version" | jq -r '.version.checksum')
+              cargo package -p "$crate" --manifest-path "$manifest_path" --locked >/dev/null
+              local_checksum=$(sha256sum "reconcile-source/target/package/$crate-$version.crate" | cut -d' ' -f1)
+              if [[ "$published_checksum" == "$local_checksum" ]]; then
+                jq -n --arg crate "$crate" '{($crate): {live_published: true, content_matches: true}}'
+              else
+                jq -n --arg crate "$crate" '{($crate): {live_published: true, content_matches: false}}'
+              fi
+            else
+              jq -n --arg crate "$crate" '{($crate): {live_published: false, artifact_available: true}}'
+            fi
+          }
+
+          jq -s 'add' <(observe secret-scan) <(observe secret-scan-cli) > crate-observations.json
+          cat crate-observations.json
+
+          set +e
+          plan=$(python3 -B scripts/reconcile-artifact-plan.py \
+            --observations crate-observations.json \
+            --crate-pair secret-scan secret-scan-cli)
+          plan_status=$?
+          set -e
+          echo "$plan"
+
+          if [[ $plan_status -ne 0 ]]; then
+            echo "crates.io reconciliation refused; see the plan above." >&2
+            exit 1
+          fi
+
+          core_action=$(jq -r '."secret-scan".action' <<<"$plan")
+          cli_action=$(jq -r '."secret-scan-cli".action' <<<"$plan")
+
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "dry run: core=$core_action cli=$cli_action; publishing nothing."
+            exit 0
+          fi
+
+          if [[ "$core_action" == "publish" ]]; then
+            cargo publish -p secret-scan --manifest-path "$manifest_path" --locked
+            for attempt in 1 2 3 4 5 6; do
+              status=$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/secret-scan/$version")
+              [[ "$status" == "200" ]] && break
+              sleep 10
+            done
+          fi
+          if [[ "$cli_action" == "publish" ]]; then
+            cargo publish -p secret-scan-cli --manifest-path "$manifest_path" --locked
+          fi
+
+      # The PyPI distribution's build (wheels + source distribution) is never
+      # rebuilt here -- it is downloaded from the same original run the
+      # release manifest came from, the same "never rebuilt" rule
+      # `reconcile npm dependency packages` follows, because a rebuild is not
+      # guaranteed to reproduce byte-identical wheels.
+      - name: Reconcile PyPI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.locate.outputs.run_id }}
+          SOURCE_REVISION: ${{ steps.guard.outputs.source_revision }}
+        run: |
+          set -euo pipefail
+          # A clean worktree of `source_revision`, the same reasoning
+          # `Reconcile crates.io` uses: only the version number needs to come
+          # from that exact commit, so it is read straight out of the
+          # worktree's `Cargo.toml` rather than mutating the live checkout.
+          git worktree add --quiet --detach reconcile-source "$SOURCE_REVISION"
+          trap 'git worktree remove --force reconcile-source' EXIT
+
+          read -r name version < <(python3 -B -c "
+          import importlib.util
+          import tomllib
+          spec = importlib.util.spec_from_file_location('qualify_python_wheel', 'scripts/qualify-python-wheel.py')
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          with open('reconcile-source/Cargo.toml', 'rb') as handle:
+              cargo_version = tomllib.load(handle)['workspace']['package']['version']
+          print(module.policy()['python-distribution'], module.pep440_version(cargo_version))
+          ")
+
+          status=$(curl -sS -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/$name/$version/json")
+          if [[ "$status" == "200" ]]; then
+            echo "$name@$version is already published on PyPI; nothing to reconcile."
+            echo "needs_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          rm -rf reconcile-dist && mkdir -p reconcile-dist
+          if ! gh run download "$RUN_ID" --dir reconcile-dist --pattern 'python-*'; then
+            echo "$name@$version is not published and its qualified wheels/sdist are no longer available (expired). A full release run is required to republish it." >&2
+            exit 1
+          fi
+          find reconcile-dist -mindepth 2 -type f -exec mv -t reconcile-dist {} +
+          find reconcile-dist -mindepth 1 -maxdepth 1 -type d -empty -delete
+
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "dry run: would publish $(find reconcile-dist -type f | wc -l) file(s) to PyPI as $name@$version."
+            echo "needs_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "needs_publish=true" >> "$GITHUB_OUTPUT"
+        id: pypi
+
+      # Trusted publishing (OIDC, `permissions.id-token: write` above), the
+      # same mechanism `release.yml`'s `publish-pypi` job uses.
+      # `skip-existing: true` makes this idempotent against a file PyPI
+      # already has, mirroring the immutable-artifact check every other
+      # reconciled registry performs explicitly.
+      - name: Publish to PyPI
+        if: steps.pypi.outputs.needs_publish == 'true'
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: reconcile-dist/
+          skip-existing: true
