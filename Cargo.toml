@@ -181,12 +181,27 @@ python-wheel-targets = [
   "x86_64-unknown-linux-musl",
 ]
 
+# The cross-platform qualification matrix, enforced by
+# `scripts/check-artifact-matrix.py`. Every list below is the single
+# declaration of a supported surface: `.github/workflows/artifact-qualification.yml`
+# must build exactly these, `bindings/node/package.json` `napi.targets` must
+# equal `node-addon-targets`, and every manifest declaring `engines.node`
+# must claim exactly the majors `node-support-majors` names. A platform
+# leaves a list only by dropping support for it. See docs/qualification.md.
+node-addon-targets = [
+  "aarch64-apple-darwin",
+  "aarch64-pc-windows-msvc",
+  "aarch64-unknown-linux-gnu",
+  "aarch64-unknown-linux-musl",
+  "x86_64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+]
 # Every target a CLI release must build and smoke-test a `secret-scan` binary
-# for, checked against `.github/workflows/artifact-qualification.yml` by
-# `scripts/check-artifact-matrix.py`. The CLI ships no musl variant, so this
-# is a subset of `python-wheel-targets`; it is kept as the same six triples as
-# `bindings/node/package.json`'s `napi.targets` so both artifact families
-# share one workflow and one set of runners.
+# for. The CLI ships no musl variant, so this is the six triples the addon
+# shares with `python-wheel-targets` and not the addon's own eight: a static
+# musl executable is a supported artifact only where it is also published.
 cli-release-targets = [
   "aarch64-apple-darwin",
   "aarch64-pc-windows-msvc",
@@ -195,6 +210,11 @@ cli-release-targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
 ]
+# Every browser engine the WebAssembly artifact is initialized and scanned
+# in by `scripts/qualify-browser-artifact.mjs`.
+browser-engines = ["chromium", "firefox", "webkit"]
+# Every Node.js major `engines.node` claims and CI therefore exercises.
+node-support-majors = [20, 22, 24]
 
 [profile.release]
 codegen-units = 1

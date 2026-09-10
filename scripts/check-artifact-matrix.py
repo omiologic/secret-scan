@@ -1,19 +1,40 @@
 #!/usr/bin/env python3
-"""Enforce the Node addon and CLI release matrices declared for issue #74.
+"""Enforce the cross-platform qualification matrix declared in Cargo.toml.
+
+``[workspace.metadata.secret-scan]`` states, once, every platform and engine
+the product is qualified on. This script fails when any of the places that
+have to agree with it drifts, so a supported platform cannot be added or
+dropped in one file alone.
 
 In the style of ``check-python-package.py``'s ``check_wheel_matrix``: a
-declared target list and the workflow that builds it must name exactly the
-same targets, in both directions, so a target cannot be dropped from one
-without a reviewed change to the other.
+declared list and the workflow that consumes it must name exactly the same
+entries, in both directions.
 
 Checks, in order:
 
-1. Node addon matrix: ``bindings/node/package.json``'s ``napi.targets`` and
-   the ``node-addon`` job in ``.github/workflows/artifact-qualification.yml``
-   build exactly the same targets.
-2. CLI release matrix: ``Cargo.toml``'s ``[workspace.metadata.secret-scan]``
-   ``cli-release-targets`` and the ``cli`` job in the same workflow build
-   exactly the same targets.
+1. Node addon matrix: ``node-addon-targets`` equals ``napi.targets`` in
+   ``bindings/node/package.json``, equals the ``node-addon`` job's matrix in
+   ``.github/workflows/artifact-qualification.yml``, and every target maps to
+   a platform file name ``scripts/qualify-node-addon.mjs`` knows how to
+   verify.
+2. CLI release matrix: ``cli-release-targets`` equals the ``cli`` job's
+   matrix and the target list in ``scripts/qualify-cli-binary.mjs``. It is a
+   subset of the addon's: the CLI ships no musl variant.
+3. Browser engines: ``browser-engines`` equals the ``browser`` job's matrix
+   and the engine list in ``scripts/qualify-browser-artifact.mjs``.
+4. Node.js support: ``node-support-majors`` equals the ``node-version``
+   matrix in ``ci.yml`` and the majors the qualification workflow smoke-tests
+   the addon on, so an artifact is proved on every major CI claims.
+   ``engines.node`` itself belongs to ``check-rust-workspace.py``, which
+   derives the exact majors from ``ci.yml``.
+5. Least privilege: every workflow declares a top-level ``permissions`` and
+   every job declares its own, and no job takes a write scope outside the
+   recorded allowlist.
+6. Pinning: every ``uses:`` reference to an action outside this repository is
+   pinned to a full 40-character commit SHA. A moving tag is a supply-chain
+   dependency on whoever can move it.
+
+    python3 -B scripts/check-artifact-matrix.py
 """
 
 from __future__ import annotations
@@ -25,8 +46,24 @@ import sys
 import tomllib
 from pathlib import Path
 
-WORKFLOW = Path(".github") / "workflows" / "artifact-qualification.yml"
+WORKFLOWS = Path(".github") / "workflows"
+WORKFLOW = WORKFLOWS / "artifact-qualification.yml"
+CI = WORKFLOWS / "ci.yml"
 NODE_PACKAGE = Path("bindings") / "node" / "package.json"
+ADDON_QUALIFIER = Path("scripts") / "qualify-node-addon.mjs"
+CLI_QUALIFIER = Path("scripts") / "qualify-cli-binary.mjs"
+BROWSER_QUALIFIER = Path("scripts") / "qualify-browser-artifact.mjs"
+
+# The only write scopes any job in this repository is allowed to take, and
+# the job that may take each. `Release` needs `contents: write` to create the
+# annotated tag its own workflow documents, and `id-token: write` for PyPI
+# Trusted Publishing, which mints a short-lived OIDC token instead of holding
+# a long-lived API token as a secret. Every other job is read-only.
+WRITE_SCOPE_ALLOWLIST = {
+    ("release.yml", "publish", "contents"),
+    ("release.yml", "publish-pypi", "id-token"),
+    ("reconcile-release.yml", "reconcile", "contents"),
+}
 
 # A named top-level job block: `  <job-name>:` through the line before the
 # next top-level job (or end of file). Workflow jobs are two-space indented
@@ -35,8 +72,45 @@ NODE_PACKAGE = Path("bindings") / "node" / "package.json"
 # header instead of swallowing it.
 JOB_BLOCK = re.compile(r"^  (?P<name>[A-Za-z][\w-]*):\n(?P<body>(?:[ \t]{3,}.*\n|[ \t]*\n)*)", re.M)
 
-# Every `target:` key inside a job's matrix.
-MATRIX_TARGET = re.compile(r"^\s*(?:-\s+)?target:\s*(\S+)\s*$", re.M)
+# A matrix key either carries its value inline, as `- target: <triple>` in an
+# `include:` entry, or introduces a block sequence of bare values.
+MATRIX_INLINE = "^[ \t]*(?:-[ \t]+)?{key}:[ \t]*(\\S+)[ \t]*$"
+MATRIX_BLOCK = "^[ \t]*{key}:[ \t]*(?:#.*)?$((?:\n[ \t]*(?:#.*)?$|\n[ \t]*-[ \t]*\\S+[ \t]*$)*)"
+MATRIX_ITEM = re.compile(r"^[ \t]*-[ \t]*(\S+)[ \t]*$", re.M)
+
+# A `uses:` value: either a local path (`./.github/...`) or `owner/repo@ref`.
+USES = re.compile(r"^\s*(?:-\s+)?uses:\s*(\S+)\s*$", re.M)
+PINNED = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
+TOP_LEVEL_PERMISSIONS = re.compile(r"^permissions:(?P<inline>[^\n]*)$", re.M)
+JOB_PERMISSION = re.compile(r"^\s{6}(?P<scope>[a-z-]+):\s*(?P<level>\S+)\s*$", re.M)
+
+
+def matrix_values(text: str, key: str) -> list[str]:
+    """Every value of a matrix key, whether it carries its value inline or
+    introduces a sequence."""
+    quoted = re.escape(key)
+    values = re.findall(MATRIX_INLINE.format(key=quoted), text, re.M)
+    for block in re.findall(MATRIX_BLOCK.format(key=quoted), text, re.M):
+        values.extend(MATRIX_ITEM.findall(block))
+    return values
+
+
+def job_body(workflow_text: str, job_name: str) -> str | None:
+    """One job's body, or ``None`` when the workflow has no such job."""
+    for match in JOB_BLOCK.finditer(workflow_text):
+        if match.group("name") == job_name:
+            return match.group("body")
+    return None
+
+
+def read_text(root: Path, path: Path) -> str | None:
+    resolved = root / path
+    return resolved.read_text(encoding="utf-8") if resolved.is_file() else None
+
+
+def read_json(root: Path, path: Path) -> dict | None:
+    text = read_text(root, path)
+    return json.loads(text) if text is not None else None
 
 
 def load_policy(root: Path) -> dict:
@@ -45,44 +119,213 @@ def load_policy(root: Path) -> dict:
     return manifest.get("workspace", {}).get("metadata", {}).get("secret-scan", {})
 
 
-def job_targets(workflow_text: str, job_name: str) -> set[str] | None:
-    """The targets built by ``job_name``, or ``None`` if the job is missing."""
-    for match in JOB_BLOCK.finditer(workflow_text):
-        if match.group("name") == job_name:
-            return set(MATRIX_TARGET.findall(match.group("body")))
-    return None
-
-
-def check_matrix(
-    *,
-    declared_source: str,
-    declared: list[str] | None,
-    workflow_path: Path,
-    workflow_text: str | None,
-    job_name: str,
-) -> list[str]:
-    errors: list[str] = []
-    if not declared:
-        return [f"{declared_source}: must declare at least one target"]
-    if workflow_text is None:
-        return [f"{workflow_path.as_posix()}: missing workflow"]
-
-    built = job_targets(workflow_text, job_name)
-    if built is None:
-        return [f"{workflow_path.as_posix()}: missing job {job_name!r}"]
-
-    missing = sorted(set(declared) - built)
-    extra = sorted(built - set(declared))
+def compare(label: str, declared, found, where: str) -> list[str]:
+    """Both directions, so neither side can quietly gain or lose an entry."""
+    errors = []
+    missing = sorted(set(declared) - set(found))
+    extra = sorted(set(found) - set(declared))
     if missing:
-        errors.append(
-            f"{workflow_path.as_posix()}: job {job_name!r} builds no target for "
-            f"{', '.join(missing)}, declared by {declared_source}"
-        )
+        errors.append(f"{where}: {label} omits {', '.join(missing)}")
     if extra:
         errors.append(
-            f"{workflow_path.as_posix()}: job {job_name!r} builds {', '.join(extra)}, "
-            f"which {declared_source} does not declare"
+            f"{where}: {label} names {', '.join(extra)}, which Cargo.toml does not declare"
         )
+    return errors
+
+
+def check_job_matrix(
+    *, label: str, declared: list[str], workflow: str, job_name: str, key: str
+) -> list[str]:
+    body = job_body(workflow, job_name)
+    if body is None:
+        return [f"{WORKFLOW.as_posix()}: missing job {job_name!r}"]
+    return compare(
+        f"job {job_name!r}'s {key} matrix",
+        declared,
+        matrix_values(body, key),
+        WORKFLOW.as_posix(),
+    )
+
+
+def check_addon_targets(root: Path, policy: dict, workflow: str) -> list[str]:
+    declared = policy.get("node-addon-targets") or []
+    if not declared:
+        return ["Cargo.toml: node-addon-targets must declare the addon matrix"]
+
+    errors: list[str] = []
+    manifest = read_json(root, NODE_PACKAGE)
+    if manifest is None:
+        errors.append(f"{NODE_PACKAGE.as_posix()}: missing")
+    else:
+        errors.extend(
+            compare(
+                "napi.targets",
+                declared,
+                manifest.get("napi", {}).get("targets", []),
+                NODE_PACKAGE.as_posix(),
+            )
+        )
+
+    errors.extend(
+        check_job_matrix(
+            label="addon", declared=declared, workflow=workflow,
+            job_name="node-addon", key="target",
+        )
+    )
+
+    qualifier = read_text(root, ADDON_QUALIFIER)
+    if qualifier is None:
+        errors.append(f"{ADDON_QUALIFIER.as_posix()}: missing")
+    else:
+        known = re.findall(r'^\s*"([a-z0-9_]+-[a-z0-9-]+)":\s*"', qualifier, re.M)
+        for target in sorted(set(declared) - set(known)):
+            errors.append(
+                f"{ADDON_QUALIFIER.as_posix()}: no platform file name for {target}"
+            )
+    return errors
+
+
+def check_cli_targets(root: Path, policy: dict, workflow: str) -> list[str]:
+    declared = policy.get("cli-release-targets") or []
+    if not declared:
+        return ["Cargo.toml: cli-release-targets must declare the CLI matrix"]
+
+    errors = check_job_matrix(
+        label="cli", declared=declared, workflow=workflow, job_name="cli", key="target",
+    )
+    # The CLI ships no musl variant, so its matrix is a subset of the
+    # addon's; an entry here that the addon does not build is a mistake.
+    addon = policy.get("node-addon-targets") or []
+    for extra in sorted(set(declared) - set(addon)):
+        errors.append(
+            f"Cargo.toml: cli-release-targets names {extra}, which "
+            "node-addon-targets does not"
+        )
+
+    qualifier = read_text(root, CLI_QUALIFIER)
+    if qualifier is None:
+        errors.append(f"{CLI_QUALIFIER.as_posix()}: missing")
+    else:
+        known = re.findall(r'^\s*"([a-z0-9_]+-[a-z0-9-]+)":\s*"', qualifier, re.M)
+        for target in sorted(set(declared) - set(known)):
+            errors.append(f"{CLI_QUALIFIER.as_posix()}: its target list omits {target}")
+    return errors
+
+
+def check_browser_engines(root: Path, policy: dict, workflow: str) -> list[str]:
+    declared = policy.get("browser-engines") or []
+    if not declared:
+        return ["Cargo.toml: browser-engines must declare the browser matrix"]
+
+    errors = check_job_matrix(
+        label="browser", declared=declared, workflow=workflow,
+        job_name="browser", key="engine",
+    )
+    qualifier = read_text(root, BROWSER_QUALIFIER)
+    if qualifier is None:
+        errors.append(f"{BROWSER_QUALIFIER.as_posix()}: missing")
+    else:
+        match = re.search(r"const ENGINES = \[(.*?)\];", qualifier, re.S)
+        known = re.findall(r'"([a-z]+)"', match.group(1)) if match else []
+        errors.extend(compare("ENGINES", declared, known, BROWSER_QUALIFIER.as_posix()))
+    return errors
+
+
+def check_node_support(root: Path, policy: dict, workflow: str) -> list[str]:
+    declared = policy.get("node-support-majors") or []
+    if not declared:
+        return ["Cargo.toml: node-support-majors must declare the supported majors"]
+    declared_strings = [str(major) for major in declared]
+
+    errors: list[str] = []
+    ci = read_text(root, CI)
+    if ci is None:
+        errors.append(f"{CI.as_posix()}: missing")
+    else:
+        errors.extend(
+            compare(
+                "the node-version matrix",
+                declared_strings,
+                matrix_values(ci, "node-version"),
+                CI.as_posix(),
+            )
+        )
+
+    # Every major the addon is smoke-tested on, from the per-major steps on a
+    # host runner and from the musl loop that mirrors them.
+    smoked = re.findall(r"^\s*- name: Qualify the addon on Node (\d+)\s*$", workflow, re.M)
+    musl = re.search(r"^\s*for major in ([\d ]+); do\s*$", workflow, re.M)
+    errors.extend(
+        compare(
+            "the addon smoke-test majors", declared_strings, smoked, WORKFLOW.as_posix()
+        )
+    )
+    errors.extend(
+        compare(
+            "the musl smoke-test majors",
+            declared_strings,
+            musl.group(1).split() if musl else [],
+            WORKFLOW.as_posix(),
+        )
+    )
+
+    # `engines.node` itself is checked by `scripts/check-rust-workspace.py`,
+    # which derives the exact majors from `ci.yml` and requires every
+    # lockstep manifest to enumerate them. Repeating that here with a
+    # different spelling would let the two checks contradict each other.
+    return errors
+
+
+def check_workflow_hygiene(root: Path) -> list[str]:
+    errors: list[str] = []
+    directory = root / WORKFLOWS
+    if not directory.is_dir():
+        return [f"{WORKFLOWS.as_posix()}: missing"]
+
+    for path in sorted(directory.glob("*.yml")):
+        name = path.name
+        text = path.read_text(encoding="utf-8")
+        relative = (WORKFLOWS / name).as_posix()
+
+        top_level = TOP_LEVEL_PERMISSIONS.search(text)
+        if top_level is None:
+            errors.append(f"{relative}: declares no top-level permissions")
+        elif top_level.group("inline").strip() == "write-all":
+            errors.append(f"{relative}: grants write-all at the top level")
+
+        for match in JOB_BLOCK.finditer(text[text.find("\njobs:\n") :]):
+            job_name, body = match.group("name"), match.group("body")
+            declaration = re.search(
+                r"^    permissions:(?P<inline>[^\n]*)$(?P<scopes>(?:\n\s{6}\S.*)*)",
+                body,
+                re.M,
+            )
+            if declaration is None:
+                errors.append(f"{relative}: job {job_name!r} declares no permissions")
+                continue
+            inline = declaration.group("inline").strip()
+            if inline in ("write-all", "read-all") or inline.startswith("$"):
+                errors.append(
+                    f"{relative}: job {job_name!r} declares permissions as {inline!r}; "
+                    "state each scope it needs instead"
+                )
+                continue
+            for scope, level in JOB_PERMISSION.findall(declaration.group("scopes")):
+                if level != "write":
+                    continue
+                if (name, job_name, scope) not in WRITE_SCOPE_ALLOWLIST:
+                    errors.append(
+                        f"{relative}: job {job_name!r} takes {scope}: write, "
+                        "which the least-privilege allowlist does not permit"
+                    )
+
+        for reference in USES.findall(text):
+            if reference.startswith("./"):
+                continue
+            if not PINNED.match(reference):
+                errors.append(
+                    f"{relative}: uses {reference}, which is not pinned to a commit SHA"
+                )
     return errors
 
 
@@ -92,40 +335,22 @@ def validate(root: Path) -> list[str]:
     if not policy:
         return ["Cargo.toml: missing [workspace.metadata.secret-scan] policy"]
 
-    workflow_path = root / WORKFLOW
-    workflow_text = workflow_path.read_text(encoding="utf-8") if workflow_path.is_file() else None
-
-    node_package_path = root / NODE_PACKAGE
-    if not node_package_path.is_file():
-        return [f"{NODE_PACKAGE.as_posix()}: missing"]
-    node_package = json.loads(node_package_path.read_text(encoding="utf-8"))
-    napi_targets = node_package.get("napi", {}).get("targets")
+    workflow = read_text(root, WORKFLOW)
+    if workflow is None:
+        return [f"{WORKFLOW.as_posix()}: missing workflow"]
 
     errors: list[str] = []
-    errors.extend(
-        check_matrix(
-            declared_source=f"{NODE_PACKAGE.as_posix()} napi.targets",
-            declared=napi_targets,
-            workflow_path=WORKFLOW,
-            workflow_text=workflow_text,
-            job_name="node-addon",
-        )
-    )
-    errors.extend(
-        check_matrix(
-            declared_source="Cargo.toml cli-release-targets",
-            declared=policy.get("cli-release-targets"),
-            workflow_path=WORKFLOW,
-            workflow_text=workflow_text,
-            job_name="cli",
-        )
-    )
+    errors.extend(check_addon_targets(root, policy, workflow))
+    errors.extend(check_cli_targets(root, policy, workflow))
+    errors.extend(check_browser_engines(root, policy, workflow))
+    errors.extend(check_node_support(root, policy, workflow))
+    errors.extend(check_workflow_hygiene(root))
     return errors
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("root", nargs="?", default=Path.cwd(), type=Path)
+    parser.add_argument("root", nargs="?", default=Path(__file__).resolve().parents[1], type=Path)
     args = parser.parse_args()
 
     errors = validate(args.root)
