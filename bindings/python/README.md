@@ -15,6 +15,12 @@ fallback recorded in
 > No release is authorized by the version currently in the development
 > manifests. Installation applies only after a separately approved release.
 
+This directory is the canonical Python binding
+`decision-release-bindings-in-lockstep` requires before the separately created
+`secret-scan-python` GitHub repository (empty today) is archived with a
+redirect to here; that prepared redirect text lives in
+[docs/python-repository-redirect.md](https://github.com/omiologic/secret-scan/blob/main/docs/python-repository-redirect.md).
+
 ## Install
 
 ```sh

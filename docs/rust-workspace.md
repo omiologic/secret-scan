@@ -22,6 +22,12 @@ behavioral contract is now the fixture corpus under `conformance/fixtures/`
 Bindings and the CLI translate host APIs to the core. They never reimplement
 detector behavior, and they convert ranges without changing the selected span.
 
+`bindings/python` is the Python binding `decision-release-bindings-in-lockstep`
+requires before the separately created `secret-scan-python` GitHub repository
+(empty today) is archived with a redirect. The redirect text is prepared, not
+yet applied, in
+[`docs/python-repository-redirect.md`](./python-repository-redirect.md).
+
 ### One manifest named `@omiologic/secret-scan`
 
 `packages/javascript` is the only tracked manifest that declares the package
