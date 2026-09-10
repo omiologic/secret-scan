@@ -56,9 +56,19 @@ def digest(path: Path) -> str:
 
 
 def source_commit() -> str:
-    commit = os.environ.get("GITHUB_SHA")
-    if commit:
-        return commit
+    """The revision every artifact in this run was built from.
+
+    ``GITHUB_SHA`` is not that revision on a ``pull_request`` event: it names
+    the ephemeral ``refs/pull/N/merge`` commit GitHub synthesizes, which no
+    clone of this repository can resolve. The workflow therefore passes the
+    real head commit as ``SOURCE_COMMIT``, and an inventory that recorded an
+    unresolvable id would defeat its own purpose
+    (``decision-release-bindings-in-lockstep``).
+    """
+    for name in ("SOURCE_COMMIT", "GITHUB_SHA"):
+        commit = os.environ.get(name, "").strip()
+        if commit:
+            return commit
     return subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=ROOT,

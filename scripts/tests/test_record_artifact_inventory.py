@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 
@@ -147,6 +149,26 @@ class InventoryTests(unittest.TestCase):
             self.errors(configure),
             ["cli aarch64-apple-darwin: carries no executable"],
         )
+
+    def test_the_source_commit_prefers_the_real_head_over_a_merge_ref(self) -> None:
+        """On a pull request `GITHUB_SHA` is the synthesized merge commit,
+        which no clone can resolve; `SOURCE_COMMIT` carries the head."""
+        head, merge = "a" * 40, "b" * 40
+        with unittest.mock.patch.dict(
+            os.environ, {"SOURCE_COMMIT": head, "GITHUB_SHA": merge}, clear=False
+        ):
+            self.assertEqual(RECORD.source_commit(), head)
+        with unittest.mock.patch.dict(
+            os.environ, {"SOURCE_COMMIT": "", "GITHUB_SHA": merge}, clear=False
+        ):
+            self.assertEqual(RECORD.source_commit(), merge)
+
+    def test_the_source_commit_falls_back_to_the_checked_out_head(self) -> None:
+        with unittest.mock.patch.dict(
+            os.environ, {"SOURCE_COMMIT": "", "GITHUB_SHA": ""}, clear=False
+        ):
+            commit = RECORD.source_commit()
+        self.assertRegex(commit, r"^[0-9a-f]{40}$")
 
     def test_the_summary_records_the_commit_and_never_claims_publication(self) -> None:
         inventory = {

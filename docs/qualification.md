@@ -185,7 +185,9 @@ placeholder imply, with no match surviving.
 declared target to have produced an artifact and nothing else to have appeared,
 then writes `artifact-inventory.json` and a job summary carrying:
 
-- the source commit, ref, and workflow run;
+- the source commit, ref, and workflow run — on a pull request the head
+  commit, not the `refs/pull/N/merge` commit GitHub synthesizes for
+  `github.sha`, which no clone can resolve;
 - the product version, and `"published": false`;
 - the SHA-256 of every canonical fixture file, because an artifact set only
   means something alongside the contract it was qualified against;

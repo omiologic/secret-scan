@@ -446,6 +446,11 @@ jobs:
       # SHA-256 against the source commit, and lists the contents of each
       # package a release would publish. No publication happens here.
       - name: Record the artifact inventory
+        env:
+          # On a pull request `github.sha` is the synthesized merge commit,
+          # which no clone can resolve; the head commit is the revision the
+          # artifacts were actually built from.
+          SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           python3 -B scripts/record-artifact-inventory.py \
             --artifacts qualification-artifacts \
