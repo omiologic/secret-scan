@@ -1,6 +1,6 @@
 {
   "offsetUnit": "utf8-byte",
-  "fixtureCount": 175,
+  "fixtureCount": 287,
   "fixtures": [
     {
       "id": "host-dotenv-github",
@@ -2995,6 +2995,160 @@
       "note": "Qualified provider evidence wins over a contextual assignment."
     },
     {
+      "id": "stripe-positive-min-length",
+      "detector": "stripe-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk_live_SYNTHETICREVOKEDSYNT",
+      "expected": [
+        {
+          "detector": "stripe-token",
+          "type": "stripe_credential",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 28
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "stripe-boundary-below-min",
+      "detector": "stripe-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk_live_SYNTHETICREVOKEDSYN",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "stripe-boundary-invalid-alphabet",
+      "detector": "stripe-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk_live_SYNTH!ETICREVOKEDSYNTHETICREVOK",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "stripe-boundary-delimiter",
+      "detector": "stripe-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk_live_SYNTHETICREVOKEDSYNT_",
+      "expected": [],
+      "note": "A trailing '_' is outside the matched suffix alphabet but inside the wider boundary alphabet, so it still correctly rejects an otherwise-valid-length candidate."
+    },
+    {
+      "id": "stripe-boundary-case-sensitivity",
+      "detector": "stripe-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "SK_LIVE_SYNTHETICREVOKEDSYNT",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "stripe-negative-placeholder",
+      "detector": "stripe-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk_live_<YOUR_STRIPE_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "stripe-negative-lookalike",
+      "detector": "stripe-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "pk_live_SYNTHETICREVOKEDSYNT",
+      "expected": [],
+      "note": "Stripe's publishable key prefix is a public identifier, not a secret credential."
+    },
+    {
+      "id": "stripe-positive-all-prefixes",
+      "detector": "stripe-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk_test_SYNTHETICREVOKEDSYNTHETIC\nrk_test_SYNTHETICREVOKEDSYNTHETIC\nrk_live_SYNTHETICREVOKEDSYNTHETIC\nsk_org_SYNTHETICREVOKEDSYNTHETIC\nwhsec_SYNTHETICREVOKEDSYNTHETIC",
+      "expected": [
+        {
+          "detector": "stripe-token",
+          "type": "stripe_credential",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 33
+        },
+        {
+          "detector": "stripe-token",
+          "type": "stripe_credential",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 34,
+          "end": 67
+        },
+        {
+          "detector": "stripe-token",
+          "type": "stripe_credential",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 68,
+          "end": 101
+        },
+        {
+          "detector": "stripe-token",
+          "type": "stripe_credential",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 102,
+          "end": 134
+        },
+        {
+          "detector": "stripe-token",
+          "type": "stripe_credential",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 135,
+          "end": 166
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
+    },
+    {
       "id": "stripe-adversarial-long-suffix",
       "detector": "stripe-token",
       "kind": "adversarial",
@@ -3096,6 +3250,168 @@
         }
       ],
       "note": "Qualified provider evidence wins over a contextual assignment."
+    },
+    {
+      "id": "slack-positive-min-length",
+      "detector": "slack-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "xoxb-SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "slack-token",
+          "type": "slack_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 25
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "slack-boundary-below-min",
+      "detector": "slack-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "xoxb-SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "slack-boundary-invalid-alphabet",
+      "detector": "slack-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "xoxb-SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "slack-boundary-delimiter",
+      "detector": "slack-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "xoxb-SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "slack-boundary-case-sensitivity",
+      "detector": "slack-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "XOXB-SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "slack-negative-placeholder",
+      "detector": "slack-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "xoxb-<YOUR_SLACK_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "slack-negative-lookalike",
+      "detector": "slack-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "xoxbSYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "A prefix missing its documented delimiter is not classified."
+    },
+    {
+      "id": "slack-positive-all-prefixes",
+      "detector": "slack-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "xoxp-SYNTHETIC_REVOKED_SYNTHET\nxapp-SYNTHETIC_REVOKED_SYNTHET\nxwfp-SYNTHETIC_REVOKED_SYNTHET\nxoxe-SYNTHETIC_REVOKED_SYNTHET\nxoxe.xoxb-SYNTHETIC_REVOKED_SYNTHET\nxoxe.xoxp-SYNTHETIC_REVOKED_SYNTHET",
+      "expected": [
+        {
+          "detector": "slack-token",
+          "type": "slack_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 30
+        },
+        {
+          "detector": "slack-token",
+          "type": "slack_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 31,
+          "end": 61
+        },
+        {
+          "detector": "slack-token",
+          "type": "slack_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 62,
+          "end": 92
+        },
+        {
+          "detector": "slack-token",
+          "type": "slack_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 93,
+          "end": 123
+        },
+        {
+          "detector": "slack-token",
+          "type": "slack_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 124,
+          "end": 159
+        },
+        {
+          "detector": "slack-token",
+          "type": "slack_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 160,
+          "end": 195
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
     },
     {
       "id": "slack-adversarial-long-suffix",
@@ -3201,6 +3517,106 @@
       "note": "Qualified provider evidence wins over a contextual assignment."
     },
     {
+      "id": "pypi-positive-min-length",
+      "detector": "pypi-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "pypi-SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REV",
+      "expected": [
+        {
+          "detector": "pypi-token",
+          "type": "pypi_api_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 90
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "pypi-boundary-below-min",
+      "detector": "pypi-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "pypi-SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "pypi-boundary-invalid-alphabet",
+      "detector": "pypi-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "pypi-SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "pypi-boundary-delimiter",
+      "detector": "pypi-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "pypi-SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "pypi-boundary-case-sensitivity",
+      "detector": "pypi-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "PYPI-SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REV",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "pypi-negative-placeholder",
+      "detector": "pypi-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "pypi-<YOUR_PYPI_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "pypi-negative-lookalike",
+      "detector": "pypi-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "PyPI-SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REV",
+      "expected": [],
+      "note": "The documented macaroon prefix is lowercase; a differently-cased prefix is not classified."
+    },
+    {
       "id": "pypi-adversarial-long-suffix",
       "detector": "pypi-token",
       "kind": "adversarial",
@@ -3302,6 +3718,106 @@
         }
       ],
       "note": "Qualified provider evidence wins over a contextual assignment."
+    },
+    {
+      "id": "huggingface-positive-min-length",
+      "detector": "huggingface-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hf_SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "huggingface-token",
+          "type": "huggingface_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 23
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "huggingface-boundary-below-min",
+      "detector": "huggingface-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hf_SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "huggingface-boundary-invalid-alphabet",
+      "detector": "huggingface-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hf_SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "huggingface-boundary-delimiter",
+      "detector": "huggingface-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hf_SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "huggingface-boundary-case-sensitivity",
+      "detector": "huggingface-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "HF_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "huggingface-negative-placeholder",
+      "detector": "huggingface-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hf_<YOUR_HUGGINGFACE_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "huggingface-negative-lookalike",
+      "detector": "huggingface-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hf-SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "A dash in place of the documented underscore is not classified."
     },
     {
       "id": "huggingface-adversarial-long-suffix",
@@ -3407,6 +3923,128 @@
       "note": "Qualified provider evidence wins over a contextual assignment."
     },
     {
+      "id": "docker-positive-min-length",
+      "detector": "docker-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dckr_pat_SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "docker-token",
+          "type": "docker_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 29
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "docker-boundary-below-min",
+      "detector": "docker-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dckr_pat_SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "docker-boundary-invalid-alphabet",
+      "detector": "docker-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dckr_pat_SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "docker-boundary-delimiter",
+      "detector": "docker-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dckr_pat_SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "docker-boundary-case-sensitivity",
+      "detector": "docker-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "DCKR_PAT_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "docker-negative-placeholder",
+      "detector": "docker-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dckr_pat_<YOUR_DOCKER_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "docker-negative-lookalike",
+      "detector": "docker-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dckr_tok_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "An undocumented Docker token segment name is not classified."
+    },
+    {
+      "id": "docker-positive-all-prefixes",
+      "detector": "docker-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dckr_oat_SYNTHETIC_REVOKED_SYNTHET",
+      "expected": [
+        {
+          "detector": "docker-token",
+          "type": "docker_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 34
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
+    },
+    {
       "id": "docker-adversarial-long-suffix",
       "detector": "docker-token",
       "kind": "adversarial",
@@ -3508,6 +4146,106 @@
         }
       ],
       "note": "Qualified provider evidence wins over a contextual assignment."
+    },
+    {
+      "id": "cloudflare-positive-min-length",
+      "detector": "cloudflare-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "cfut_SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "cloudflare-token",
+          "type": "cloudflare_api_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 25
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "cloudflare-boundary-below-min",
+      "detector": "cloudflare-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "cfut_SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "cloudflare-boundary-invalid-alphabet",
+      "detector": "cloudflare-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "cfut_SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "cloudflare-boundary-delimiter",
+      "detector": "cloudflare-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "cfut_SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "cloudflare-boundary-case-sensitivity",
+      "detector": "cloudflare-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "CFUT_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "cloudflare-negative-placeholder",
+      "detector": "cloudflare-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "cfut_<YOUR_CLOUDFLARE_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "cloudflare-negative-lookalike",
+      "detector": "cloudflare-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "cfu_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "A truncated Cloudflare prefix missing a character is not classified."
     },
     {
       "id": "cloudflare-adversarial-long-suffix",
@@ -3613,6 +4351,136 @@
       "note": "Qualified provider evidence wins over a contextual assignment."
     },
     {
+      "id": "digitalocean-positive-min-length",
+      "detector": "digitalocean-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dop_v1_SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "digitalocean-token",
+          "type": "digitalocean_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 27
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "digitalocean-boundary-below-min",
+      "detector": "digitalocean-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dop_v1_SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "digitalocean-boundary-invalid-alphabet",
+      "detector": "digitalocean-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dop_v1_SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "digitalocean-boundary-delimiter",
+      "detector": "digitalocean-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dop_v1_SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "digitalocean-boundary-case-sensitivity",
+      "detector": "digitalocean-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "DOP_V1_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "digitalocean-negative-placeholder",
+      "detector": "digitalocean-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dop_v1_<YOUR_DIGITALOCEAN_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "digitalocean-negative-lookalike",
+      "detector": "digitalocean-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "dop_v2_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "Only the documented v1 DigitalOcean token namespace is matched; an unreleased version is a future false negative."
+    },
+    {
+      "id": "digitalocean-positive-all-prefixes",
+      "detector": "digitalocean-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "doo_v1_SYNTHETIC_REVOKED_SYNTHET\ndor_v1_SYNTHETIC_REVOKED_SYNTHET",
+      "expected": [
+        {
+          "detector": "digitalocean-token",
+          "type": "digitalocean_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 32
+        },
+        {
+          "detector": "digitalocean-token",
+          "type": "digitalocean_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 33,
+          "end": 65
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
+    },
+    {
       "id": "digitalocean-adversarial-long-suffix",
       "detector": "digitalocean-token",
       "kind": "adversarial",
@@ -3714,6 +4582,128 @@
         }
       ],
       "note": "Qualified provider evidence wins over a contextual assignment."
+    },
+    {
+      "id": "linear-positive-min-length",
+      "detector": "linear-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "lin_api_SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "linear-token",
+          "type": "linear_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 28
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "linear-boundary-below-min",
+      "detector": "linear-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "lin_api_SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "linear-boundary-invalid-alphabet",
+      "detector": "linear-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "lin_api_SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "linear-boundary-delimiter",
+      "detector": "linear-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "lin_api_SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "linear-boundary-case-sensitivity",
+      "detector": "linear-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "LIN_API_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "linear-negative-placeholder",
+      "detector": "linear-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "lin_api_<YOUR_LINEAR_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "linear-negative-lookalike",
+      "detector": "linear-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "lin_key_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "An undocumented Linear token segment name is not classified."
+    },
+    {
+      "id": "linear-positive-all-prefixes",
+      "detector": "linear-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "lin_oauth_SYNTHETIC_REVOKED_SYNTHET",
+      "expected": [
+        {
+          "detector": "linear-token",
+          "type": "linear_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 35
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
     },
     {
       "id": "linear-adversarial-long-suffix",
@@ -3819,6 +4809,106 @@
       "note": "Qualified provider evidence wins over a contextual assignment."
     },
     {
+      "id": "supabase-positive-min-length",
+      "detector": "supabase-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sb_secret_SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "supabase-token",
+          "type": "supabase_secret_key",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 30
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "supabase-boundary-below-min",
+      "detector": "supabase-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sb_secret_SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "supabase-boundary-invalid-alphabet",
+      "detector": "supabase-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sb_secret_SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "supabase-boundary-delimiter",
+      "detector": "supabase-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sb_secret_SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "supabase-boundary-case-sensitivity",
+      "detector": "supabase-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "SB_SECRET_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "supabase-negative-placeholder",
+      "detector": "supabase-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sb_secret_<YOUR_SUPABASE_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "supabase-negative-lookalike",
+      "detector": "supabase-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sb_publishable_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "Supabase's publishable key prefix is a public identifier, not an elevated-access secret."
+    },
+    {
       "id": "supabase-adversarial-long-suffix",
       "detector": "supabase-token",
       "kind": "adversarial",
@@ -3920,6 +5010,152 @@
         }
       ],
       "note": "Qualified provider evidence wins over a contextual assignment."
+    },
+    {
+      "id": "vercel-positive-min-length",
+      "detector": "vercel-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "vcp_SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "vercel-token",
+          "type": "vercel_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 24
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "vercel-boundary-below-min",
+      "detector": "vercel-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "vcp_SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "vercel-boundary-invalid-alphabet",
+      "detector": "vercel-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "vcp_SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "vercel-boundary-delimiter",
+      "detector": "vercel-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "vcp_SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "vercel-boundary-case-sensitivity",
+      "detector": "vercel-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "VCP_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "vercel-negative-placeholder",
+      "detector": "vercel-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "vcp_<YOUR_VERCEL_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "vercel-negative-lookalike",
+      "detector": "vercel-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "vcx_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "An undocumented Vercel token prefix letter is not classified."
+    },
+    {
+      "id": "vercel-positive-all-prefixes",
+      "detector": "vercel-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "vci_SYNTHETIC_REVOKED_SYNTHET\nvca_SYNTHETIC_REVOKED_SYNTHET\nvcr_SYNTHETIC_REVOKED_SYNTHET\nvck_SYNTHETIC_REVOKED_SYNTHET",
+      "expected": [
+        {
+          "detector": "vercel-token",
+          "type": "vercel_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 29
+        },
+        {
+          "detector": "vercel-token",
+          "type": "vercel_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 30,
+          "end": 59
+        },
+        {
+          "detector": "vercel-token",
+          "type": "vercel_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 60,
+          "end": 89
+        },
+        {
+          "detector": "vercel-token",
+          "type": "vercel_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 90,
+          "end": 119
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
     },
     {
       "id": "vercel-adversarial-long-suffix",
@@ -4383,6 +5619,187 @@
       "note": "Documented provider evidence wins over an access-token assignment."
     },
     {
+      "id": "gitlab-positive-min-length",
+      "detector": "gitlab-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "glpat-SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 26
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "gitlab-boundary-below-min",
+      "detector": "gitlab-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "glpat-SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "gitlab-boundary-invalid-alphabet",
+      "detector": "gitlab-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "glpat-SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "gitlab-boundary-delimiter",
+      "detector": "gitlab-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "glpat-SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "gitlab-boundary-case-sensitivity",
+      "detector": "gitlab-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "GLPAT-SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "gitlab-negative-placeholder",
+      "detector": "gitlab-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "glpat-<YOUR_GITLAB_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "gitlab-positive-all-prefixes",
+      "detector": "gitlab-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "gloas-SYNTHETIC_REVOKED_SYNTHET\ngldt-SYNTHETIC_REVOKED_SYNTHET\nglrt-SYNTHETIC_REVOKED_SYNTHET\nglrtr-SYNTHETIC_REVOKED_SYNTHET\nglcbt-SYNTHETIC_REVOKED_SYNTHET\nglptt-SYNTHETIC_REVOKED_SYNTHET\nglft-SYNTHETIC_REVOKED_SYNTHET\nglimt-SYNTHETIC_REVOKED_SYNTHET\nglagent-SYNTHETIC_REVOKED_SYNTHET\nglwt-SYNTHETIC_REVOKED_SYNTHET",
+      "expected": [
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 31
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 32,
+          "end": 62
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 63,
+          "end": 93
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 94,
+          "end": 125
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 126,
+          "end": 157
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 158,
+          "end": 189
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 190,
+          "end": 220
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 221,
+          "end": 252
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 253,
+          "end": 286
+        },
+        {
+          "detector": "gitlab-token",
+          "type": "gitlab_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 287,
+          "end": 317
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
+    },
+    {
       "id": "gitlab-adversarial-long-suffix",
       "detector": "gitlab-token",
       "kind": "adversarial",
@@ -4484,6 +5901,136 @@
         }
       ],
       "note": "Provider evidence wins over a client-secret assignment."
+    },
+    {
+      "id": "openai-positive-min-length",
+      "detector": "openai-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-proj-SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "openai-token",
+          "type": "openai_api_key",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 28
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "openai-boundary-below-min",
+      "detector": "openai-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-proj-SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "openai-boundary-invalid-alphabet",
+      "detector": "openai-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-proj-SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "openai-boundary-delimiter",
+      "detector": "openai-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-proj-SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "openai-boundary-case-sensitivity",
+      "detector": "openai-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "SK-PROJ-SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "openai-negative-placeholder",
+      "detector": "openai-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-proj-<YOUR_OPENAI_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "openai-negative-lookalike",
+      "detector": "openai-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-ant-SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The Anthropic sk-ant- namespace is owned by the anthropic-token detector, not this one."
+    },
+    {
+      "id": "openai-positive-all-prefixes",
+      "detector": "openai-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-SYNTHETIC_REVOKED_SYNTHETIC_RE\nsk-svcacct-SYNTHETIC_REVOKED_SYNTHET",
+      "expected": [
+        {
+          "detector": "openai-token",
+          "type": "openai_api_key",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 33
+        },
+        {
+          "detector": "openai-token",
+          "type": "openai_api_key",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 34,
+          "end": 70
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
     },
     {
       "id": "openai-adversarial-long-suffix",
@@ -4589,6 +6136,93 @@
       "note": "Anthropic provider evidence wins over the contextual assignment."
     },
     {
+      "id": "anthropic-positive-min-length",
+      "detector": "anthropic-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-ant-api03-SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "anthropic-token",
+          "type": "anthropic_api_key",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 33
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "anthropic-boundary-below-min",
+      "detector": "anthropic-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-ant-api03-SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "anthropic-boundary-invalid-alphabet",
+      "detector": "anthropic-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-ant-api03-SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "anthropic-boundary-delimiter",
+      "detector": "anthropic-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-ant-api03-SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "anthropic-boundary-case-sensitivity",
+      "detector": "anthropic-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "SK-ANT-API03-SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "anthropic-negative-placeholder",
+      "detector": "anthropic-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "sk-ant-api03-<YOUR_ANTHROPIC_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
       "id": "anthropic-adversarial-long-suffix",
       "detector": "anthropic-token",
       "kind": "adversarial",
@@ -4692,6 +6326,128 @@
       "note": "Documented provider evidence wins over an access-token assignment."
     },
     {
+      "id": "shopify-positive-min-length",
+      "detector": "shopify-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "shpat_SYNTHETIC_REVOKED_SY",
+      "expected": [
+        {
+          "detector": "shopify-token",
+          "type": "shopify_access_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 26
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "shopify-boundary-below-min",
+      "detector": "shopify-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "shpat_SYNTHETIC_REVOKED_S",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "shopify-boundary-invalid-alphabet",
+      "detector": "shopify-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "shpat_SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "shopify-boundary-delimiter",
+      "detector": "shopify-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "shpat_SYNTH ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An inserted space inside the suffix breaks the run instead of being silently bridged."
+    },
+    {
+      "id": "shopify-boundary-case-sensitivity",
+      "detector": "shopify-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "SHPAT_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "shopify-negative-placeholder",
+      "detector": "shopify-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "shpat_<YOUR_SHOPIFY_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "shopify-negative-lookalike",
+      "detector": "shopify-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "shpca_SYNTHETIC_REVOKED_SY",
+      "expected": [],
+      "note": "The public storefront-access prefix is excluded; only elevated Admin API prefixes are matched."
+    },
+    {
+      "id": "shopify-positive-all-prefixes",
+      "detector": "shopify-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "shppa_SYNTHETIC_REVOKED_SYNTHET",
+      "expected": [
+        {
+          "detector": "shopify-token",
+          "type": "shopify_access_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 31
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
+    },
+    {
       "id": "shopify-adversarial-long-suffix",
       "detector": "shopify-token",
       "kind": "adversarial",
@@ -4793,6 +6549,123 @@
         }
       ],
       "note": "Modern provider evidence wins over a client-secret assignment."
+    },
+    {
+      "id": "vault-positive-min-length",
+      "detector": "vault-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hvs.SYNTHETIC_REVOKED_SYNTHE",
+      "expected": [
+        {
+          "detector": "vault-token",
+          "type": "vault_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 28
+        }
+      ],
+      "note": "The documented minimum suffix length, at its exact boundary, is supported."
+    },
+    {
+      "id": "vault-boundary-below-min",
+      "detector": "vault-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hvs.SYNTHETIC_REVOKED_SYNTH",
+      "expected": [],
+      "note": "A suffix exactly one byte short of the documented minimum length is rejected."
+    },
+    {
+      "id": "vault-boundary-invalid-alphabet",
+      "detector": "vault-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hvs.SYNTH!ETIC_REVOKED_SYNTHETIC_RE",
+      "expected": [],
+      "note": "An invalid character inside the suffix breaks the run before the minimum length is reached."
+    },
+    {
+      "id": "vault-boundary-delimiter",
+      "detector": "vault-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hvs.SYNTHETIC_REVOKED_SYNTHE.",
+      "expected": [],
+      "note": "A trailing '.' is outside the matched suffix alphabet but inside the wider boundary alphabet, so it still correctly rejects an otherwise-valid-length candidate."
+    },
+    {
+      "id": "vault-boundary-case-sensitivity",
+      "detector": "vault-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "HVS.SYNTHETIC_REVOKED_SYNTHE",
+      "expected": [],
+      "note": "The documented prefix is matched case-sensitively; an uppercased prefix is not classified."
+    },
+    {
+      "id": "vault-negative-placeholder",
+      "detector": "vault-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hvs.<YOUR_VAULT_TOKEN>",
+      "expected": [],
+      "note": "A documentation placeholder value is not classified as a credential."
+    },
+    {
+      "id": "vault-positive-all-prefixes",
+      "detector": "vault-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "hvb.SYNTHETIC_REVOKED_SYNTHETIC_R\nhvr.SYNTHETIC_REVOKED_SYNTHETIC_R",
+      "expected": [
+        {
+          "detector": "vault-token",
+          "type": "vault_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 0,
+          "end": 33
+        },
+        {
+          "detector": "vault-token",
+          "type": "vault_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 34,
+          "end": 67
+        }
+      ],
+      "note": "Every remaining documented prefix variant is independently supported."
     },
     {
       "id": "vault-adversarial-long-suffix",
@@ -5040,7 +6913,7 @@
       "contexts": [
         "plain-text"
       ],
-      "input": "😀 mongodb://fixture%3Auser:SYNTHETIC%40REVOKED%3ADB%2FVALUE@[2001:db8::1]:27017/db",
+      "input": "\ud83d\ude00 mongodb://fixture%3Auser:SYNTHETIC%40REVOKED%3ADB%2FVALUE@[2001:db8::1]:27017/db",
       "expected": [
         {
           "detector": "connection-string",
