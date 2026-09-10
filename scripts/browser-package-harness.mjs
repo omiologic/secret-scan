@@ -55,33 +55,6 @@ function assertEqual(actual, expected, message) {
   if (left !== right) throw new Error(`${message}: expected ${right}, got ${left}`);
 }
 
-/**
- * The exact text `redact()`'s default formatter produces from `input` and
- * `findings`: `<SECRET_N>` (`N` one-based among `redact`/`block` findings,
- * `crates/secret-scan-core/src/redact.rs`) in place of each such finding's
- * span, everything else — including a `warn`/`allow` finding's own span —
- * passed through unchanged. An independent reconstruction from the
- * fixture's own findings, not a search over the output: a fixture can
- * reuse one literal secret value across findings with different actions or
- * lengths (`slack-positive-all-prefixes` has one finding's matched text as
- * a literal substring of another's), which makes "does this value still
- * appear anywhere" and "how many times does it appear" both unsound.
- */
-function expectedRedaction(input, findings) {
-  const redacted = findings
-    .filter((finding) => finding.action === "redact" || finding.action === "block")
-    .sort((a, b) => a.start - b.start);
-  const pieces = [];
-  let cursor = 0;
-  redacted.forEach((finding, index) => {
-    pieces.push(input.slice(cursor, finding.start));
-    pieces.push(`<SECRET_${index + 1}>`);
-    cursor = finding.end;
-  });
-  pieces.push(input.slice(cursor));
-  return pieces.join("");
-}
-
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -169,10 +142,31 @@ export async function qualify(fixtures) {
         redact(fixture.input, scan(fixture.input)),
         `fixture ${fixture.id} scanAndRedact disagreed with scan + redact`,
       );
+
+      // Reconstruct the exact expected output from the fixture's own
+      // findings, rather than searching the output for leftover matched
+      // text: some fixtures (e.g. `contextual-positive-remaining-declared-
+      // names`) legitimately repeat the same synthetic value across several
+      // findings that resolve to different actions, so a `warn`/`allow`
+      // finding can leave a byte-identical copy of a `redact`/`block`
+      // finding's value elsewhere in the output. A blanket "does the output
+      // still contain this value" search cannot tell that apart from an
+      // actual redaction failure; an exact positional reconstruction can.
+      let placeholderIndex = 0;
+      let cursor = 0;
+      const pieces = [];
+      for (const finding of findings) {
+        if (finding.action !== "redact" && finding.action !== "block") continue;
+        placeholderIndex += 1;
+        pieces.push(fixture.input.slice(cursor, finding.start));
+        pieces.push(`<SECRET_${placeholderIndex}>`);
+        cursor = finding.end;
+      }
+      pieces.push(fixture.input.slice(cursor));
       assertEqual(
         text,
-        expectedRedaction(fixture.input, findings),
-        `fixture ${fixture.id} left a redacted span in the output`,
+        pieces.join(""),
+        `fixture ${fixture.id} did not produce the exact expected redacted output`,
       );
     }
   });

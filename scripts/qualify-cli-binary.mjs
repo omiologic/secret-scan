@@ -281,16 +281,14 @@ function redact(binary, fixtures, paths, reported) {
       cursor = finding.end;
     });
     pieces.push(source.subarray(cursor));
-    // The byte-for-byte comparison above already proves every redacted span
-    // was replaced at its own position: `pieces` is reconstructed by cutting
-    // exactly those spans out of `source`, so a passing `assertEqual` means
-    // none of them remain anywhere they could. A separate `stdout.includes`
-    // scan over the whole buffer would be unsound here — a fixture can
-    // legitimately reuse one literal secret value across findings with
-    // different actions (`contextual-positive-remaining-declared-names`
-    // does), and a `warn`/`allow` finding leaving that value untouched
-    // elsewhere would make the same bytes "survive" without any redact
-    // finding actually failing to redact.
+    // The byte-exact comparison above already pins every replaced span to
+    // its placeholder and leaves everything else untouched, so it is a
+    // stronger check than searching the output for leftover matched text.
+    // That search would also be wrong on its own: some fixtures (e.g.
+    // `contextual-positive-remaining-declared-names`) legitimately repeat
+    // the same synthetic value across findings that resolve to different
+    // actions, so a `warn`/`allow` finding can leave a byte-identical copy
+    // of a `redact`/`block` finding's value elsewhere in the output.
     assertEqual(
       result.stdout.toString("base64"),
       Buffer.concat(pieces).toString("base64"),
