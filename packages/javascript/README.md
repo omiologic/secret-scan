@@ -239,7 +239,12 @@ try {
 ```
 
 `NOT_INITIALIZED` and `INITIALIZATION_FAILED` come from the binding layer,
-`INVALID_CHUNK` and `INVALID_UTF8` from the stream adapters, and
+`INVALID_CHUNK` and `INVALID_UTF8` from the stream adapters,
+`UNPAIRED_SURROGATE` from this package's own input check — a JavaScript
+string may contain a lone UTF-16 surrogate, which has no UTF-8
+representation, so `scan`, `redact`, `scanAndRedact`, and an incremental
+sanitizer's `append` all reject one with this fixed code before it reaches
+either binding, identically on Node.js and in the browser — and
 `INCREMENTAL_UNAVAILABLE` from the WebAssembly binding, which does not
 implement incremental sanitization; every other code comes from the Rust
 core.

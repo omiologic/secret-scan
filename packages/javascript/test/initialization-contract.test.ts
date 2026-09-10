@@ -311,3 +311,61 @@ describe("error normalization", () => {
     );
   });
 });
+
+describe("unpaired surrogates", () => {
+  it("rejects a lone high surrogate before it reaches the binding", async () => {
+    const binding = createFakeBinding();
+    const runtime = createSecretScanRuntime(async () => binding);
+    await runtime.initialize();
+
+    for (const call of [
+      () => runtime.scan("\uD800key"),
+      () => runtime.redact("\uD800key", []),
+      () => runtime.scanAndRedact("\uD800key"),
+    ]) {
+      expect(call).toThrowError(new SecretScanError("UNPAIRED_SURROGATE"));
+    }
+    expect(binding.calls).toEqual(["initialize"]);
+  });
+
+  it("rejects a lone low surrogate", async () => {
+    const runtime = createSecretScanRuntime(async () => createFakeBinding());
+    await runtime.initialize();
+
+    expect(() => runtime.scan("key\uDC00")).toThrowError(
+      new SecretScanError("UNPAIRED_SURROGATE"),
+    );
+  });
+
+  it("rejects a surrogate pair reversed into two lone surrogates", async () => {
+    const runtime = createSecretScanRuntime(async () => createFakeBinding());
+    await runtime.initialize();
+
+    // \uDC00\uD800 is a low surrogate followed by a high surrogate — the
+    // opposite of a valid pair, so both code units are lone.
+    expect(() => runtime.scan("\uDC00\uD800")).toThrowError(
+      new SecretScanError("UNPAIRED_SURROGATE"),
+    );
+  });
+
+  it("does not reject a well-formed surrogate pair", async () => {
+    const binding = createFakeBinding();
+    const runtime = createSecretScanRuntime(async () => binding);
+    await runtime.initialize();
+
+    expect(() => runtime.scan("\u{1F511}key")).not.toThrow();
+    expect(binding.calls).toEqual(["initialize", "scan:\u{1F511}key:builtin"]);
+  });
+
+  it("rejects a lone surrogate appended to an incremental sanitizer", async () => {
+    const runtime = createSecretScanRuntime(async () => createFakeBinding());
+    await runtime.initialize();
+    const session = runtime.createIncrementalSanitizer({
+      limits: LIMITS,
+    });
+
+    expect(() => session.append("\uD800")).toThrowError(
+      new SecretScanError("UNPAIRED_SURROGATE"),
+    );
+  });
+});

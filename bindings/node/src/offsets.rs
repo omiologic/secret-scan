@@ -62,6 +62,15 @@ mod tests {
             ("\u{1F511} TOKEN_SYNTHETIC_REVOKED_VALUE", 5, 34, 3, 32),
             ("TOKEN_\u{1F511}_SYNTHETIC_REVOKED", 0, 28, 0, 26),
             ("TOKEN_SYNTHETIC_REVOKED_VALUE \u{1F511}", 0, 29, 0, 29),
+            ("e\u{0301} TOKEN_SYNTHETIC_REVOKED_VALUE", 4, 33, 3, 32),
+            ("键 TOKEN_SYNTHETIC_REVOKED_VALUE", 4, 33, 2, 31),
+            (
+                "\u{201c}TOKEN_SYNTHETIC_REVOKED_VALUE\u{201d}",
+                3,
+                32,
+                1,
+                30,
+            ),
         ];
         for (input, byte_start, byte_end, utf16_start, utf16_end) in cases {
             assert_eq!(byte_to_utf16(input, byte_start), utf16_start, "{input:?}");

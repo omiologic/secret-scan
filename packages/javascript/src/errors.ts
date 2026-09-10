@@ -6,11 +6,23 @@
  * message (`decision-define-runtime-bindings`). Sixteen codes come from the
  * Rust core; `NOT_INITIALIZED` and `INITIALIZATION_FAILED` are produced by the
  * binding layer, `INVALID_CHUNK` and `INVALID_UTF8` by the stream adapters,
- * and `INCREMENTAL_UNAVAILABLE` by any binding that does not implement
+ * `UNPAIRED_SURROGATE` by this package's own runtime-neutral input check, and
+ * `INCREMENTAL_UNAVAILABLE` by any binding that does not implement
  * incremental sanitization — the browser binding always (`bindings/wasm` has
  * no such export by design) and the Node binding until `bindings/node` gains
  * one; and this package normalizes all of them into the same class so
  * `instanceof SecretScanError` holds on every runtime and every subpath.
+ *
+ * `UNPAIRED_SURROGATE` resolves `B/F-10`
+ * (`docs/audits/deferred-quality-backlog.md`): a JavaScript string may hold a
+ * lone UTF-16 surrogate, which has no UTF-8 representation, so it cannot
+ * cross into the Rust core's `&str` without either a silent `U+FFFD`
+ * substitution (which would make `redact`'s output a transcoded copy, not the
+ * caller's input with only findings replaced) or a stable rejection. This
+ * package rejects, once, in `runtime.ts`'s `requireString`, before the string
+ * reaches either binding — so the error and this check are identical on the
+ * Node and browser runtimes by construction rather than by parallel
+ * implementation.
  */
 
 export type SecretScanErrorCode =
@@ -34,6 +46,7 @@ export type SecretScanErrorCode =
   | "INITIALIZATION_FAILED"
   | "INVALID_CHUNK"
   | "INVALID_UTF8"
+  | "UNPAIRED_SURROGATE"
   | "INCREMENTAL_UNAVAILABLE";
 
 /** The fixed message for every code, mirroring the core's own strings. */
@@ -59,6 +72,7 @@ const ERROR_MESSAGES: Readonly<Record<SecretScanErrorCode, string>> = {
   INITIALIZATION_FAILED: "secret-scan failed to initialize.",
   INVALID_CHUNK: "Stream sanitizer input must contain bytes.",
   INVALID_UTF8: "Stream sanitizer input is not valid UTF-8.",
+  UNPAIRED_SURROGATE: "Secret scan input contains an unpaired UTF-16 surrogate.",
   INCREMENTAL_UNAVAILABLE:
     "Incremental sanitization is not available on this runtime.",
 };

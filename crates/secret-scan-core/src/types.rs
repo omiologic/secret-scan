@@ -779,6 +779,24 @@ mod tests {
                 29,
                 "TOKEN_SYNTHETIC_REVOKED_VALUE",
             ),
+            (
+                "e\u{0301} TOKEN_SYNTHETIC_REVOKED_VALUE",
+                4,
+                33,
+                "TOKEN_SYNTHETIC_REVOKED_VALUE",
+            ),
+            (
+                "键 TOKEN_SYNTHETIC_REVOKED_VALUE",
+                4,
+                33,
+                "TOKEN_SYNTHETIC_REVOKED_VALUE",
+            ),
+            (
+                "\u{201c}TOKEN_SYNTHETIC_REVOKED_VALUE\u{201d}",
+                3,
+                32,
+                "TOKEN_SYNTHETIC_REVOKED_VALUE",
+            ),
         ];
         for (input, start, end, expected_slice) in cases {
             let range = ByteRange::new(start, end).unwrap();
