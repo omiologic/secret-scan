@@ -387,6 +387,12 @@ recorded in
 [docs/audits/javascript-python-bindings-package-contracts-review.md](./docs/audits/javascript-python-bindings-package-contracts-review.md).
 It records evidence only; it does not authorize any release operation.
 
+An independent review of CI, the release and reconcile automation, the
+documented support matrices, and the supply-chain controls behind them, with its
+findings and their exit conditions, is recorded in
+[docs/audits/ci-release-automation-supply-chain-review.md](./docs/audits/ci-release-automation-supply-chain-review.md).
+It records evidence only; it does not authorize any release operation.
+
 ## License
 
 [MIT](./LICENSE)
