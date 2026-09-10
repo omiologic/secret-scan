@@ -188,15 +188,13 @@ Applying §4's matrix and §5's exception codes to the current baseline
   both on `generic-token`): both inherit `overlap`, `malformed`, and
   `adversarial` evidence from `generic-token`'s shared fixtures
   (`single-detector-family`). `contextual_secret` has `positive`,
-  `near-miss negative`, and `boundary` evidence and resolves `supported` —
-  but its own host-context coverage (`plain-text` only: 1 of 5 representative
-  classes; see [`host-context-classes.md`](./host-context-classes.md) §4 for
-  the corrected count) is below what §3's type-level rule requires for
-  the `contextual` class. That gap is real and this model does not invent
-  the missing `structured-data-kv`, `shell-invocation`, or `wire-and-log`
-  evidence to hide it; it is a `pending` cell for `contextual_secret`, newly
-  surfaced by this model rather than by the current generator (which does
-  not yet check host-context breadth — that wiring is #103/#104's job).
+  `near-miss negative`, `boundary`, and (since issue #111) `host-context`
+  evidence and resolves `supported` on every dimension the `contextual`
+  behavior class requires — its own positive fixtures now reach all five
+  representative classes (`structured-data-kv`, `shell-invocation`,
+  `source-code`, `wire-and-log`, `prose-and-markup`; see
+  [`host-context-classes.md`](./host-context-classes.md) §4-5), which is
+  what §3's type-level rule requires for the `contextual` class.
   `authorization_credential` is missing `positive`, `boundary`, and both
   scheme rows (`basic`, `token`) outright — this is the one row the current
   baseline already reports as `unresolved`, and the model resolves it the
