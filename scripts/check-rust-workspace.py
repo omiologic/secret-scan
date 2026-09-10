@@ -9,13 +9,18 @@ Checks, in order:
    package listed in ``forbidden-dependencies``.
 2. Unsafe-code policy: every member inherits workspace lints, the workspace
    denies ``unsafe_code``, and the core and CLI crate roots forbid it.
-3. Version lockstep: the workspace version, every member, and every manifest
+3. Version lockstep: the workspace version, every member, every manifest
    named in ``LOCKSTEP_MANIFESTS`` (``bindings/node/package.json``,
-   ``packages/javascript/package.json``) share one product version.
-4. Node engines: every manifest in ``LOCKSTEP_MANIFESTS`` declares
-   ``engines.node`` as exactly the Node majors ``ci.yml``'s ``test`` job
-   matrix exercises, so the promised platform and the tested platform cannot
-   drift apart.
+   ``packages/javascript/package.json``), the WebAssembly package manifest
+   (``bindings/wasm/npm/package.json``), and every native platform package
+   manifest discovered under ``bindings/node/npm/*/package.json`` share one
+   product version.
+4. Node engines: every manifest in ``LOCKSTEP_MANIFESTS`` and every native
+   platform package manifest declares ``engines.node`` as exactly the Node
+   majors ``ci.yml``'s ``test`` job matrix exercises, so the promised
+   platform and the tested platform cannot drift apart. The WebAssembly
+   package declares no ``engines.node`` at all — it ships no Node.js-specific
+   claim to keep in lockstep.
 5. MSRV: the declared ``rust-version`` is inherited by every member, is at
    least the highest ``rust-version`` required by any resolved dependency, and
    matches the ``MSRV`` value exercised by the CI workflow.
@@ -61,6 +66,17 @@ NODE_VERSION_ENTRY = re.compile(r"-\s*(\d+)")
 FORBID_UNSAFE = re.compile(r"^\s*#!\[forbid\(unsafe_code\)\]\s*$", re.M)
 FORBID_UNSAFE_ROOTS = {"secret-scan": "src/lib.rs", "secret-scan-cli": "src/main.rs"}
 LOCKSTEP_MANIFESTS = ("bindings/node/package.json", "packages/javascript/package.json")
+# The WebAssembly package: an ordinary lockstep manifest for version
+# purposes, but it declares no `engines.node` (it ships no Node.js-specific
+# claim), so it is not part of the engines check below.
+WASM_MANIFEST = "bindings/wasm/npm/package.json"
+# `bindings/node/npm/<platform>/package.json` per published N-API target,
+# discovered rather than hardcoded: adding or removing one of these
+# directories changes what this script checks without editing the script,
+# which is what keeps `scripts/check-artifact-matrix.py`'s target-list
+# enforcement (`node-publish-targets`) and this version/engines enforcement
+# from being able to drift apart from each other.
+NATIVE_PLATFORM_MANIFEST_DIR = Path("bindings") / "node" / "npm"
 
 # `pub use path::{A, B};`, `pub use path::name;`, and the `pub const NAME`
 # items the crate root declares directly.
@@ -176,6 +192,20 @@ def check_unsafe_policy(root: Path, metadata: dict, root_manifest: dict) -> list
     return errors
 
 
+def native_platform_manifests(root: Path) -> list[str]:
+    """Every native N-API platform package manifest, as paths relative to
+    ``root``, discovered under ``bindings/node/npm/*/package.json`` rather
+    than enumerated by hand."""
+    directory = root / NATIVE_PLATFORM_MANIFEST_DIR
+    if not directory.is_dir():
+        return []
+    return sorted(
+        (NATIVE_PLATFORM_MANIFEST_DIR / child.name / "package.json").as_posix()
+        for child in directory.iterdir()
+        if child.is_dir() and (child / "package.json").is_file()
+    )
+
+
 def check_version_lockstep(root: Path, metadata: dict, root_manifest: dict) -> list[str]:
     errors: list[str] = []
     version = root_manifest.get("workspace", {}).get("package", {}).get("version")
@@ -184,7 +214,8 @@ def check_version_lockstep(root: Path, metadata: dict, root_manifest: dict) -> l
     for package in workspace_members(metadata).values():
         if package["version"] != version:
             errors.append(f"{package['name']}: version {package['version']} differs from workspace version {version}")
-    for relative in LOCKSTEP_MANIFESTS:
+    manifests = LOCKSTEP_MANIFESTS + (WASM_MANIFEST,) + tuple(native_platform_manifests(root))
+    for relative in manifests:
         path = root / relative
         if not path.is_file():
             errors.append(f"{relative}: missing lockstep manifest")
@@ -214,10 +245,13 @@ def expected_node_engines(majors: list[int]) -> str:
 
 
 def check_node_engines(root: Path) -> list[str]:
-    """Every lockstep manifest's `engines.node` names exactly the Node majors
-    `ci.yml`'s `test` job matrix exercises — narrowed to that finite set
-    rather than left open-ended, so the two cannot drift apart
-    (`docs/audits/release-gap-disposition.md` `R/F-23`)."""
+    """Every lockstep manifest's and every native platform package's
+    `engines.node` names exactly the Node majors `ci.yml`'s `test` job matrix
+    exercises — narrowed to that finite set rather than left open-ended, so
+    the two cannot drift apart (`docs/audits/release-gap-disposition.md`
+    `R/F-23`). A native platform package that claims fewer majors than the
+    wrapper silently narrows what an installer can actually run on without
+    that narrowing ever being reviewed."""
     workflow = root / CI_WORKFLOW
     if not workflow.is_file():
         return [f"{CI_WORKFLOW}: missing CI workflow"]
@@ -227,7 +261,8 @@ def check_node_engines(root: Path) -> list[str]:
 
     expected = expected_node_engines(majors)
     errors: list[str] = []
-    for relative in LOCKSTEP_MANIFESTS:
+    manifests = LOCKSTEP_MANIFESTS + tuple(native_platform_manifests(root))
+    for relative in manifests:
         path = root / relative
         if not path.is_file():
             errors.append(f"{relative}: missing lockstep manifest")

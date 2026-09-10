@@ -58,12 +58,27 @@ interface NodeAddon {
 }
 
 /**
- * One `optionalDependencies` entry per `bindings/node/package.json`'s
- * `napi.targets`, published in lockstep with this package
- * (`bindings/node/npm/<platform>/package.json`). `os`/`cpu`/`libc` on each
- * of those manifests is what makes every non-matching entry optional in the
- * literal npm sense: an install skips the ones that do not match instead of
- * failing on them.
+ * One `optionalDependencies` entry per `node-publish-targets`, published in
+ * lockstep with this package (`bindings/node/npm/<platform>/package.json`).
+ * `os`/`cpu`/`libc` on each of those manifests is what makes every
+ * non-matching entry optional in the literal npm sense: an install skips
+ * the ones that do not match instead of failing on them.
+ *
+ * `node-publish-targets` is six of the eight triples `napi.targets` builds
+ * and qualifies: npm ships glibc only
+ * (`decision-ship-first-release-artifact-set`), so the two musl triples have
+ * no entry here and no libc dimension below — there is nothing for one to
+ * select between. A musl host's `process.platform`/`process.arch` still
+ * matches the `linux` glibc entry, and each manifest's `libc` field is not
+ * reliably enforced by every npm version, so a musl install can still
+ * resolve and install the glibc package (`docs/qualification.md`).
+ * `loadAddon`'s `require` of a glibc-linked `.node` file then fails to load
+ * under a musl runtime, caught the same way a missing optional dependency
+ * on any platform is, reaching the same `INITIALIZATION_FAILED` an
+ * explicitly unsupported host gets. `scripts/check-artifact-matrix.py`
+ * requires this mapping, the six `bindings/node/npm/<platform>/package.json`
+ * manifests, and this package's own `optionalDependencies` to name exactly
+ * the same six packages.
  */
 const PLATFORM_PACKAGES: Readonly<
   Partial<Record<string, Readonly<Partial<Record<string, string>>>>>

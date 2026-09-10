@@ -33,6 +33,15 @@ class Repository:
         self.napi_targets = list(ADDON_TARGETS)
         self.workflow_addon_targets = list(ADDON_TARGETS)
         self.qualifier_addon_targets = list(ADDON_TARGETS)
+        # The non-musl target in ADDON_TARGETS; npm ships glibc only.
+        self.publish_targets = ["aarch64-apple-darwin"]
+        # `None` means "derive from publish_targets through the same
+        # target-to-platform-name mapping `build()` writes into the
+        # qualifier"; set explicitly to break exactly one file at a time.
+        self.npm_dirs: list[str] | None = None
+        self.npm_manifest_name_overrides: dict[str, str] = {}
+        self.js_optional_deps: list[str] | None = None
+        self.runtime_node_packages: list[str] | None = None
         self.cli_targets = list(CLI_TARGETS)
         self.workflow_cli_targets = list(CLI_TARGETS)
         self.qualifier_cli_targets = list(CLI_TARGETS)
@@ -62,6 +71,7 @@ class Repository:
             "Cargo.toml",
             "[workspace]\n[workspace.metadata.secret-scan]\n"
             f"node-addon-targets = {self._toml_list(self.addon_targets)}\n"
+            f"node-publish-targets = {self._toml_list(self.publish_targets)}\n"
             f"cli-release-targets = {self._toml_list(self.cli_targets)}\n"
             f"browser-engines = {self._toml_list(self.engines)}\n"
             f"node-support-majors = {self._toml_list(self.majors)}\n",
@@ -70,9 +80,31 @@ class Repository:
             "package.json",
             json.dumps({"engines": {"node": self.engines_node}}, indent=2) + "\n",
         )
+
+        platform_map = {
+            target: f"platform-{index}" for index, target in enumerate(self.qualifier_addon_targets)
+        }
+        publish_platforms = [platform_map[target] for target in self.publish_targets if target in platform_map]
+        default_packages = [f"@omiologic/secret-scan-{platform}" for platform in publish_platforms]
+        optional_deps = self.js_optional_deps if self.js_optional_deps is not None else default_packages
+        runtime_packages = (
+            self.runtime_node_packages if self.runtime_node_packages is not None else default_packages
+        )
+
         self.write(
             "packages/javascript/package.json",
-            json.dumps({"engines": {"node": self.engines_node}}, indent=2) + "\n",
+            json.dumps(
+                {
+                    "engines": {"node": self.engines_node},
+                    "optionalDependencies": {name: "0.0.0" for name in optional_deps},
+                },
+                indent=2,
+            )
+            + "\n",
+        )
+        self.write(
+            "packages/javascript/src/runtime/node.ts",
+            "".join(f'  {index}: "{name}",\n' for index, name in enumerate(runtime_packages)),
         )
         self.write(
             "bindings/node/package.json",
@@ -94,6 +126,14 @@ class Repository:
             "scripts/qualify-node-addon.mjs",
             f"const TARGET_PLATFORM_NAMES = {{\n{platform_names}}};\n",
         )
+
+        npm_dirs = self.npm_dirs if self.npm_dirs is not None else publish_platforms
+        for platform in npm_dirs:
+            name = self.npm_manifest_name_overrides.get(platform, f"@omiologic/secret-scan-{platform}")
+            self.write(
+                f"bindings/node/npm/{platform}/package.json",
+                json.dumps({"name": name, "version": "0.0.0"}, indent=2) + "\n",
+            )
         suffixes = "".join(
             f'    "{target}": "",\n' for target in self.qualifier_cli_targets
         )
@@ -270,6 +310,103 @@ class MatrixTests(unittest.TestCase):
             repository.qualifier_cli_targets.pop()
 
         self.assertEqual(self.validate(configure), [])
+
+    # --- Node publish targets (glibc/musl publication boundary) --------
+
+    def test_a_publish_target_the_addon_does_not_build_fails(self) -> None:
+        def configure(repository: Repository) -> None:
+            # Known to the qualifier (so only the addon-membership check
+            # fires) but never added to `node-addon-targets` itself.
+            repository.qualifier_addon_targets = repository.qualifier_addon_targets + [
+                "x86_64-pc-windows-msvc"
+            ]
+            repository.publish_targets.append("x86_64-pc-windows-msvc")
+
+        self.assertOneError(
+            configure,
+            "node-publish-targets names x86_64-pc-windows-msvc, which node-addon-targets does not",
+        )
+
+    def test_a_publish_target_with_no_native_npm_directory_fails(self) -> None:
+        def configure(repository: Repository) -> None:
+            repository.npm_dirs = []
+
+        self.assertOneError(configure, "published platform packages omits platform-0")
+
+    def test_a_native_npm_directory_not_in_node_publish_targets_fails(self) -> None:
+        """The musl target has no publish entry, so it must not gain an npm
+        directory without also being added to `node-publish-targets` — the
+        other half of the glibc/musl boundary staying explicit."""
+
+        def configure(repository: Repository) -> None:
+            repository.npm_dirs = ["platform-0", "platform-1"]
+
+        self.assertOneError(
+            configure, "published platform packages names platform-1, which Cargo.toml does not declare"
+        )
+
+    def test_a_native_manifest_with_the_wrong_package_name_fails(self) -> None:
+        def configure(repository: Repository) -> None:
+            repository.npm_manifest_name_overrides["platform-0"] = "@omiologic/secret-scan-wrong"
+
+        self.assertOneError(
+            configure,
+            "name '@omiologic/secret-scan-wrong' must be '@omiologic/secret-scan-platform-0'",
+        )
+
+    def test_a_missing_optional_dependency_fails(self) -> None:
+        def configure(repository: Repository) -> None:
+            repository.js_optional_deps = []
+
+        self.assertOneError(configure, "optionalDependencies omits @omiologic/secret-scan-platform-0")
+
+    def test_an_extra_optional_dependency_fails(self) -> None:
+        def configure(repository: Repository) -> None:
+            repository.js_optional_deps = [
+                "@omiologic/secret-scan-platform-0",
+                "@omiologic/secret-scan-platform-1",
+            ]
+
+        self.assertOneError(
+            configure,
+            "optionalDependencies names @omiologic/secret-scan-platform-1, which Cargo.toml does not declare",
+        )
+
+    def test_the_runtime_resolver_missing_a_published_package_fails(self) -> None:
+        def configure(repository: Repository) -> None:
+            repository.runtime_node_packages = []
+
+        self.assertOneError(
+            configure, "the platform-package mapping omits @omiologic/secret-scan-platform-0"
+        )
+
+    def test_the_runtime_resolver_naming_an_unpublished_package_fails(self) -> None:
+        """`runtime/node.ts` mapping a host to a package with no publication
+        path (e.g. accidentally wiring in a musl package) is exactly the
+        drift this check exists to catch."""
+
+        def configure(repository: Repository) -> None:
+            repository.runtime_node_packages = [
+                "@omiologic/secret-scan-platform-0",
+                "@omiologic/secret-scan-platform-1",
+            ]
+
+        self.assertOneError(
+            configure,
+            "the platform-package mapping names @omiologic/secret-scan-platform-1, "
+            "which Cargo.toml does not declare",
+        )
+
+    def test_node_publish_targets_missing_declaration_fails(self) -> None:
+        def configure(repository: Repository) -> None:
+            repository.publish_targets = []
+            repository.npm_dirs = []
+            repository.js_optional_deps = []
+            repository.runtime_node_packages = []
+
+        self.assertOneError(
+            configure, "node-publish-targets must declare the published platform-package matrix"
+        )
 
     # --- Browser engines -----------------------------------------------
 

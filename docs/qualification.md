@@ -22,6 +22,7 @@ supported surface once:
 | Key | What it declares |
 | --- | --- |
 | `node-addon-targets` | Every triple the N-API addon is built and smoke-tested for |
+| `node-publish-targets` | Every triple with a published `@omiologic/secret-scan-<platform>` npm package |
 | `cli-release-targets` | Every triple the CLI binary is built and smoke-tested for |
 | `python-wheel-targets` | Every triple an abi3 wheel is built and smoke-tested for |
 | `browser-engines` | Every engine the WebAssembly artifact is initialized and scanned in |
@@ -29,9 +30,12 @@ supported surface once:
 
 The native lists are the same platform story: Linux glibc and musl on x64
 and arm64, macOS on x64 and arm64, and Windows on x64 and arm64 — eight
-triples — with one deliberate exception. **The CLI ships no musl variant**,
-so `cli-release-targets` is the six non-musl triples and the check requires
-it to stay a subset of `node-addon-targets`. On top of that: Chromium,
+triples — with two deliberate exceptions, both narrower than the addon's own
+matrix and both required to stay a subset of `node-addon-targets`. **The CLI
+ships no musl variant**, so `cli-release-targets` is six non-musl triples.
+**npm ships glibc only** (`decision-ship-first-release-artifact-set`), so
+`node-publish-targets` is the same six triples: the addon's two musl targets
+are built and qualified but have no npm package. On top of that: Chromium,
 Firefox and WebKit for the browser, and Node.js 20, 22 and 24.
 
 `scripts/check-artifact-matrix.py` (run by `npm run artifacts:check`, and by
@@ -46,13 +50,26 @@ places that must agree with those lists drifts:
   `scripts/qualify-browser-artifact.mjs`, each of which must know every
   target or engine it may be asked to verify;
 - the `node-version` matrix in `.github/workflows/ci.yml` and the per-major
-  addon smoke steps against `node-support-majors`.
+  addon smoke steps against `node-support-majors`;
+- for `node-publish-targets`: the platform directories under
+  `bindings/node/npm/`, each directory's `package.json` `name`,
+  `packages/javascript/package.json`'s `optionalDependencies`, and the
+  package names `packages/javascript/src/runtime/node.ts` maps hosts to — so
+  a target cannot gain or lose a publication path, and the glibc/musl
+  boundary cannot drift, in one file alone.
 
 `engines.node` itself belongs to `scripts/check-rust-workspace.py`, which
 derives the exact majors from `ci.yml` and requires every lockstep manifest
-to enumerate them (`20.x || 22.x || 24.x`) rather than leave the claim
-open-ended: `>=20` cannot be bound to a finite matrix. Only one script owns
-that rule, so the two cannot contradict each other.
+— the wrapper, the N-API addon's own manifest, and every native platform
+package under `bindings/node/npm/*/package.json` — to enumerate them
+(`20.x || 22.x || 24.x`) rather than leave the claim open-ended: `>=20`
+cannot be bound to a finite matrix, and a platform package that claims fewer
+majors than the wrapper would silently narrow what an installer can run on
+without that narrowing ever being reviewed. The WebAssembly npm package
+(`bindings/wasm/npm/package.json`) carries no `engines.node` claim, so it is
+outside that check, but its `version` is still held in lockstep with every
+other package. Only one script owns the `engines.node` rule, so the two
+scripts cannot contradict each other.
 
 The same script enforces the two CI controls the release decision depends on:
 every workflow declares a top-level `permissions` and every job declares its
@@ -197,19 +214,28 @@ then writes `artifact-inventory.json` and a job summary carrying:
 - every artifact file with its family, target, size, and SHA-256, plus the
   file-by-file contents of the npm package and the public Rust crate.
 
-## The musl addon has no publication path yet
+## The musl addon has a qualification path, not a publication path
 
-`node-addon-targets` builds and qualifies eight addons, but
-`packages/javascript` declares six per-platform `optionalDependencies`
-(issue #79) and `runtime/node.ts` selects between them by
-`process.platform`/`process.arch` alone — there is no libc dimension. So an
-npm install on Alpine resolves the *gnu* package. The musl addons this
-matrix builds are qualified artifacts with no publication path, and the
-package-level pass here links the local build under whichever specifier the
-runtime resolves, which is why it passes on musl too.
+`node-addon-targets` builds and qualifies eight addons, but `npm ships glibc
+only` is an accepted decision
+(`decision-ship-first-release-artifact-set`, issue #79): `node-publish-targets`
+is the six non-musl triples, `packages/javascript` declares exactly those six
+per-platform `optionalDependencies`, and `runtime/node.ts` selects between
+them by `process.platform`/`process.arch` alone — there is deliberately no
+libc dimension, because there is nothing for one to select between. An npm
+install on Alpine therefore resolves the *gnu* package, which a musl host
+cannot load; that failure surfaces as the same `INITIALIZATION_FAILED` an
+unsupported platform gets, not a distinct musl error. The two musl addons
+this matrix builds are qualified artifacts with no publication path, by
+design, and the package-level pass here links the local build under
+whichever specifier the runtime resolves, which is why it passes on musl
+too.
 
-Closing that is issue #79's call: either two more platform packages and a
-libc-aware mapping, or a recorded decision that npm ships glibc only.
+`scripts/check-artifact-matrix.py` keeps this boundary from drifting: adding
+a target to `node-publish-targets` without also adding its
+`bindings/node/npm/<platform>/package.json`, its
+`packages/javascript/package.json` `optionalDependencies` entry, and its
+`runtime/node.ts` mapping (or the reverse) fails `npm run artifacts:check`.
 
 ## Incremental sanitization is unavailable on both JavaScript runtimes
 

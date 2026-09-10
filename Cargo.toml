@@ -198,6 +198,23 @@ node-addon-targets = [
   "x86_64-unknown-linux-gnu",
   "x86_64-unknown-linux-musl",
 ]
+# Every target with a published `@omiologic/secret-scan-<platform>` npm
+# package: `bindings/node/npm/<platform>/package.json` must exist for each,
+# `packages/javascript/package.json`'s `optionalDependencies` and
+# `runtime/node.ts`'s host-to-package mapping must name exactly these
+# packages, and no others. `decision-ship-first-release-artifact-set` is the
+# accepted decision that npm ships glibc only: the addon's two musl triples
+# are qualified (`node-addon-targets`) but never published, so this list is a
+# strict subset of the addon's eight, the same asymmetry
+# `cli-release-targets` records for the CLI. See docs/qualification.md.
+node-publish-targets = [
+  "aarch64-apple-darwin",
+  "aarch64-pc-windows-msvc",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+]
 # Every target a CLI release must build and smoke-test a `secret-scan` binary
 # for. The CLI ships no musl variant, so this is the six triples the addon
 # shares with `python-wheel-targets` and not the addon's own eight: a static
