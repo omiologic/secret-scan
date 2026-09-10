@@ -35,12 +35,19 @@ jobs:
     permissions:
       contents: read
 
+  artifact-qualification:
+    name: Artifact qualification
+    uses: ./.github/workflows/artifact-qualification.yml
+    permissions:
+      contents: read
+
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
     needs:
       - ci
       - python-wheels
+      - artifact-qualification
     environment:
       name: release
     permissions:
@@ -81,6 +88,19 @@ jobs:
       - run: echo noop
 """
 
+ARTIFACT_QUALIFICATION_YML = """\
+name: Artifact qualification
+
+on:
+  workflow_call:
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo noop
+"""
+
 
 class ReleaseGateTests(unittest.TestCase):
     """A fully-wired repository has no errors; each way of un-wiring it does."""
@@ -92,6 +112,7 @@ class ReleaseGateTests(unittest.TestCase):
         self._write("release.yml", RELEASE_YML)
         self._write("ci.yml", CI_YML)
         self._write("python-wheels.yml", WHEELS_YML)
+        self._write("artifact-qualification.yml", ARTIFACT_QUALIFICATION_YML)
 
     def _write(self, name: str, content: str) -> Path:
         path = self.root / ".github" / "workflows" / name
@@ -125,6 +146,15 @@ class ReleaseGateTests(unittest.TestCase):
         self._write("release.yml", broken)
         errors = CHECK.validate(self.root)
         self.assertTrue(any("does not need python-wheels" in error for error in errors))
+
+    def test_publish_not_needing_artifact_qualification_is_an_error(self) -> None:
+        broken = RELEASE_YML.replace(
+            "    needs:\n      - ci\n      - python-wheels\n      - artifact-qualification\n",
+            "    needs:\n      - ci\n      - python-wheels\n",
+        )
+        self._write("release.yml", broken)
+        errors = CHECK.validate(self.root)
+        self.assertTrue(any("does not need artifact-qualification" in error for error in errors))
 
     def test_removing_the_ci_gate_job_is_an_error(self) -> None:
         broken = RELEASE_YML.replace(

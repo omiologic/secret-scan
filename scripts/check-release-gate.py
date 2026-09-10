@@ -8,10 +8,8 @@ released. This script fails when that graph drifts: a required reusable
 workflow call job is removed, its `uses:` target is repointed, or `publish`
 stops declaring it in `needs:`.
 
-`REQUIRED_GATES` is the qualification set this repository can currently
-enforce. The Node/browser/CLI qualification workflow issue #74 (`RB-4`) adds
-is not in it yet, because that workflow does not exist -- RB-7 names RB-4 as
-a dependency for exactly that reason. Add its job id here once it lands.
+`REQUIRED_GATES` is the qualification set this repository enforces before
+`publish` may run.
 
 This intentionally parses the workflow YAML with plain text and regular
 expressions rather than a YAML library, matching
@@ -31,6 +29,7 @@ RELEASE_WORKFLOW = Path(".github") / "workflows" / "release.yml"
 REQUIRED_GATES = {
     "ci": "./.github/workflows/ci.yml",
     "python-wheels": "./.github/workflows/python-wheels.yml",
+    "artifact-qualification": "./.github/workflows/artifact-qualification.yml",
 }
 
 JOB_HEADER_PREFIX = "  "
