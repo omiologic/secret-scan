@@ -7,6 +7,14 @@ select or authorize a release.
 
 ### Added
 
+- `docs/audits/core-conformance-cli-boundary-review.md` records an independent
+  review of the release candidate across the canonical Rust core, the shared
+  conformance contract, and the CLI host boundary (#63): what was verified in
+  each area with the spans and reproductions that establish it, and eight
+  evidence-backed findings, each with its affected spans, severity, and an
+  exact exit condition. It records evidence only and authorizes no release
+  operation.
+
 - `docs/audits/closed-issue-acceptance-evidence-ledger.md` records criterion-level
   acceptance evidence for the closed Rust-core migration issues (#3-#10 and
   #12-#32): every original criterion, its class, the current files and
