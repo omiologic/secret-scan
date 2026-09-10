@@ -1,0 +1,792 @@
+{
+  "consumers": [
+    {
+      "exists": true,
+      "path": "crates/secret-scan-core/tests/canonical_corpus.rs",
+      "role": "asserts scan() over every synchronous-corpus.json fixture matches its declared expectations"
+    },
+    {
+      "exists": true,
+      "path": "crates/secret-scan-core/tests/public_api.rs",
+      "role": "asserts scan_and_redact() equals scan()+redact() over the synchronous corpus"
+    },
+    {
+      "exists": true,
+      "path": "crates/secret-scan-core/tests/incremental_partitions.rs",
+      "role": "asserts partition invariance over incremental-corpus.json at every UTF-8/UTF-16 boundary"
+    },
+    {
+      "exists": true,
+      "path": "crates/secret-scan-core/tests/adversarial_bounds.rs",
+      "role": "asserts the adversarial tier's declared resource caps hold on whole-input and incremental surfaces"
+    },
+    {
+      "exists": true,
+      "path": "crates/secret-scan-cli/tests/cli.rs",
+      "role": "asserts the CLI's --redact output matches the canonical corpus's redacted text"
+    },
+    {
+      "exists": true,
+      "path": "bindings/python/tests/test_conformance.py",
+      "role": "asserts the Python binding's scan() matches the canonical synchronous corpus"
+    },
+    {
+      "exists": true,
+      "path": "bindings/python/tests/test_incremental.py",
+      "role": "asserts the Python incremental sanitizer matches the canonical incremental corpus"
+    },
+    {
+      "exists": true,
+      "path": "bindings/wasm/src/lib.rs",
+      "role": "unit tests pin wasm scan/redact/scan_and_redact agreement on a synthetic finding"
+    },
+    {
+      "exists": true,
+      "path": "bindings/wasm/src/callbacks.rs",
+      "role": "unit tests pin the JS policy/detector callback contract, including safe-metadata-only visibility"
+    }
+  ],
+  "reconciliation": {
+    "corpusDetectorsMissingFromDeclaration": [],
+    "declaredDetectorsMissingFromCorpus": []
+  },
+  "rowStates": [
+    "supported",
+    "intentionally-unsupported",
+    "not-applicable",
+    "unresolved"
+  ],
+  "rows": [
+    {
+      "detector": "private-key",
+      "evidence": {
+        "fixtureCount": 7,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "private-key-positive"
+      ],
+      "policyClass": "block",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "private_key"
+    },
+    {
+      "detector": "aws-access-key",
+      "evidence": {
+        "fixtureCount": 7,
+        "hostContextsExercised": [
+          "dotenv",
+          "log",
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "aws-positive-akia"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "aws_access_key_id"
+    },
+    {
+      "detector": "github-token",
+      "evidence": {
+        "fixtureCount": 38,
+        "hostContextsExercised": [
+          "chat",
+          "curl",
+          "docker-compose",
+          "dotenv",
+          "github-actions",
+          "http",
+          "javascript",
+          "json",
+          "kubernetes",
+          "log",
+          "markdown",
+          "plain-text",
+          "powershell",
+          "python",
+          "shell",
+          "stack-trace",
+          "terminal",
+          "terraform",
+          "toml",
+          "typescript",
+          "xml",
+          "yaml"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "github-positive-classic",
+        "github-positive-installation-stateless",
+        "host-chat-github",
+        "host-curl-github",
+        "host-docker-compose-github",
+        "host-dotenv-github",
+        "host-github-actions-github",
+        "host-http-github",
+        "host-javascript-github",
+        "host-json-github",
+        "host-kubernetes-github",
+        "host-log-github",
+        "host-markdown-github",
+        "host-powershell-github",
+        "host-python-github",
+        "host-shell-github",
+        "host-shell-heredoc-github",
+        "host-stack-trace-github",
+        "host-terminal-github",
+        "host-terraform-github",
+        "host-toml-github",
+        "host-typescript-github",
+        "host-xml-github",
+        "host-yaml-github",
+        "mutation-github-00-identity",
+        "mutation-github-06-punctuation-boundary",
+        "mutation-github-07-quoted",
+        "mutation-github-09-host-embedding"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "github_token"
+    },
+    {
+      "detector": "gitlab-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "gitlab-positive-personal-access"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "gitlab_token"
+    },
+    {
+      "detector": "openai-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "openai-positive-project"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "openai_api_key"
+    },
+    {
+      "detector": "anthropic-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "anthropic-positive-versioned"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "anthropic_api_key"
+    },
+    {
+      "detector": "shopify-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "shopify-positive-admin-access"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "shopify_access_token"
+    },
+    {
+      "detector": "vault-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "vault-positive-service-token"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "vault_token"
+    },
+    {
+      "detector": "stripe-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "stripe-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "stripe_credential"
+    },
+    {
+      "detector": "slack-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "slack-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "slack_token"
+    },
+    {
+      "detector": "pypi-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "pypi-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "pypi_api_token"
+    },
+    {
+      "detector": "huggingface-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "huggingface-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "huggingface_token"
+    },
+    {
+      "detector": "docker-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "docker-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "docker_token"
+    },
+    {
+      "detector": "cloudflare-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "cloudflare-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "cloudflare_api_token"
+    },
+    {
+      "detector": "digitalocean-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "digitalocean-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "digitalocean_token"
+    },
+    {
+      "detector": "linear-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "linear-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "linear_token"
+    },
+    {
+      "detector": "supabase-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "supabase-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "supabase_secret_key"
+    },
+    {
+      "detector": "vercel-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "vercel-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "vercel_token"
+    },
+    {
+      "detector": "jwt",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "jwt-positive-structured"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "jwt"
+    },
+    {
+      "detector": "bearer-token",
+      "evidence": {
+        "fixtureCount": 5,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "bearer-positive-scheme"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "bearer_token"
+    },
+    {
+      "detector": "connection-string",
+      "evidence": {
+        "fixtureCount": 14,
+        "hostContextsExercised": [
+          "log",
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "boundary",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "connection-positive-encoded-ipv6",
+        "connection-positive-mongodb-seed-list",
+        "connection-positive-port",
+        "connection-positive-postgres",
+        "connection-positive-redis-password-only"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": [
+        {
+          "evidenceFixtureIds": [],
+          "scheme": "postgresql",
+          "state": "unresolved"
+        },
+        {
+          "evidenceFixtureIds": [
+            "connection-positive-postgres"
+          ],
+          "scheme": "postgres",
+          "state": "supported"
+        },
+        {
+          "evidenceFixtureIds": [],
+          "scheme": "mysql",
+          "state": "unresolved"
+        },
+        {
+          "evidenceFixtureIds": [],
+          "scheme": "mariadb",
+          "state": "unresolved"
+        },
+        {
+          "evidenceFixtureIds": [],
+          "scheme": "mongodb+srv",
+          "state": "unresolved"
+        },
+        {
+          "evidenceFixtureIds": [
+            "connection-positive-mongodb-seed-list"
+          ],
+          "scheme": "mongodb",
+          "state": "supported"
+        },
+        {
+          "evidenceFixtureIds": [
+            "connection-positive-redis-password-only"
+          ],
+          "scheme": "redis",
+          "state": "supported"
+        },
+        {
+          "evidenceFixtureIds": [],
+          "scheme": "rediss",
+          "state": "unresolved"
+        },
+        {
+          "evidenceFixtureIds": [],
+          "scheme": "amqp",
+          "state": "unresolved"
+        },
+        {
+          "evidenceFixtureIds": [],
+          "scheme": "amqps",
+          "state": "unresolved"
+        }
+      ],
+      "state": "supported",
+      "type": "connection_string_password"
+    },
+    {
+      "detector": "generic-token",
+      "evidence": {
+        "fixtureCount": 19,
+        "hostContextsExercised": [
+          "javascript",
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "contextual-positive-assignment",
+        "contextual-positive-aws-secret-access-key",
+        "contextual-positive-aws-session-token",
+        "contextual-positive-escaped-quote"
+      ],
+      "policyClass": "confidence-gated",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "contextual_secret"
+    },
+    {
+      "detector": "generic-token",
+      "evidence": {
+        "fixtureCount": 19,
+        "hostContextsExercised": [
+          "javascript",
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [],
+      "policyClass": "always-redact",
+      "schemeRows": [
+        {
+          "evidenceFixtureIds": [],
+          "scheme": "basic",
+          "state": "unresolved"
+        },
+        {
+          "evidenceFixtureIds": [],
+          "scheme": "token",
+          "state": "unresolved"
+        }
+      ],
+      "state": "unresolved",
+      "type": "authorization_credential"
+    }
+  ],
+  "summary": {
+    "intentionally-unsupported": 0,
+    "not-applicable": 0,
+    "supported": 22,
+    "unresolved": 1
+  }
+}

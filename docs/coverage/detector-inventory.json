@@ -1,0 +1,217 @@
+{
+  "note": "Hand-authored baseline declaration for issue #101 (tracking-key dacd-f1-t1). One entry per finding type the built-in registry (crates/secret-scan-core/src/detectors) can emit, joined to its default-policy classification (crates/secret-scan-core/src/policy.rs). Reconciled against the real registry and DefaultPolicy by crates/secret-scan-core/src/detectors/mod.rs::tests::built_in_inventory_matches_the_declared_baseline, which fails if a detector, its emitted type(s), or its policy class drift from this file. scripts/generate-coverage-inventory.py joins this file with the canonical corpus (conformance/fixtures/synchronous-corpus.json) to report evidence coverage; this file itself carries no fixture input, no corpus data, and no matched value. Every reconciliationTrigger string is a synthetic, revoked literal already shipped verbatim elsewhere in crates/secret-scan-core/src (grep it to confirm) -- none is newly invented secret-shaped text.",
+  "policyClasses": ["block", "always-redact", "confidence-gated"],
+  "rowStates": ["supported", "intentionally-unsupported", "not-applicable", "unresolved"],
+  "types": [
+    {
+      "type": "private_key",
+      "detector": "private-key",
+      "policyClass": "block",
+      "reconciliationTrigger": "-----BEGIN PRIVATE KEY-----\nU1lOVEhFVElDX1JFVk9LRURfRklYVFVSRQ==\n-----END PRIVATE KEY-----",
+      "schemes": null
+    },
+    {
+      "type": "aws_access_key_id",
+      "detector": "aws-access-key",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "AKIASYNTHETICEXAMPLE",
+      "schemes": null
+    },
+    {
+      "type": "github_token",
+      "detector": "github-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "ghp_SYNTHETICREVOKED00000000000000000000",
+      "schemes": null
+    },
+    {
+      "type": "gitlab_token",
+      "detector": "gitlab-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "glpat-SYNTHETIC_REVOKED_TOKEN_FIXTURE",
+      "schemes": null
+    },
+    {
+      "type": "openai_api_key",
+      "detector": "openai-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "sk-proj-SYNTHETIC_REVOKED_OPENAI_KEY",
+      "schemes": null
+    },
+    {
+      "type": "anthropic_api_key",
+      "detector": "anthropic-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "sk-ant-api03-SYNTHETIC_REVOKED_ANTHROPIC_KEY",
+      "schemes": null
+    },
+    {
+      "type": "shopify_access_token",
+      "detector": "shopify-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "shpat_SYNTHETIC_REVOKED_SHOPIFY_TOKEN",
+      "schemes": null
+    },
+    {
+      "type": "vault_token",
+      "detector": "vault-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "hvs.SYNTHETIC_REVOKED_VAULT_TOKEN",
+      "schemes": null
+    },
+    {
+      "type": "stripe_credential",
+      "detector": "stripe-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "sk_live_SYNTHETICREVOKEDPROVIDERVALUE",
+      "schemes": null
+    },
+    {
+      "type": "slack_token",
+      "detector": "slack-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "xoxb-SYNTHETICREVOKEDPROVIDERVALUE",
+      "schemes": null
+    },
+    {
+      "type": "pypi_api_token",
+      "detector": "pypi-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "pypi-SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_SYNTHETIC_REVOKED_",
+      "schemes": null
+    },
+    {
+      "type": "huggingface_token",
+      "detector": "huggingface-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "hf_SYNTHETICREVOKEDPROVIDERVALUE",
+      "schemes": null
+    },
+    {
+      "type": "docker_token",
+      "detector": "docker-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "dckr_pat_SYNTHETICREVOKEDPROVIDERVALUE",
+      "schemes": null
+    },
+    {
+      "type": "cloudflare_api_token",
+      "detector": "cloudflare-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "cfut_SYNTHETICREVOKEDPROVIDERVALUE",
+      "schemes": null
+    },
+    {
+      "type": "digitalocean_token",
+      "detector": "digitalocean-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "dop_v1_SYNTHETICREVOKEDPROVIDERVALUE",
+      "schemes": null
+    },
+    {
+      "type": "linear_token",
+      "detector": "linear-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "lin_api_SYNTHETICREVOKEDPROVIDERVALUE",
+      "schemes": null
+    },
+    {
+      "type": "supabase_secret_key",
+      "detector": "supabase-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "sb_secret_SYNTHETICREVOKEDPROVIDERVALUE",
+      "schemes": null
+    },
+    {
+      "type": "vercel_token",
+      "detector": "vercel-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "vcp_SYNTHETICREVOKEDPROVIDERVALUE",
+      "schemes": null
+    },
+    {
+      "type": "jwt",
+      "detector": "jwt",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "eyJTWU5USEVUSUNfSEVBREVS.eyJTWU5USEVUSUNfUEFZTE9BRA.SYNTHETIC_REVOKED_SIGNATURE",
+      "schemes": null
+    },
+    {
+      "type": "bearer_token",
+      "detector": "bearer-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "Bearer SYNTHETIC_REVOKED_BEARER_VALUE",
+      "schemes": null
+    },
+    {
+      "type": "connection_string_password",
+      "detector": "connection-string",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost/db",
+      "schemes": [
+        "postgresql",
+        "postgres",
+        "mysql",
+        "mariadb",
+        "mongodb+srv",
+        "mongodb",
+        "redis",
+        "rediss",
+        "amqp",
+        "amqps"
+      ]
+    },
+    {
+      "type": "contextual_secret",
+      "detector": "generic-token",
+      "policyClass": "confidence-gated",
+      "reconciliationTrigger": "api_key=SYNTHETIC_REVOKED_CONTEXT_VALUE",
+      "schemes": null
+    },
+    {
+      "type": "authorization_credential",
+      "detector": "generic-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "Authorization: Token SYNTHETIC_REVOKED_TOKEN_VALUE_1234",
+      "schemes": ["basic", "token"]
+    }
+  ],
+  "consumers": [
+    {
+      "path": "crates/secret-scan-core/tests/canonical_corpus.rs",
+      "role": "asserts scan() over every synchronous-corpus.json fixture matches its declared expectations"
+    },
+    {
+      "path": "crates/secret-scan-core/tests/public_api.rs",
+      "role": "asserts scan_and_redact() equals scan()+redact() over the synchronous corpus"
+    },
+    {
+      "path": "crates/secret-scan-core/tests/incremental_partitions.rs",
+      "role": "asserts partition invariance over incremental-corpus.json at every UTF-8/UTF-16 boundary"
+    },
+    {
+      "path": "crates/secret-scan-core/tests/adversarial_bounds.rs",
+      "role": "asserts the adversarial tier's declared resource caps hold on whole-input and incremental surfaces"
+    },
+    {
+      "path": "crates/secret-scan-cli/tests/cli.rs",
+      "role": "asserts the CLI's --redact output matches the canonical corpus's redacted text"
+    },
+    {
+      "path": "bindings/python/tests/test_conformance.py",
+      "role": "asserts the Python binding's scan() matches the canonical synchronous corpus"
+    },
+    {
+      "path": "bindings/python/tests/test_incremental.py",
+      "role": "asserts the Python incremental sanitizer matches the canonical incremental corpus"
+    },
+    {
+      "path": "bindings/wasm/src/lib.rs",
+      "role": "unit tests pin wasm scan/redact/scan_and_redact agreement on a synthetic finding"
+    },
+    {
+      "path": "bindings/wasm/src/callbacks.rs",
+      "role": "unit tests pin the JS policy/detector callback contract, including safe-metadata-only visibility"
+    }
+  ]
+}
