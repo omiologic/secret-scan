@@ -1,5 +1,5 @@
 {
-  "fixtureCount": 10,
+  "fixtureCount": 11,
   "fixtures": [
     {
       "id": "lifecycle-abort-rejects-append",
@@ -93,6 +93,22 @@
         "findingCount": 0
       },
       "note": "A second abort is rejected rather than silently repeated."
+    },
+    {
+      "id": "lifecycle-abort-with-no-prior-append",
+      "surface": "incremental",
+      "operations": [
+        {
+          "op": "abort"
+        }
+      ],
+      "outcome": {
+        "ok": true,
+        "state": "aborted",
+        "text": "",
+        "findingCount": 0
+      },
+      "note": "Abort succeeds as the very first operation on a session that never appended anything."
     },
     {
       "id": "lifecycle-input-limit-exceeded",

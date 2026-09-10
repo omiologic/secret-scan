@@ -927,6 +927,51 @@ fn a_limit_failure_emits_the_same_safe_error_however_the_input_is_partitioned() 
     }
 }
 
+/// `IncrementalLimits::new` refuses any `max_buffered_bytes` below
+/// `IncrementalLimits::minimum_buffered_bytes(token, multiline)`, which is
+/// always strictly greater than both construct limits. That ordering is what
+/// makes `SecretScanErrorCode::BufferLimitExceeded` a defense-in-depth
+/// backstop rather than a reachable outcome of today's built-in detector set:
+/// an open construct's own token or multiline limit always trips first, no
+/// matter how the input is partitioned. This proves the backstop's
+/// deterministic safety the same way the other declared limits are proved
+/// above — by driving every partition of an over-limit input to failure and
+/// asserting the same construct-limit code every time, never a silent
+/// overrun of `max_buffered_bytes` and never `BufferLimitExceeded` itself.
+#[test]
+fn a_multiline_limit_failure_fires_before_the_buffered_backstop_however_the_input_is_partitioned()
+ {
+    let (token, multiline) = (64, 64);
+    let buffered = IncrementalLimits::minimum_buffered_bytes(token, multiline);
+    assert!(
+        buffered > token.max(multiline),
+        "the buffered limit must stay strictly above both construct limits",
+    );
+    let limits = IncrementalLimits::new(100_000, buffered, token, multiline).unwrap();
+
+    // The retained bytes below (29 + 130 = 159) sit comfortably under the
+    // buffered limit (64 + 128 = 192) but well past the multiline limit
+    // (64): if the buffered backstop could ever fire first, it would fire
+    // here.
+    let input = format!("-----BEGIN PRIVATE KEY-----\n{}", "A".repeat(130));
+    assert!(input.len() > multiline);
+    assert!(input.len() < buffered);
+
+    let mut partitions: Vec<Vec<&str>> = (0..=input.len())
+        .filter(|&split| input.is_char_boundary(split))
+        .map(|split| vec![&input[..split], &input[split..]])
+        .collect();
+    partitions.push((0..input.len()).map(|index| &input[index..=index]).collect());
+
+    for chunks in partitions {
+        let (emitted, code, state) = run_until_failure(limits, &chunks);
+
+        assert_eq!(code, Some(SecretScanErrorCode::MultilineLimitExceeded));
+        assert_eq!(state, SessionState::Failed);
+        assert!(emitted.is_empty(), "emitted {emitted:?}");
+    }
+}
+
 #[test]
 fn an_aborted_session_never_emits_the_construct_it_was_holding() {
     let value = "SYNTHETIC_REVOKED_ABORTED_VALUE";

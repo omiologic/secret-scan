@@ -73,6 +73,13 @@ export const incrementalLifecycleFixtures: readonly CanonicalLifecycleFixture[] 
     note: "A second abort is rejected rather than silently repeated.",
   },
   {
+    id: "lifecycle-abort-with-no-prior-append",
+    surface: "incremental",
+    operations: [{ op: "abort" }],
+    outcome: { ok: true, state: "aborted", text: "", findingCount: 0 },
+    note: "Abort succeeds as the very first operation on a session that never appended anything.",
+  },
+  {
     id: "lifecycle-input-limit-exceeded",
     surface: "incremental",
     limits: { ...LIMITS, maxInputCodeUnits: 16_384 },
