@@ -57,12 +57,61 @@ interface NodeAddon {
   ): NativeIncrementalSanitizer;
 }
 
-/** The platform artifact published in lockstep with this package. */
-const ADDON_SPECIFIER = "@omiologic/secret-scan-node";
+/**
+ * One `optionalDependencies` entry per `bindings/node/package.json`'s
+ * `napi.targets`, published in lockstep with this package
+ * (`bindings/node/npm/<platform>/package.json`). `os`/`cpu`/`libc` on each
+ * of those manifests is what makes every non-matching entry optional in the
+ * literal npm sense: an install skips the ones that do not match instead of
+ * failing on them.
+ */
+const PLATFORM_PACKAGES: Readonly<
+  Partial<Record<string, Readonly<Partial<Record<string, string>>>>>
+> = {
+  darwin: {
+    arm64: "@omiologic/secret-scan-darwin-arm64",
+    x64: "@omiologic/secret-scan-darwin-x64",
+  },
+  linux: {
+    arm64: "@omiologic/secret-scan-linux-arm64-gnu",
+    x64: "@omiologic/secret-scan-linux-x64-gnu",
+  },
+  win32: {
+    arm64: "@omiologic/secret-scan-win32-arm64-msvc",
+    x64: "@omiologic/secret-scan-win32-x64-msvc",
+  },
+};
+
+/**
+ * The addon package this host should have installed, or `undefined` on a
+ * platform/architecture this package ships no addon for at all — the
+ * runtime fallback that keeps an unsupported host's failure identical to a
+ * supported host whose optional dependency did not install: both reach
+ * `loadAddon`'s own `INITIALIZATION_FAILED`, never a raw `require` error.
+ *
+ * Exported so `scripts/qualify-node-addon.mjs` and
+ * `scripts/qualify-package-consumer.mjs` compute the same host-to-package
+ * mapping this module actually loads from, instead of restating it.
+ */
+export function resolveAddonSpecifier(): string | undefined {
+  return PLATFORM_PACKAGES[process.platform]?.[process.arch];
+}
 
 function loadAddon(): NodeAddon {
+  const specifier = resolveAddonSpecifier();
+  if (specifier === undefined) {
+    throw new SecretScanError("INITIALIZATION_FAILED");
+  }
+
   const require = createRequire(import.meta.url);
-  const addon = require(ADDON_SPECIFIER) as Partial<NodeAddon>;
+  let addon: Partial<NodeAddon>;
+  try {
+    addon = require(specifier) as Partial<NodeAddon>;
+  } catch {
+    // Not installed (an optional dependency npm skipped, or one that failed
+    // to install) and a corrupt addon both fail the same fixed way.
+    throw new SecretScanError("INITIALIZATION_FAILED");
+  }
   for (const name of [
     "version",
     "initialize",

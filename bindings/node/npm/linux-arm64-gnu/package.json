@@ -1,0 +1,19 @@
+{
+  "name": "@omiologic/secret-scan-linux-arm64-gnu",
+  "description": "N-API native addon for @omiologic/secret-scan (linux-arm64-gnu). Not intended for direct use; installed as an optional dependency of @omiologic/secret-scan.",
+  "version": "0.1.0-beta.1",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "libc": ["glibc"],
+  "main": "secret-scan.linux-arm64-gnu.node",
+  "files": ["secret-scan.linux-arm64-gnu.node"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omiologic/secret-scan.git",
+    "directory": "bindings/node"
+  },
+  "engines": {
+    "node": "20.x || 22.x"
+  }
+}

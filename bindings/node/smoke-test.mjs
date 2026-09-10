@@ -1,9 +1,9 @@
 // Node package smoke test for the compiled N-API addon
 // (`decision-define-runtime-bindings`). Run with `npm run smoke` after
 // `npm run build` / `npm run build:debug`. Not part of `cargo test`: this
-// exercises the addon the way an actual Node consumer of
-// `@omiologic/secret-scan-node` does, through `require`/`import`, not Rust
-// unit tests.
+// exercises the addon the way an actual Node consumer of one of its
+// published per-platform packages (`npm/<platform>/package.json`) does,
+// through `require`/`import`, not Rust unit tests.
 
 import assert from "node:assert/strict";
 import {
