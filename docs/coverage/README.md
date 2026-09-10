@@ -38,9 +38,13 @@ sufficient coverage evidence.
   the declaration, or a declared consumer path that no longer exists.
   Reporting a row as `unresolved` is not an error: it is the baseline
   honestly stating that a reachable finding type or scheme currently has no
-  positive corpus evidence and no documented reason to be exempt (see
-  `authorization_credential`, tracked separately as `C/F-03` in
-  [`docs/audits/deferred-quality-backlog.md`](../audits/deferred-quality-backlog.md)).
+  positive corpus evidence and no documented reason to be exempt. No row is
+  currently `unresolved` — `authorization_credential` was the last one,
+  closed by issue #105; the 5 remaining evidence-*breadth* gaps
+  (`coverage-declarations.json`'s `pending` dimension cells, below) are
+  tracked as
+  [`docs/audits/detection-assurance-residual-evidence-backlog.md`](../audits/detection-assurance-residual-evidence-backlog.md)
+  by issue [#136](https://github.com/omiologic/secret-scan/issues/136).
 
 Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_coverage_inventory.py'`.
 
@@ -144,3 +148,8 @@ resolve honestly, and that model encoded as data:
   declaration types (above) — that model, machine-validated (issue #103).
 - `coverage-report.md` and "Coverage drift is a CI failure" (above) — that
   baseline and model, summarized for review and enforced in CI (issue #104).
+- [`docs/audits/detection-assurance-closeout-audit.md`](../audits/detection-assurance-closeout-audit.md) —
+  the Epic [#95](https://github.com/omiologic/secret-scan/issues/95) closeout
+  (issue #118): coverage by capability and risk dimension, the classification
+  and ownership of every currently `pending` cell, and confirmation that
+  public documentation matches this baseline.
