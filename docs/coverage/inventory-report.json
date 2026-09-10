@@ -60,7 +60,7 @@
     {
       "detector": "private-key",
       "evidence": {
-        "fixtureCount": 7,
+        "fixtureCount": 14,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -76,7 +76,11 @@
         ]
       },
       "evidenceFixtureIds": [
-        "private-key-positive"
+        "private-key-positive",
+        "private-key-positive-crlf-line-endings",
+        "private-key-positive-dsa-label",
+        "private-key-positive-encrypted-label",
+        "private-key-positive-openssh-multiline-body"
       ],
       "policyClass": "block",
       "schemeRows": "not-applicable",
@@ -603,7 +607,7 @@
     {
       "detector": "jwt",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 11,
         "hostContextsExercised": [
           "plain-text"
         ],
