@@ -131,3 +131,43 @@ jobs:
             --field ref="refs/tags/$TAG_NAME" \
             --field sha="$tag_object"
 
+      # Runs even when an earlier step in this job failed, so a partial or
+      # failed release still leaves a durable record of what it attempted.
+      # decision-release-bindings-in-lockstep and ARCHITECTURE.md's
+      # "Versioning, qualification, and release" section require this.
+      - name: Record release manifest
+        id: manifest
+        if: always()
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version" 2>/dev/null || true)
+          package_name=$(node -p "require('./package.json').name" 2>/dev/null || true)
+          conformance_identity=$(git rev-parse "$GITHUB_SHA:conformance" 2>/dev/null || true)
+
+          registry_state=unknown
+          if [[ -n "$package_name" && -n "$version" ]]; then
+            if npm view "$package_name@$version" version >/dev/null 2>&1; then
+              registry_state=published
+            else
+              registry_state=unpublished
+            fi
+          fi
+
+          python3 -B scripts/release-manifest.py \
+            --source-revision "$GITHUB_SHA" \
+            --conformance-identity "${conformance_identity:-unknown}" \
+            --version "${version:-unknown}" \
+            --artifact "npm:${package_name:-unknown}" \
+            --registry-state "npm=$registry_state" \
+            --out manifest.json
+
+          echo "version=${version:-unknown}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release manifest
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-manifest-${{ steps.manifest.outputs.version }}
+          path: manifest.json
+          if-no-files-found: error
+
