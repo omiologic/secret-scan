@@ -7,6 +7,15 @@ select or authorize a release.
 
 ### Added
 
+- `docs/audits/javascript-python-bindings-package-contracts-review.md` records
+  an independent review of the release candidate across the JavaScript runtime
+  adapters, the Python binding, and the npm and PyPI package contracts (#64):
+  what was verified for each acceptance criterion with the spans and
+  reproductions that establish it, and twelve evidence-backed findings — three
+  of them blocking, all in the browser half of the JavaScript package — each
+  with its affected public contract, severity, and an exact exit condition. It
+  records evidence only and authorizes no release operation.
+
 - `docs/audits/core-conformance-cli-boundary-review.md` records an independent
   review of the release candidate across the canonical Rust core, the shared
   conformance contract, and the CLI host boundary (#63): what was verified in

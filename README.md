@@ -381,6 +381,12 @@ CLI boundary, with its findings and their exit conditions, is recorded in
 [docs/audits/core-conformance-cli-boundary-review.md](./docs/audits/core-conformance-cli-boundary-review.md).
 It records evidence only; it does not authorize any release operation.
 
+An independent review of the JavaScript and Python runtime adapters and the
+package contracts they declare, with its findings and their exit conditions, is
+recorded in
+[docs/audits/javascript-python-bindings-package-contracts-review.md](./docs/audits/javascript-python-bindings-package-contracts-review.md).
+It records evidence only; it does not authorize any release operation.
+
 ## License
 
 [MIT](./LICENSE)
