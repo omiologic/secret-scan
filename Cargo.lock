@@ -449,6 +449,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "secret-scan",
+ "serde_json",
 ]
 
 [[package]]
@@ -465,6 +466,7 @@ version = "0.1.0-beta.1"
 dependencies = [
  "js-sys",
  "secret-scan",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]

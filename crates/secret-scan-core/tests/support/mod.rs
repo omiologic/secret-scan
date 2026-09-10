@@ -31,6 +31,11 @@ const INCREMENTAL_CORPUS: &str =
 const SYNCHRONOUS_CORPUS: &str =
     include_str!("../../../../conformance/fixtures/synchronous-corpus.json");
 
+/// The canonical Unicode range-conversion corpus: UTF-8 byte spans every
+/// binding's native range conversion must preserve.
+const UNICODE_CONVERSION_CORPUS: &str =
+    include_str!("../../../../conformance/fixtures/unicode-conversion-corpus.json");
+
 /// One canonical expectation: safe classification metadata and a UTF-8 byte
 /// range. The schema has no field for a matched value.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -61,6 +66,16 @@ pub struct CanonicalIncrementalFixture {
     pub input: String,
     pub text: String,
     pub expected: Vec<CanonicalExpectation>,
+}
+
+/// A canonical Unicode range-conversion fixture: an input and the single
+/// UTF-8 byte span every binding's native range conversion must preserve.
+#[derive(Clone, Debug)]
+pub struct CanonicalRangeFixture {
+    pub id: String,
+    pub input: String,
+    pub start: usize,
+    pub end: usize,
 }
 
 /// A canonical synchronous fixture, with the resource caps the adversarial
@@ -204,6 +219,31 @@ pub fn synchronous_corpus() -> Vec<CanonicalFixture> {
                 input: text_field(fixture, "input", &id),
                 expected: parse_expectations(fixture, &id),
                 resource,
+                id,
+            }
+        })
+        .collect()
+}
+
+/// Every fixture in `conformance/fixtures/unicode-conversion-corpus.json`.
+pub fn unicode_conversion_corpus() -> Vec<CanonicalRangeFixture> {
+    parse_corpus(UNICODE_CONVERSION_CORPUS, "unicode-conversion-corpus.json")
+        .iter()
+        .map(|fixture| {
+            let id = text_field(fixture, "id", "<unidentified>");
+            let input = text_field(fixture, "input", &id);
+            let expectations = parse_expectations(fixture, &id).unwrap_or_else(|| {
+                panic!("unicode-conversion fixture {id} must declare an expectation")
+            });
+            assert_eq!(
+                expectations.len(),
+                1,
+                "unicode-conversion fixture {id} must declare exactly one expectation",
+            );
+            CanonicalRangeFixture {
+                start: expectations[0].start,
+                end: expectations[0].end,
+                input,
                 id,
             }
         })
