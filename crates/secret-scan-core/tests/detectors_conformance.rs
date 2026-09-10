@@ -148,3 +148,64 @@ fn structured_jwt_overlap_winner_redacts_under_default_policy() {
     assert_eq!(findings[0].range(), range(22, 101));
     assert_eq!(findings[0].action(), Action::Redact);
 }
+
+// --- issue #108: deepened connection-string scheme and escaping coverage --
+//
+// `connection_string.rs`'s own unit tests and the corpus fixtures cited below
+// prove *detection* for every previously-unresolved scheme
+// (`postgresql`, `mysql`, `mariadb`, `mongodb+srv`, `rediss`, `amqp`,
+// `amqps`). This asserts the always-redact policy outcome
+// (`docs/coverage/detector-inventory.json`'s `connection_string_password`
+// row) holds for a representative sample of them too, not merely detection.
+
+/// fixture: connection-positive-postgresql, connection-positive-mariadb-percent-encoded,
+/// connection-positive-mongodb-srv, connection-positive-rediss-fragment,
+/// connection-positive-amqp-query, connection-positive-amqps
+///
+/// Every newly-evidenced scheme still redacts under the default policy, not
+/// merely gets detected.
+#[test]
+fn every_newly_evidenced_scheme_redacts_under_default_policy() {
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+    let inputs = [
+        "postgresql://fixture:SYNTHETIC_REVOKED_DB_VALUE@db.example.test:5432/db",
+        "mariadb://fixture:SYNTHETIC%3AREVOKED@db.example.test:3306/db",
+        "mongodb+srv://fixture:SYNTHETIC_REVOKED_DB_VALUE@cluster0.example.mongodb.net/db",
+        "rediss://:SYNTHETIC_REVOKED_DB_VALUE@cache.example.test:6380#primary",
+        "amqp://fixture:SYNTHETIC_REVOKED_DB_VALUE@rabbit.example.test:5672?heartbeat=30",
+        "amqps://fixture:SYNTHETIC_REVOKED_DB_VALUE@rabbit.example.test:5671/vh",
+    ];
+
+    for input in inputs {
+        let findings = scan(input, &registry, &DefaultPolicy).unwrap();
+        assert_eq!(findings.len(), 1, "{input}");
+        assert_eq!(
+            findings[0].type_name(),
+            "connection_string_password",
+            "{input}"
+        );
+        assert_eq!(findings[0].action(), Action::Redact, "{input}");
+    }
+}
+
+/// fixture: connection-boundary-mongodb-unicode-host, connection-boundary-redis-unescaped-at,
+/// connection-boundary-mariadb-unescaped-slash, connection-boundary-postgresql-malformed-ipv6
+///
+/// Every escaping/host-grammar boundary case produces no finding at all
+/// through the full built-in registry, so there is no policy outcome and no
+/// overlap candidate left behind for another detector to misclassify.
+#[test]
+fn connection_string_escaping_boundaries_produce_no_finding_through_the_full_registry() {
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+    let inputs = [
+        "mongodb://fixture:SYNTHETIC_REVOKED_DB_VALUE@café.example.test:27017/db",
+        "redis://:pass@word@cache.example.test:6379/0",
+        "mariadb://fixture:pa/ss@db.example.test/example",
+        "postgresql://fixture:SYNTHETIC_REVOKED_DB_VALUE@[2001:db8::g]/example",
+    ];
+
+    for input in inputs {
+        let findings = scan(input, &registry, &DefaultPolicy).unwrap();
+        assert_eq!(findings, Vec::new(), "{input}");
+    }
+}

@@ -471,6 +471,18 @@ mod tests {
                 "postgresql",
             ),
             (
+                "mysql://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost:3306/db",
+                "mysql",
+            ),
+            (
+                "mariadb://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost:3306/db",
+                "mariadb",
+            ),
+            (
+                "mongodb+srv://fixture:SYNTHETIC_REVOKED_DB_VALUE@cluster0.example.mongodb.net/db",
+                "mongodb+srv",
+            ),
+            (
                 "mongodb://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost:27017/db",
                 "mongodb",
             ),
@@ -554,5 +566,104 @@ mod tests {
     #[test]
     fn id_is_stable() {
         assert_eq!(ConnectionStringDetector.id(), "connection-string");
+    }
+
+    // --- issue #108: deepened connection-string scheme and escaping coverage --
+    //
+    // `requires_immediate_backtrack_between_prefix_schemes` (above) now also
+    // exercises `mysql`, `mariadb`, and `mongodb+srv` positive detection.
+    // These tests deepen the remaining acceptance criteria: a valid mongodb+srv
+    // DNS-seedlist host, IPv6 host validity at its accepted/rejected edge, a
+    // Unicode host, and the reserved-delimiter escaping rules for `@` and `/`
+    // in userinfo. `conformance/fixtures/synchronous-corpus.json` carries the
+    // cross-language fixtures for the same behaviors, named per scheme.
+
+    #[test]
+    fn a_standard_mongodb_srv_host_is_recognized() {
+        let input =
+            "mongodb+srv://fixture:SYNTHETIC_REVOKED_DB_VALUE@cluster0.example.mongodb.net/db";
+        let password_start = input.find("SYNTHETIC").unwrap();
+        let found = detect(input);
+        assert_eq!(
+            spans(&found),
+            [(
+                password_start,
+                password_start + "SYNTHETIC_REVOKED_DB_VALUE".len()
+            )]
+        );
+    }
+
+    #[test]
+    fn ipv6_host_with_a_valid_hex_group_is_accepted() {
+        let input = "postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@[2001:db8::1]:5432/db";
+        assert_eq!(detect(input).len(), 1);
+    }
+
+    #[test]
+    fn ipv6_host_with_a_non_hex_group_is_rejected() {
+        assert_eq!(
+            detect("postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@[2001:db8::g]/db"),
+            Vec::new()
+        );
+    }
+
+    #[test]
+    fn a_unicode_host_label_is_not_an_ascii_reg_name_and_is_rejected() {
+        assert_eq!(
+            detect("postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@café.example.test/db"),
+            Vec::new()
+        );
+    }
+
+    #[test]
+    fn an_unescaped_at_in_the_password_makes_the_authority_boundary_ambiguous() {
+        assert_eq!(
+            detect("redis://:pass@word@cache.example.test:6379/0"),
+            Vec::new()
+        );
+    }
+
+    #[test]
+    fn an_unescaped_slash_in_the_password_ends_the_authority_before_its_at() {
+        assert_eq!(detect("postgres://fixture:pa/ss@localhost/db"), Vec::new());
+    }
+
+    #[test]
+    fn a_percent_encoded_reserved_delimiter_in_the_password_is_kept_undecoded() {
+        let input = "postgres://fixture:SYNTHETIC%3AREVOKED@localhost/db";
+        let password_start = input.find("SYNTHETIC").unwrap();
+        let found = detect(input);
+        assert_eq!(
+            spans(&found),
+            [(password_start, password_start + "SYNTHETIC%3AREVOKED".len())]
+        );
+    }
+
+    #[test]
+    fn a_query_string_with_no_path_terminates_the_authority() {
+        let input = "postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost?sslmode=require";
+        assert_eq!(detect(input).len(), 1);
+    }
+
+    #[test]
+    fn a_fragment_with_no_path_terminates_the_authority() {
+        let input = "postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost#primary";
+        assert_eq!(detect(input).len(), 1);
+    }
+
+    #[test]
+    fn a_port_above_the_valid_range_is_rejected() {
+        assert_eq!(
+            detect("postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost:70000/db"),
+            Vec::new()
+        );
+    }
+
+    #[test]
+    fn a_port_longer_than_five_digits_is_rejected() {
+        assert_eq!(
+            detect("postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost:123456/db"),
+            Vec::new()
+        );
     }
 }

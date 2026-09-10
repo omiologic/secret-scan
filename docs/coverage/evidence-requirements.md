@@ -175,15 +175,21 @@ Applying §4's matrix and §5's exception codes to the current baseline
   `no-concept` (`schemes: null`), not `unresolved` — the current baseline
   already encodes this correctly. `connection_string_password` carries the
   class's extra targeted `log` context (grammar-specific leakage risk, §3)
-  and resolves each of its 10 declared schemes independently: `postgres`,
-  `mongodb`, and `redis` are `supported` on real fixtures; the other 7
-  (`postgresql`, `mysql`, `mariadb`, `mongodb+srv`, `rediss`, `amqp`,
-  `amqps`) are honestly `unresolved` — a real, bounded gap, not one this
-  model needs to paper over, since the type-level state only requires one
-  scheme's positive evidence to resolve `supported` and the model does not
-  claim per-scheme completion it cannot show. **All 4 resolve `supported`
-  at the type level**, with `connection_string_password`'s per-scheme ledger
-  correctly showing partial coverage rather than a false `supported`.
+  and resolves each of its 10 declared schemes independently: since issue
+  [#108](https://github.com/omiologic/secret-scan/issues/108) (deepened
+  scheme and escaping coverage), every declared scheme (`postgres`,
+  `postgresql`, `mysql`, `mariadb`, `mongodb`, `mongodb+srv`, `redis`,
+  `rediss`, `amqp`, `amqps`) carries its own positive fixture, plus
+  credential-absent, malformed-authority, and boundary fixtures naming that
+  scheme, so none defaults to a borrowed or unresolved state. The same pass
+  also dispositioned the escaping surface the scheme matrix does not itself
+  cover: percent-encoded reserved delimiters kept undecoded in the selected
+  span, an unescaped `@` or `/` in userinfo truncating or invalidating the
+  authority, `?`/`#` terminating the authority the same as `/`, a rejected
+  IPv6 host with a non-hex group, and a rejected non-ASCII (Unicode/IDN)
+  host label. **All 4 resolve `supported` at the type level**, and
+  `connection_string_password`'s per-scheme ledger now shows full coverage
+  rather than partial.
 - **2 contextual rows** (`contextual_secret`, `authorization_credential`,
   both on `generic-token`): both inherit `overlap`, `malformed`, and
   `adversarial` evidence from `generic-token`'s shared fixtures

@@ -1668,11 +1668,17 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "connection-positive-amqp-query",
+            "connection-positive-amqps",
             "connection-positive-encoded-ipv6",
+            "connection-positive-mariadb-percent-encoded",
             "connection-positive-mongodb-seed-list",
+            "connection-positive-mongodb-srv",
             "connection-positive-port",
             "connection-positive-postgres",
-            "connection-positive-redis-password-only"
+            "connection-positive-postgresql",
+            "connection-positive-redis-password-only",
+            "connection-positive-rediss-fragment"
           ],
           "state": "supported"
         },
@@ -1694,8 +1700,16 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "connection-boundary-amqp-invalid-port-length",
+            "connection-boundary-amqps-malformed-ipv6",
+            "connection-boundary-mariadb-unescaped-slash",
             "connection-boundary-missing-password",
+            "connection-boundary-mongodb-unicode-host",
+            "connection-boundary-mysql-missing-password",
             "connection-boundary-placeholder",
+            "connection-boundary-postgresql-malformed-ipv6",
+            "connection-boundary-redis-unescaped-at",
+            "connection-boundary-rediss-invalid-port-range",
             "connection-boundary-srv-multiple-hosts",
             "regression-malformed-percent-authority"
           ],
@@ -1704,17 +1718,52 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
+            "connection-negative-amqp-host-only",
+            "connection-negative-amqp-malformed-percent",
+            "connection-negative-amqps-host-only",
+            "connection-negative-amqps-malformed-percent",
             "connection-negative-host-only",
-            "connection-negative-malformed-percent"
+            "connection-negative-malformed-percent",
+            "connection-negative-mariadb-host-only",
+            "connection-negative-mariadb-malformed-percent",
+            "connection-negative-mongodb-host-only",
+            "connection-negative-mongodb-malformed-percent",
+            "connection-negative-mongodb-srv-host-only",
+            "connection-negative-mongodb-srv-malformed-percent",
+            "connection-negative-mysql-host-only",
+            "connection-negative-mysql-malformed-percent",
+            "connection-negative-postgresql-host-only",
+            "connection-negative-postgresql-malformed-percent",
+            "connection-negative-redis-host-only",
+            "connection-negative-redis-malformed-percent",
+            "connection-negative-rediss-host-only",
+            "connection-negative-rediss-malformed-percent"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "connection-boundary-amqp-invalid-port-length",
+            "connection-boundary-amqps-malformed-ipv6",
+            "connection-boundary-mariadb-unescaped-slash",
             "connection-boundary-missing-password",
+            "connection-boundary-mongodb-unicode-host",
+            "connection-boundary-mysql-missing-password",
             "connection-boundary-placeholder",
-            "connection-boundary-srv-multiple-hosts"
+            "connection-boundary-postgresql-malformed-ipv6",
+            "connection-boundary-redis-unescaped-at",
+            "connection-boundary-rediss-invalid-port-range",
+            "connection-boundary-srv-multiple-hosts",
+            "connection-negative-amqp-malformed-percent",
+            "connection-negative-amqps-malformed-percent",
+            "connection-negative-mariadb-malformed-percent",
+            "connection-negative-mongodb-malformed-percent",
+            "connection-negative-mongodb-srv-malformed-percent",
+            "connection-negative-mysql-malformed-percent",
+            "connection-negative-postgresql-malformed-percent",
+            "connection-negative-redis-malformed-percent",
+            "connection-negative-rediss-malformed-percent"
           ],
           "state": "supported"
         },
