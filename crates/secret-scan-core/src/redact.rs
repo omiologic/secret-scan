@@ -272,6 +272,32 @@ mod tests {
         );
     }
 
+    /// A placeholder shorter or longer than the text it replaces must not
+    /// perturb the original byte span of a later finding: every span this
+    /// function consults is a byte offset into `input`, never into the
+    /// output being built, and multibyte characters around and between the
+    /// findings must survive untouched (`decision-govern-cross-language-
+    /// conformance`).
+    #[test]
+    fn redacts_correctly_around_multibyte_text_when_placeholder_length_differs_from_the_match() {
+        let input = "键SYNTHETIC_ONE \u{1F511} SYNTHETIC_TWO";
+        let findings = [
+            finding("finding-1", 3, 16, Action::Redact),
+            finding("finding-2", 22, 35, Action::Redact),
+        ];
+        let asymmetric = |_: &Finding, context: &PlaceholderContext| {
+            Ok(if context.placeholder_index() == 1 {
+                "X".to_string()
+            } else {
+                "REPLACED_WITH_MUCH_LONGER_TEXT".to_string()
+            })
+        };
+        assert_eq!(
+            redact(input, &findings, &asymmetric).unwrap(),
+            "键X \u{1F511} REPLACED_WITH_MUCH_LONGER_TEXT"
+        );
+    }
+
     #[test]
     fn supports_typed_placeholders() {
         let input = "SYNTHETIC_REVOKED_VALUE";

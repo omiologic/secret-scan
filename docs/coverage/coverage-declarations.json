@@ -70,9 +70,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -142,9 +145,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -279,9 +285,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -360,9 +369,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -442,9 +454,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -522,9 +537,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -604,9 +622,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -685,9 +706,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -767,9 +791,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -849,9 +876,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -930,9 +960,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1011,9 +1044,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1093,9 +1129,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1174,9 +1213,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1256,9 +1298,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1338,9 +1383,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1419,9 +1467,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1501,9 +1552,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1580,9 +1634,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1651,9 +1708,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1780,9 +1840,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1899,9 +1962,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1974,9 +2040,12 @@
           "classLevel": true,
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         }
@@ -1999,9 +2068,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },
@@ -2091,9 +2163,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },
@@ -2146,9 +2221,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },
@@ -2201,9 +2279,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },
@@ -2270,9 +2351,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },
@@ -2348,9 +2432,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },
@@ -2403,9 +2490,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },
@@ -2458,9 +2548,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },
@@ -2527,9 +2620,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },
@@ -2582,9 +2678,12 @@
         {
           "dimension": "range",
           "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
             "unicode-conversion-astral-after",
             "unicode-conversion-astral-before",
-            "unicode-conversion-astral-within"
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
           ],
           "state": "supported"
         },

@@ -1,6 +1,6 @@
 {
   "offsetUnit": "utf8-byte",
-  "fixtureCount": 3,
+  "fixtureCount": 6,
   "fixtures": [
     {
       "id": "unicode-conversion-astral-before",
@@ -67,6 +67,72 @@
         }
       ],
       "note": "A 4-byte astral character follows the finding; the finding's own converted end offset must be unaffected by text after it."
+    },
+    {
+      "id": "unicode-conversion-combining-before",
+      "detector": "unicode-conversion",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "é TOKEN_SYNTHETIC_REVOKED_VALUE",
+      "expected": [
+        {
+          "detector": "unicode-conversion",
+          "type": "synthetic_token",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 4,
+          "end": 33
+        }
+      ],
+      "note": "A combining sequence (base 'e' U+0065 followed by the combining acute accent U+0301, two Unicode scalar values rendering as one grapheme) precedes the finding; each scalar value is counted as its own UTF-16 code unit and Python code point rather than collapsed into one, and together they encode as 3 UTF-8 bytes (1 + 2), not the 1 byte a precomposed 'é' would take."
+    },
+    {
+      "id": "unicode-conversion-multibyte-bmp-before",
+      "detector": "unicode-conversion",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "键 TOKEN_SYNTHETIC_REVOKED_VALUE",
+      "expected": [
+        {
+          "detector": "unicode-conversion",
+          "type": "synthetic_token",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 4,
+          "end": 33
+        }
+      ],
+      "note": "A 3-byte Basic Multilingual Plane character (U+952E) precedes the finding; unlike the astral cases above, this is a multibyte UTF-8 encoding that is not a surrogate pair, so it must advance the UTF-8 byte offset by 3 while advancing the UTF-16 code-unit and Python code-point offsets by exactly 1, not 2."
+    },
+    {
+      "id": "unicode-conversion-adjacent-punctuation",
+      "detector": "unicode-conversion",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "“TOKEN_SYNTHETIC_REVOKED_VALUE”",
+      "expected": [
+        {
+          "detector": "unicode-conversion",
+          "type": "synthetic_token",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 3,
+          "end": 32
+        }
+      ],
+      "note": "A 3-byte curly quote (U+201C, U+201D) touches the finding on both sides with no whitespace delimiter; the converted span must land exactly on the finding's own boundary, neither absorbing the adjacent punctuation's bytes nor leaving any of the finding's own bytes outside it."
     }
   ]
 }

@@ -96,8 +96,21 @@ function toNativeFinding(finding: SecretFinding): NativeFinding {
   return { ...finding, [NATIVE_HANDLE]: handle };
 }
 
+/**
+ * Matches a JavaScript string containing a lone (unpaired) UTF-16 surrogate:
+ * a high surrogate not immediately followed by a low surrogate, or a low
+ * surrogate not immediately preceded by a high surrogate. Such a code unit
+ * has no UTF-8 representation, so it cannot cross into either binding's Rust
+ * `&str` (`errors.ts`'s `UNPAIRED_SURROGATE` documentation).
+ */
+const LONE_SURROGATE =
+  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
 function requireString(value: unknown): string {
   if (typeof value !== "string") throw new SecretScanError("INVALID_INPUT");
+  if (LONE_SURROGATE.test(value)) {
+    throw new SecretScanError("UNPAIRED_SURROGATE");
+  }
   return value;
 }
 
