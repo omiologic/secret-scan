@@ -241,6 +241,7 @@ def main() -> int:
         "conformanceFixtures": corpus_identity(),
         "declaredMatrix": {
             "nodeAddonTargets": matrix["node-addon-targets"],
+            "nodePublishTargets": matrix["node-publish-targets"],
             "cliReleaseTargets": matrix["cli-release-targets"],
             "pythonWheelTargets": matrix["python-wheel-targets"],
             "browserEngines": matrix["browser-engines"],

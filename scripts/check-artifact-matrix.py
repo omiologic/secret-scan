@@ -20,17 +20,25 @@ Checks, in order:
 2. CLI release matrix: ``cli-release-targets`` equals the ``cli`` job's
    matrix and the target list in ``scripts/qualify-cli-binary.mjs``. It is a
    subset of the addon's: the CLI ships no musl variant.
-3. Browser engines: ``browser-engines`` equals the ``browser`` job's matrix
+3. Node publish matrix: ``node-publish-targets`` (a subset of
+   ``node-addon-targets``: npm ships glibc only, so the addon's two musl
+   triples are qualified but never published) equals the platform
+   directories under ``bindings/node/npm/``, each directory's
+   ``package.json`` ``name``, ``packages/javascript/package.json``'s
+   ``optionalDependencies``, and the package names
+   ``packages/javascript/src/runtime/node.ts`` maps hosts to — so a target
+   cannot gain or lose a publication path in one file alone.
+4. Browser engines: ``browser-engines`` equals the ``browser`` job's matrix
    and the engine list in ``scripts/qualify-browser-artifact.mjs``.
-4. Node.js support: ``node-support-majors`` equals the ``node-version``
+5. Node.js support: ``node-support-majors`` equals the ``node-version``
    matrix in ``ci.yml`` and the majors the qualification workflow smoke-tests
    the addon on, so an artifact is proved on every major CI claims.
    ``engines.node`` itself belongs to ``check-rust-workspace.py``, which
    derives the exact majors from ``ci.yml``.
-5. Least privilege: every workflow declares a top-level ``permissions`` and
+6. Least privilege: every workflow declares a top-level ``permissions`` and
    every job declares its own, and no job takes a write scope outside the
    recorded allowlist.
-6. Pinning: every ``uses:`` reference to an action outside this repository is
+7. Pinning: every ``uses:`` reference to an action outside this repository is
    pinned to a full 40-character commit SHA. A moving tag is a supply-chain
    dependency on whoever can move it.
 
@@ -50,6 +58,9 @@ WORKFLOWS = Path(".github") / "workflows"
 WORKFLOW = WORKFLOWS / "artifact-qualification.yml"
 CI = WORKFLOWS / "ci.yml"
 NODE_PACKAGE = Path("bindings") / "node" / "package.json"
+NATIVE_NPM_DIR = Path("bindings") / "node" / "npm"
+JS_PACKAGE = Path("packages") / "javascript" / "package.json"
+RUNTIME_NODE = Path("packages") / "javascript" / "src" / "runtime" / "node.ts"
 ADDON_QUALIFIER = Path("scripts") / "qualify-node-addon.mjs"
 CLI_QUALIFIER = Path("scripts") / "qualify-cli-binary.mjs"
 BROWSER_QUALIFIER = Path("scripts") / "qualify-browser-artifact.mjs"
@@ -182,6 +193,77 @@ def check_addon_targets(root: Path, policy: dict, workflow: str) -> list[str]:
             errors.append(
                 f"{ADDON_QUALIFIER.as_posix()}: no platform file name for {target}"
             )
+    return errors
+
+
+def platform_names(qualifier_text: str) -> dict[str, str]:
+    """The triple-to-platform-directory-name mapping
+    ``scripts/qualify-node-addon.mjs`` declares as ``TARGET_PLATFORM_NAMES``,
+    e.g. ``"x86_64-unknown-linux-gnu": "linux-x64-gnu"`` — the same names
+    ``bindings/node/npm/<platform>/`` directories and
+    ``@omiologic/secret-scan-<platform>`` package names use, so every check
+    below is keyed off the one place that mapping is spelled out."""
+    return dict(re.findall(r'"([a-z0-9_]+-[a-z0-9-]+)":\s*"([a-z0-9-]+)"', qualifier_text))
+
+
+def check_node_publish_targets(root: Path, policy: dict) -> list[str]:
+    declared = policy.get("node-publish-targets") or []
+    if not declared:
+        return ["Cargo.toml: node-publish-targets must declare the published platform-package matrix"]
+
+    errors: list[str] = []
+    addon = policy.get("node-addon-targets") or []
+    for extra in sorted(set(declared) - set(addon)):
+        errors.append(
+            f"Cargo.toml: node-publish-targets names {extra}, which "
+            "node-addon-targets does not"
+        )
+
+    qualifier = read_text(root, ADDON_QUALIFIER)
+    if qualifier is None:
+        return errors + [f"{ADDON_QUALIFIER.as_posix()}: missing"]
+    names = platform_names(qualifier)
+    for target in sorted(set(declared) - set(names)):
+        errors.append(f"{ADDON_QUALIFIER.as_posix()}: no platform file name for {target}")
+    expected_platforms = {names[target] for target in declared if target in names}
+    expected_packages = {f"@omiologic/secret-scan-{platform}" for platform in expected_platforms}
+
+    directory = root / NATIVE_NPM_DIR
+    found_platforms = (
+        {child.name for child in directory.iterdir() if child.is_dir()} if directory.is_dir() else set()
+    )
+    errors.extend(compare("published platform packages", expected_platforms, found_platforms, NATIVE_NPM_DIR.as_posix()))
+    for platform in sorted(expected_platforms & found_platforms):
+        manifest = read_json(root, NATIVE_NPM_DIR / platform / "package.json")
+        expected_name = f"@omiologic/secret-scan-{platform}"
+        if manifest is None:
+            errors.append(f"{(NATIVE_NPM_DIR / platform / 'package.json').as_posix()}: missing or invalid")
+        elif manifest.get("name") != expected_name:
+            errors.append(
+                f"{(NATIVE_NPM_DIR / platform / 'package.json').as_posix()}: name "
+                f"{manifest.get('name')!r} must be {expected_name!r}"
+            )
+
+    js_manifest = read_json(root, JS_PACKAGE)
+    if js_manifest is None:
+        errors.append(f"{JS_PACKAGE.as_posix()}: missing")
+    else:
+        errors.extend(
+            compare(
+                "optionalDependencies",
+                expected_packages,
+                (js_manifest.get("optionalDependencies") or {}).keys(),
+                JS_PACKAGE.as_posix(),
+            )
+        )
+
+    runtime = read_text(root, RUNTIME_NODE)
+    if runtime is None:
+        errors.append(f"{RUNTIME_NODE.as_posix()}: missing")
+    else:
+        referenced = set(re.findall(r'"(@omiologic/secret-scan-[a-z0-9-]+)"', runtime))
+        errors.extend(compare("the platform-package mapping", expected_packages, referenced, RUNTIME_NODE.as_posix()))
+
     return errors
 
 
@@ -341,6 +423,7 @@ def validate(root: Path) -> list[str]:
 
     errors: list[str] = []
     errors.extend(check_addon_targets(root, policy, workflow))
+    errors.extend(check_node_publish_targets(root, policy))
     errors.extend(check_cli_targets(root, policy, workflow))
     errors.extend(check_browser_engines(root, policy, workflow))
     errors.extend(check_node_support(root, policy, workflow))

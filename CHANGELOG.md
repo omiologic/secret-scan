@@ -276,14 +276,34 @@ select or authorize a release.
 - Every job in `Package Release Rehearsal` now declares its own permissions
   rather than inheriting the workflow default.
 
+- The six native `@omiologic/secret-scan-<platform>` npm packages now declare
+  `engines.node: "20.x || 22.x || 24.x"`, matching the wrapper and the addon's
+  own manifest instead of the narrower `"20.x || 22.x"` they had silently kept
+  since CI started exercising Node 24 (#140). `scripts/check-rust-workspace.py`
+  now enforces `engines.node` (and version lockstep) on every native platform
+  manifest and the WebAssembly package's version, discovered under
+  `bindings/node/npm/*/package.json` rather than named individually, so this
+  cannot drift back unnoticed.
+
+- `scripts/check-artifact-matrix.py` gained a `node-publish-targets` check
+  (#140): the new `node-publish-targets` declaration, the platform
+  directories under `bindings/node/npm/`, `packages/javascript/package.json`'s
+  `optionalDependencies`, and `runtime/node.ts`'s host-to-package mapping must
+  now name exactly the same six packages, in every direction, so a target
+  cannot gain or lose a publication path — or the glibc/musl publication
+  boundary drift apart from what the addon matrix, the runtime resolver, the
+  README, and `docs/qualification.md` say — in one file alone.
+
 ### Notes
 
 - The eight-target addon matrix outruns the six per-platform npm packages
-  `packages/javascript` declares (#79), and `runtime/node.ts` maps hosts by
+  `packages/javascript` declares, and `runtime/node.ts` maps hosts by
   platform and architecture with no libc dimension, so an npm install on
-  Alpine resolves the glibc package. The musl addons are qualified artifacts
-  without a publication path; #79 owns deciding between two more platform
-  packages and a glibc-only npm claim.
+  Alpine resolves the glibc package. This is by design, not a gap: `npm
+  ships glibc only` is the accepted decision
+  (`decision-ship-first-release-artifact-set`, #79), and `node-publish-targets`
+  (#140) now makes that boundary an enforced declaration rather than an
+  implicit fact.
 
 - Neither JavaScript artifact builds a streaming session, so
   `createIncrementalSanitizer` reports the fixed `INCREMENTAL_UNAVAILABLE`

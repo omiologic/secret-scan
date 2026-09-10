@@ -79,6 +79,15 @@ The replacement JavaScript package presents one typed API across Node.js and
 modern browsers. Its explicit initialization contract makes native or
 WebAssembly loading failures observable without making every scan asynchronous.
 
+On Node.js, `@omiologic/secret-scan` installs a prebuilt N-API addon for
+glibc Linux, macOS, and Windows (x64 and arm64 each: six platform packages,
+`engines.node` `20.x || 22.x || 24.x`) as an optional dependency, since npm
+ships glibc addons only — musl Linux (e.g. Alpine) has no published
+package. `initialize()` rejects with `INITIALIZATION_FAILED` on a musl
+host, the same failure an unsupported platform/architecture gets. See
+[docs/qualification.md](./docs/qualification.md) for the full target matrix
+and how CI keeps it from drifting.
+
 ```ts
 import { initialize, scanAndRedact } from "@omiologic/secret-scan";
 

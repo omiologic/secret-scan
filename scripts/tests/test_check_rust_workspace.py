@@ -79,6 +79,12 @@ class Workspace:
         )
         self.write("bindings/node/package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
         self.write("packages/javascript/package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
+        self.write("bindings/wasm/npm/package.json", json.dumps({"version": VERSION}))
+        for platform in ("darwin-arm64", "linux-x64-gnu"):
+            self.write(
+                f"bindings/node/npm/{platform}/package.json",
+                json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}),
+            )
         self.add_member("secret-scan", "crates/secret-scan-core", "src/lib.rs", CORE_LIB, manifest=CORE_MANIFEST)
         self.add_member("secret-scan-cli", "crates/secret-scan-cli", "src/main.rs", "#![forbid(unsafe_code)]\n", deps=["secret-scan"])
 
@@ -275,13 +281,68 @@ class RustWorkspaceCheckTests(unittest.TestCase):
         )
 
     def test_node_engines_drift_is_rejected_in_every_lockstep_manifest(self) -> None:
-        for relative in ("bindings/node/package.json", "packages/javascript/package.json"):
+        for relative in (
+            "bindings/node/package.json",
+            "packages/javascript/package.json",
+            "bindings/node/npm/darwin-arm64/package.json",
+        ):
 
             def configure(workspace: Workspace, relative: str = relative) -> None:
                 workspace.write(relative, json.dumps({"version": VERSION, "engines": {"node": "20.x"}}))
 
             errors = self.run_check(configure)
             self.assertTrue(any(f"{relative}: engines.node" in error for error in errors), errors)
+
+    def test_wasm_package_json_version_drift_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("bindings/wasm/npm/package.json", json.dumps({"version": "0.2.0"}))
+
+        errors = self.run_check(configure)
+        self.assertTrue(
+            any("bindings/wasm/npm/package.json: version 0.2.0" in error for error in errors), errors
+        )
+
+    def test_wasm_package_json_declares_no_engines_and_is_not_checked(self) -> None:
+        """The WebAssembly package ships no `engines.node` claim, so a
+        missing `engines` key there must not be flagged the way a native
+        platform package's would be."""
+        self.assertEqual(self.run_check(), [])
+
+    def test_native_platform_manifest_version_drift_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write(
+                "bindings/node/npm/linux-x64-gnu/package.json",
+                json.dumps({"version": "0.2.0", "engines": {"node": NODE_ENGINES}}),
+            )
+
+        errors = self.run_check(configure)
+        self.assertTrue(
+            any(
+                "bindings/node/npm/linux-x64-gnu/package.json: version 0.2.0" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_a_newly_added_native_platform_manifest_is_covered_without_a_script_change(self) -> None:
+        """`native_platform_manifests` discovers directories rather than
+        naming them, so adding a third platform package with drifted version
+        or engines is caught the same way the first two are."""
+
+        def configure(workspace: Workspace) -> None:
+            workspace.write(
+                "bindings/node/npm/win32-x64-msvc/package.json",
+                json.dumps({"version": "0.2.0", "engines": {"node": NODE_ENGINES}}),
+            )
+
+        errors = self.run_check(configure)
+        self.assertTrue(
+            any(
+                "bindings/node/npm/win32-x64-msvc/package.json: version 0.2.0" in error
+                for error in errors
+            ),
+            errors,
+        )
 
     def test_ci_matrix_without_node_versions_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
