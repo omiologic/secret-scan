@@ -10,9 +10,8 @@ Checks, in order:
 2. Unsafe-code policy: every member inherits workspace lints, the workspace
    denies ``unsafe_code``, and the core and CLI crate roots forbid it.
 3. Version lockstep: the workspace version, every member, and every manifest
-   named in ``LOCKSTEP_MANIFESTS`` (``package.json``,
-   ``bindings/node/package.json``, ``packages/javascript/package.json``)
-   share one product version.
+   named in ``LOCKSTEP_MANIFESTS`` (``bindings/node/package.json``,
+   ``packages/javascript/package.json``) share one product version.
 4. Node engines: every manifest in ``LOCKSTEP_MANIFESTS`` declares
    ``engines.node`` as exactly the Node majors ``ci.yml``'s ``test`` job
    matrix exercises, so the promised platform and the tested platform cannot
@@ -61,7 +60,7 @@ CI_NODE_VERSIONS = re.compile(r"node-version:\s*\n((?:\s*-\s*\d+\s*\n)+)")
 NODE_VERSION_ENTRY = re.compile(r"-\s*(\d+)")
 FORBID_UNSAFE = re.compile(r"^\s*#!\[forbid\(unsafe_code\)\]\s*$", re.M)
 FORBID_UNSAFE_ROOTS = {"secret-scan": "src/lib.rs", "secret-scan-cli": "src/main.rs"}
-LOCKSTEP_MANIFESTS = ("package.json", "bindings/node/package.json", "packages/javascript/package.json")
+LOCKSTEP_MANIFESTS = ("bindings/node/package.json", "packages/javascript/package.json")
 
 # `pub use path::{A, B};`, `pub use path::name;`, and the `pub const NAME`
 # items the crate root declares directly.

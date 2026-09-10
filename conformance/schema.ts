@@ -10,11 +10,10 @@
  * removed.
  *
  * Canonical expected ranges are UTF-8 byte offsets into the fixture's
- * `input` string, encoded as UTF-8. This differs from the temporary
- * TypeScript oracle's fixtures (`test/conformance/schema.ts`), which use
- * UTF-16 code unit offsets matching this package's public `start`/`end`
- * semantics. `conformance/convert.ts` performs that translation; it is not
- * done by hand.
+ * `input` string, encoded as UTF-8. This differs from the UTF-16 code unit
+ * offsets `packages/javascript`'s public `start`/`end` semantics use.
+ * `conformance/convert.ts` performs that translation; it is not done by
+ * hand.
  */
 
 export type CanonicalConfidence = "high" | "medium" | "low";
@@ -119,8 +118,7 @@ export interface CanonicalFixture {
  * A whole-input incremental reference: the fully redacted `text` and the
  * safe finding metadata (UTF-8 byte offsets into `input`) that the bounded
  * incremental session must reproduce identically at every UTF-16 code-unit
- * and streaming UTF-8 byte partition of `input`. This is the canonical form
- * of `test/conformance/incremental-partitions.ts`.
+ * and streaming UTF-8 byte partition of `input`.
  */
 export interface CanonicalIncrementalFixture {
   readonly id: string;

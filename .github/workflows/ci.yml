@@ -124,7 +124,7 @@ jobs:
       - name: Smoke-check the CLI on this host
         shell: bash
         run: |
-          expected="secret-scan $(node -p "require('./package.json').version")"
+          expected="secret-scan $(node -p "require('./packages/javascript/package.json').version")"
           actual=$(cargo run --quiet --locked -p secret-scan-cli -- --version)
           if [[ "$actual" != "$expected" ]]; then
             echo "expected '$expected', got '$actual'" >&2

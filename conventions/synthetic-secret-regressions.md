@@ -27,4 +27,4 @@ test diagnostics into another credential exposure path.
 ## Guidance
 
 The executable intake contract and qualification tiers are documented in the
-[conformance corpus](../test/conformance/README.md#regression-intake).
+[conformance corpus](../conformance/README.md#regression-intake).

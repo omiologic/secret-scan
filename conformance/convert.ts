@@ -1,13 +1,11 @@
 /**
- * UTF-16 code unit <-> UTF-8 byte offset conversion, and the fixture-level
- * translation from the temporary TypeScript oracle's corpus shape
- * (`test/conformance/schema.ts`, UTF-16 code unit offsets) into the
- * canonical schema (`conformance/schema.ts`, UTF-8 byte offsets).
- *
- * This is migration tooling: it produces the canonical corpus from the
- * TypeScript source of truth that exists only until the Rust core reaches
- * parity (`decision-govern-cross-language-conformance`). Nothing here should
- * be treated as itself authoritative — the JSON it emits is.
+ * UTF-16 code unit <-> UTF-8 byte offset conversion. It originally
+ * translated the retired TypeScript oracle's corpus shape (UTF-16 code unit
+ * offsets) into the canonical schema (`conformance/schema.ts`, UTF-8 byte
+ * offsets); the conversion functions remain as infrastructure a UTF-16 host
+ * runner can still reach for (`decision-govern-cross-language-conformance`).
+ * Nothing here should be treated as itself authoritative — the canonical
+ * JSON under `fixtures/` is.
  */
 
 import type {
@@ -192,9 +190,9 @@ export interface Utf16IncrementalExpectation {
   readonly end: number;
 }
 
-/** A structural subset of `test/conformance/incremental-partitions.ts`'s
- * `IncrementalPartitionCase`, kept local so this module stays independent of
- * `test/` and `src/` types. */
+/** A structural subset of the retired TypeScript oracle's
+ * `IncrementalPartitionCase` shape, kept local so this module stays
+ * independent of any TypeScript detector implementation's types. */
 export interface Utf16IncrementalFixture {
   readonly id: string;
   readonly input: string;

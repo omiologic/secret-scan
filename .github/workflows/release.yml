@@ -13,12 +13,10 @@ name: Release
 # `@omiologic/secret-scan-node`'s six platform packages and
 # `@omiologic/secret-scan-wasm` are not published by this workflow: their
 # manifests and `packages/javascript`'s `optionalDependencies`/`dependencies`
-# on them exist now (issue #79), but the wrapper package itself is still the
-# root `package.json` here (docs/rust-workspace.md, "Two manifests named
-# @omiologic/secret-scan") until `RB-2` (issue #72) cuts over the published
-# npm artifact to `packages/javascript` -- publishing its native and
-# WebAssembly dependencies belongs to that same cutover, not to a routine
-# release of the package this workflow still publishes.
+# on them exist (issue #79), and `RB-2` (issue #72) cut the published npm
+# artifact over to `packages/javascript` -- but publishing its native and
+# WebAssembly dependencies for the first time is a one-time cutover action,
+# not something a routine dispatch of this workflow does.
 #
 # Registry publication is not transactional across three registries, so
 # `record-manifest` runs `if: always()` and records the observed state of
@@ -105,9 +103,9 @@ jobs:
         id: release
         shell: bash
         run: |
-          package_name=$(node -p "require('./package.json').name")
-          package_version=$(node -p "require('./package.json').version")
-          package_private=$(node -p "require('./package.json').private === true")
+          package_name=$(node -p "require('./packages/javascript/package.json').name")
+          package_version=$(node -p "require('./packages/javascript/package.json').version")
+          package_private=$(node -p "require('./packages/javascript/package.json').private === true")
 
           if [[ "$package_private" == "true" ]]; then
             echo "The package is marked private." >&2
@@ -198,8 +196,8 @@ jobs:
         if: always()
         shell: bash
         run: |
-          package_name=$(node -p "require('./package.json').name" 2>/dev/null || true)
-          version=$(node -p "require('./package.json').version" 2>/dev/null || true)
+          package_name=$(node -p "require('./packages/javascript/package.json').name" 2>/dev/null || true)
+          version=$(node -p "require('./packages/javascript/package.json').version" 2>/dev/null || true)
           state=unknown
           if [[ -n "$package_name" && -n "$version" ]]; then
             if npm view "$package_name@$version" version >/dev/null 2>&1; then
@@ -405,7 +403,7 @@ jobs:
         id: manifest
         shell: bash
         run: |
-          version=$(node -p "require('./package.json').version" 2>/dev/null || true)
+          version=$(node -p "require('./packages/javascript/package.json').version" 2>/dev/null || true)
           conformance_identity=$(git rev-parse "$GITHUB_SHA:conformance" 2>/dev/null || true)
 
           # A job that was skipped or failed before its own "report state"

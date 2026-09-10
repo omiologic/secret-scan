@@ -1,6 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -19,38 +18,19 @@ interface PackResult {
 }
 
 /**
- * Packs the package in a temporary copy.
- *
- * `LICENSE` lives at the repository root, so the copy is also what proves the
- * published tarball can carry it without the repository layout leaking in.
+ * Packs `packages/javascript` itself: whatever `npm pack` would publish from
+ * this exact directory, with nothing pre-populated. `LICENSE` and `dist` must
+ * already be real, tracked or built files here for either to appear below.
  */
 function pack(): PackResult {
-  const temporary = mkdtempSync(join(tmpdir(), "secret-scan-js-package-"));
-  try {
-    const manifest = JSON.parse(
-      readFileSync(join(PACKAGE_ROOT, "package.json"), "utf8"),
-    ) as Record<string, unknown>;
-    writeFileSync(
-      join(temporary, "package.json"),
-      `${JSON.stringify(manifest, null, 2)}\n`,
-    );
-    cpSync(join(PACKAGE_ROOT, "dist"), join(temporary, "dist"), {
-      recursive: true,
-    });
-    cpSync(join(PACKAGE_ROOT, "README.md"), join(temporary, "README.md"));
-    cpSync(join(REPOSITORY_ROOT, "LICENSE"), join(temporary, "LICENSE"));
-
-    const output = execFileSync(
-      process.platform === "win32" ? "npm.cmd" : "npm",
-      ["pack", "--dry-run", "--json"],
-      { cwd: temporary, encoding: "utf8" },
-    );
-    const [result] = JSON.parse(output) as PackResult[];
-    if (result === undefined) throw new Error("npm pack produced no result");
-    return result;
-  } finally {
-    rmSync(temporary, { recursive: true, force: true });
-  }
+  const output = execFileSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["pack", "--dry-run", "--json"],
+    { cwd: PACKAGE_ROOT, encoding: "utf8" },
+  );
+  const [result] = JSON.parse(output) as PackResult[];
+  if (result === undefined) throw new Error("npm pack produced no result");
+  return result;
 }
 
 describe("package contents", () => {
