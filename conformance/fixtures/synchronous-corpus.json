@@ -1,6 +1,6 @@
 {
   "offsetUnit": "utf8-byte",
-  "fixtureCount": 340,
+  "fixtureCount": 353,
   "fixtures": [
     {
       "id": "host-dotenv-github",
@@ -8298,6 +8298,325 @@
       "input": "future_provider_SYNTHETIC_REVOKED_UNQUALIFIED_VALUE",
       "expected": [],
       "note": "No provider-family grammar has been proposed or accepted for this placeholder value; inventing detection for an unqualified prefix would assert a grammar the corpus has no evidence for. Intentionally unsupported until a real provider proposes a concrete, evaluable grammar (see docs/audits/deferred-quality-backlog.md, C/F-03)."
+    },
+    {
+      "id": "contextual-positive-colon-spaced-operator",
+      "detector": "generic-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "secret_key :  SYNTHETIC_REVOKED_CONTEXT_VALUE",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 14,
+          "end": 45
+        }
+      ],
+      "note": "The secret_key credential name is high signal via a colon separator with surrounding whitespace, extending accepted-separator evidence beyond a bare '='."
+    },
+    {
+      "id": "contextual-positive-single-quoted-value",
+      "detector": "generic-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "access_token='SYNTHETIC_REVOKED_CONTEXT_VALUE'",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 14,
+          "end": 45
+        }
+      ],
+      "note": "The access_token credential name is high signal with a single-quoted value, extending accepted-quoting evidence beyond double quotes."
+    },
+    {
+      "id": "contextual-positive-crlf-line-start",
+      "detector": "generic-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "note\r\npassword=SYNTHETIC_REVOKED_CONTEXT_VALUE",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 15,
+          "end": 46
+        }
+      ],
+      "note": "The password credential name is high signal at the start of a line following a Windows CRLF line ending, extending accepted-line-ending evidence beyond bare LF."
+    },
+    {
+      "id": "contextual-positive-minimum-length-is-medium-confidence",
+      "detector": "generic-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "secret=SECRET01",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "medium",
+          "specificity": "contextual",
+          "start": 7,
+          "end": 15
+        }
+      ],
+      "note": "A value at the minimum accepted length (8 bytes, below the 16-byte high-entropy floor) is supported at medium confidence rather than rejected or promoted to high."
+    },
+    {
+      "id": "contextual-positive-aws-secret-access-key-quoted-colon",
+      "detector": "generic-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "AWS_SECRET_ACCESS_KEY: \"SYNTHETIC_REVOKED_AWS_CONTEXT_VALUE\"",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 24,
+          "end": 59
+        }
+      ],
+      "note": "The documented AWS secret-access-key name retains its high-signal classification with a colon separator and a quoted value, reinforcing AC3 alongside the accepted-separator and accepted-quoting evidence."
+    },
+    {
+      "id": "contextual-positive-remaining-declared-names",
+      "detector": "generic-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "apikey=SYNTHETIC_REVOKED_CONTEXT_VALUE\nsecret=SYNTHETIC_REVOKED_CONTEXT_VALUE\nrefresh_token=SYNTHETIC_REVOKED_CONTEXT_VALUE\nsession_token=SYNTHETIC_REVOKED_CONTEXT_VALUE\npasswd=SYNTHETIC_REVOKED_CONTEXT_VALUE\nprivate_key=SYNTHETIC_REVOKED_CONTEXT_VALUE\nclient_secret=SYNTHETIC_REVOKED_CONTEXT_VALUE\nwebhook_secret=SYNTHETIC_REVOKED_CONTEXT_VALUE\nauth=SYNTHETIC_REVOKED_CONTEXT_VALUE\nauth_token=SYNTHETIC_REVOKED_CONTEXT_VALUE\ncredential=SYNTHETIC_REVOKED_CONTEXT_VALUE\ncredentials=SYNTHETIC_REVOKED_CONTEXT_VALUE\nsigning_key=SYNTHETIC_REVOKED_CONTEXT_VALUE",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 7,
+          "end": 38
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 46,
+          "end": 77
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 92,
+          "end": 123
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 138,
+          "end": 169
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 177,
+          "end": 208
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 221,
+          "end": 252
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 267,
+          "end": 298
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 314,
+          "end": 345
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "medium",
+          "specificity": "contextual",
+          "start": 351,
+          "end": 382
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "medium",
+          "specificity": "contextual",
+          "start": 394,
+          "end": 425
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "medium",
+          "specificity": "contextual",
+          "start": 437,
+          "end": 468
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "medium",
+          "specificity": "contextual",
+          "start": 481,
+          "end": 512
+        },
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "medium",
+          "specificity": "contextual",
+          "start": 525,
+          "end": 556
+        }
+      ],
+      "note": "Every remaining declared high-signal and ambiguous credential name (apikey, secret, refresh_token, session_token, passwd, private_key, client_secret, webhook_secret, auth, auth_token, credential, credentials, signing_key) carries its own positive evidence, completing representative coverage of the accepted credential-name set."
+    },
+    {
+      "id": "contextual-negative-generic-name-high-entropy",
+      "detector": "generic-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "id=SYNTHETIC_UNQUALIFIED_HIGH_ENTROPY_VALUE",
+      "expected": [],
+      "note": "A high-entropy value assigned to a generic, non-credential name (id) is excluded: entropy alone never promotes an unrecognized name into a contextual_secret finding."
+    },
+    {
+      "id": "contextual-negative-placeholder-redacted",
+      "detector": "generic-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "webhook_secret=redacted",
+      "expected": [],
+      "note": "The literal placeholder value 'redacted' remains excluded even though it meets the minimum length, distinct from the existing 'changeme' placeholder evidence."
+    },
+    {
+      "id": "contextual-negative-placeholder-replaceme",
+      "detector": "generic-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "client_secret=replaceme",
+      "expected": [],
+      "note": "The literal placeholder value 'replaceme' remains excluded even though it meets the minimum length, covering a second placeholder-word family distinct from 'redacted' and 'changeme'."
+    },
+    {
+      "id": "contextual-negative-hash-non-credential-name",
+      "detector": "generic-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "content_hash=a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
+      "expected": [],
+      "note": "A hash-shaped value assigned to a non-credential name (content_hash) is excluded, since detection is keyed to the recognized name, not the value's shape or entropy."
+    },
+    {
+      "id": "contextual-negative-identifier-non-credential-name",
+      "detector": "generic-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "request_id=550e8400-e29b-41d4-a716-446655440000",
+      "expected": [],
+      "note": "A UUID-shaped identifier assigned to a non-credential name (request_id) is excluded, covering the identifier near-miss category distinct from the existing hash and checksum unit coverage."
+    },
+    {
+      "id": "contextual-negative-prose-colon-unrecognized-name",
+      "detector": "generic-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "Reminder: SYNTHETIC_REVOKED_CONTEXT_VALUE was already rotated last week.",
+      "expected": [],
+      "note": "A prose sentence introduced by a colon (Reminder:) parses as an assignment-shaped prefix and carries a full credential-shaped, high-entropy value, but the captured name is not a recognized credential name, so it is excluded -- demonstrating that a bounded-entropy value alone never overrides an unrecognized name."
+    },
+    {
+      "id": "contextual-negative-unqualified-random-text",
+      "detector": "generic-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "SYNTHETIC_RANDOM_LOOKING_TEXT_WITHOUT_ANY_CREDENTIAL_CONTEXT_MARKER_OR_ASSIGNMENT_SYNTAX",
+      "expected": [],
+      "note": "Random-looking, high-entropy text with no assignment or authorization syntax at all produces no candidate: the detector never treats bare entropy as an independent secret classifier."
     }
   ]
 }

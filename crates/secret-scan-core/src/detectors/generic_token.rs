@@ -614,6 +614,39 @@ mod tests {
     }
 
     #[test]
+    fn a_bounded_entropy_value_never_overrides_an_unrecognized_name() {
+        for input in [
+            "id=SYNTHETIC_UNQUALIFIED_HIGH_ENTROPY_VALUE",
+            "note=SYNTHETIC_REVOKED_CONTEXT_VALUE",
+            "Reminder: SYNTHETIC_REVOKED_CONTEXT_VALUE was already rotated last week.",
+        ] {
+            assert!(
+                detect(input).is_empty(),
+                "expected no findings for {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn additional_placeholder_words_are_excluded_at_the_minimum_length() {
+        for input in ["webhook_secret=redacted", "client_secret=replaceme"] {
+            assert!(
+                detect(input).is_empty(),
+                "expected no findings for {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn documented_aws_names_retain_classification_with_a_colon_separator_and_quoting() {
+        let input = "AWS_SECRET_ACCESS_KEY: \"SYNTHETIC_REVOKED_AWS_CONTEXT_VALUE\"";
+        let candidates = detect(input);
+        assert_eq!(only_range(&candidates), (24, 59));
+        assert_eq!(candidates[0].confidence(), Confidence::High);
+        assert_eq!(candidates[0].specificity(), Some(Specificity::Contextual));
+    }
+
+    #[test]
     fn basic_and_token_authorization_schemes_are_detected() {
         let basic_input = "Authorization: Basic U1lOVEhFVElDX1JFVk9LRUQ=";
         let basic = detect(basic_input);
