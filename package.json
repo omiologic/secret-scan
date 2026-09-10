@@ -19,7 +19,7 @@
     "browser:qualify": "node scripts/qualify-browser-artifact.mjs",
     "addon:qualify": "node scripts/qualify-node-addon.mjs",
     "cli:qualify": "node scripts/qualify-cli-binary.mjs",
-    "ci": "npm run decisions:validate && npm run python:check && npm run artifacts:check && npm run coverage:check && npm run release-manifest:test && npm run reconcile-guard:test && npm run release-environment:check && npm run release-gate:check && npm run js:typecheck && npm run js:test",
+    "ci": "npm run decisions:validate && npm run python:check && npm run artifacts:check && npm run coverage:check && npm run release-manifest:test && npm run reconcile-guard:test && npm run release-environment:check && npm run release-gate:check && npm run release-refs:check && npm run js:typecheck && npm run js:test",
     "decisions:validate": "python3 -B -m unittest discover -s scripts/tests -p 'test_validate_decisions.py' && python3 -B scripts/validate-decisions.py",
     "python:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_python_package.py' && python3 -B scripts/check-python-package.py",
     "rust:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_rust_workspace.py' && python3 -B scripts/check-rust-workspace.py",
@@ -29,6 +29,7 @@
     "reconcile-guard:test": "python3 -B -m unittest discover -s scripts/tests -p 'test_reconcile_guard.py'",
     "release-environment:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_release_environment.py' && python3 -B scripts/check-release-environment.py",
     "release-gate:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_release_gate.py' && python3 -B scripts/check-release-gate.py",
+    "release-refs:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_release_refs.py' && python3 -B scripts/check-release-refs.py",
     "release:check": "npm run ci && npm pack --dry-run ./packages/javascript",
     "release": "npm publish --access public ./packages/javascript"
   },
