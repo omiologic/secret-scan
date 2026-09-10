@@ -58,7 +58,10 @@ impl Detector for KnownFormatProviderDetector {
 /// Stripe secret, restricted, organization, and webhook-signing
 /// credentials. The suffix alphabet is `[A-Za-z0-9]` — narrower than the
 /// `[A-Za-z0-9_-]` boundary — so a trailing `_` or `-` still rejects a
-/// truncated candidate.
+/// truncated candidate. The publishable-key prefix (`pk_live_`,
+/// `pk_test_`) is deliberately excluded: it names a public identifier, not
+/// a secret, so treating it as a match would be a false positive. Newer or
+/// undocumented prefixes are false negatives until added.
 pub(super) const STRIPE: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "stripe-token",
     type_name: "stripe_credential",
@@ -72,6 +75,9 @@ pub(super) const STRIPE: KnownFormatProviderDetector = KnownFormatProviderDetect
 };
 
 /// Current Slack bot, user, app, workflow, rotating, and refresh tokens.
+/// Every documented prefix requires its trailing `-`; a prefix missing that
+/// delimiter, or any undocumented prefix, is an intentional false negative
+/// rather than a fuzzy match.
 pub(super) const SLACK: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "slack-token",
     type_name: "slack_token",
@@ -90,7 +96,11 @@ pub(super) const SLACK: KnownFormatProviderDetector = KnownFormatProviderDetecto
     boundary: pattern::is_alnum_dash,
 };
 
-/// `PyPI`'s documented Macaroon serialization with its exact minimum suffix.
+/// `PyPI`'s documented Macaroon serialization with its exact minimum
+/// suffix. The prefix is matched case-sensitively (lowercase `pypi-`
+/// only) and the 85-byte minimum favors precision: a shorter or
+/// differently-cased example is an intentional false negative rather than
+/// a loosened match.
 pub(super) const PYPI: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "pypi-token",
     type_name: "pypi_api_token",
@@ -101,7 +111,9 @@ pub(super) const PYPI: KnownFormatProviderDetector = KnownFormatProviderDetector
     boundary: pattern::is_alnum_dash,
 };
 
-/// Hugging Face user access tokens in the provider's `hf_` namespace.
+/// Hugging Face user access tokens in the provider's `hf_` namespace. A
+/// dash in place of the documented underscore, or any other undocumented
+/// prefix, is an intentional false negative.
 pub(super) const HUGGING_FACE: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "huggingface-token",
     type_name: "huggingface_token",
@@ -112,7 +124,11 @@ pub(super) const HUGGING_FACE: KnownFormatProviderDetector = KnownFormatProvider
     boundary: pattern::is_alnum_dash,
 };
 
-/// Docker Hub personal and organization access tokens.
+/// Docker Hub personal and organization access tokens. Only the two
+/// documented `_pat_`/`_oat_` segment names are matched; an undocumented
+/// segment name is an intentional false negative, and legacy Docker Hub
+/// passwords (which carry no distinguishing prefix at all) are out of
+/// scope for this detector.
 pub(super) const DOCKER: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "docker-token",
     type_name: "docker_token",
@@ -123,7 +139,11 @@ pub(super) const DOCKER: KnownFormatProviderDetector = KnownFormatProviderDetect
     boundary: pattern::is_alnum_dash,
 };
 
-/// Cloudflare's current scannable user and account API-token namespace.
+/// Cloudflare's current scannable user and account API-token namespace. A
+/// truncated or misspelled prefix is deliberately excluded, and the
+/// legacy unprefixed Global API Key format is a known false negative this
+/// detector does not attempt, since it is indistinguishable from ordinary
+/// opaque hex without a prefix to anchor on.
 pub(super) const CLOUDFLARE: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "cloudflare-token",
     type_name: "cloudflare_api_token",
@@ -134,7 +154,10 @@ pub(super) const CLOUDFLARE: KnownFormatProviderDetector = KnownFormatProviderDe
     boundary: pattern::is_alnum_dash,
 };
 
-/// `DigitalOcean` personal, `OAuth` access, and `OAuth` refresh token families.
+/// `DigitalOcean` personal, `OAuth` access, and `OAuth` refresh token
+/// families. Only the documented `v1` namespace is matched; a future
+/// version bump (`dop_v2_` and siblings) is an intentional false negative
+/// until that shape is confirmed and added.
 pub(super) const DIGITALOCEAN: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "digitalocean-token",
     type_name: "digitalocean_token",
@@ -146,6 +169,8 @@ pub(super) const DIGITALOCEAN: KnownFormatProviderDetector = KnownFormatProvider
 };
 
 /// Linear API keys and OAuth access tokens with scanner-oriented prefixes.
+/// An undocumented segment name in place of `api`/`oauth` is an
+/// intentional false negative.
 pub(super) const LINEAR: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "linear-token",
     type_name: "linear_token",
@@ -156,7 +181,10 @@ pub(super) const LINEAR: KnownFormatProviderDetector = KnownFormatProviderDetect
     boundary: pattern::is_alnum_dash,
 };
 
-/// Supabase elevated-access secret keys; publishable keys are excluded.
+/// Supabase elevated-access secret keys. The `sb_publishable_` prefix is
+/// deliberately excluded — it names a public identifier, not a secret —
+/// so classifying it would be a false positive; an undocumented prefix is
+/// a false negative.
 pub(super) const SUPABASE: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "supabase-token",
     type_name: "supabase_secret_key",
@@ -167,7 +195,8 @@ pub(super) const SUPABASE: KnownFormatProviderDetector = KnownFormatProviderDete
     boundary: pattern::is_alnum_dash,
 };
 
-/// Vercel personal, integration, app, refresh, and API-key credentials.
+/// Vercel personal, integration, app, refresh, and API-key credentials. An
+/// undocumented prefix letter is an intentional false negative.
 pub(super) const VERCEL: KnownFormatProviderDetector = KnownFormatProviderDetector {
     id: "vercel-token",
     type_name: "vercel_token",

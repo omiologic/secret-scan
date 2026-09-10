@@ -188,7 +188,7 @@
     {
       "detector": "gitlab-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 12,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -204,6 +204,8 @@
         ]
       },
       "evidenceFixtureIds": [
+        "gitlab-positive-all-prefixes",
+        "gitlab-positive-min-length",
         "gitlab-positive-personal-access"
       ],
       "policyClass": "always-redact",
@@ -214,7 +216,7 @@
     {
       "detector": "openai-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 13,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -230,6 +232,8 @@
         ]
       },
       "evidenceFixtureIds": [
+        "openai-positive-all-prefixes",
+        "openai-positive-min-length",
         "openai-positive-project"
       ],
       "policyClass": "always-redact",
@@ -240,7 +244,7 @@
     {
       "detector": "anthropic-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 11,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -256,6 +260,7 @@
         ]
       },
       "evidenceFixtureIds": [
+        "anthropic-positive-min-length",
         "anthropic-positive-versioned"
       ],
       "policyClass": "always-redact",
@@ -266,7 +271,7 @@
     {
       "detector": "shopify-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 13,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -282,7 +287,9 @@
         ]
       },
       "evidenceFixtureIds": [
-        "shopify-positive-admin-access"
+        "shopify-positive-admin-access",
+        "shopify-positive-all-prefixes",
+        "shopify-positive-min-length"
       ],
       "policyClass": "always-redact",
       "schemeRows": "not-applicable",
@@ -292,7 +299,7 @@
     {
       "detector": "vault-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 12,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -308,6 +315,8 @@
         ]
       },
       "evidenceFixtureIds": [
+        "vault-positive-all-prefixes",
+        "vault-positive-min-length",
         "vault-positive-service-token"
       ],
       "policyClass": "always-redact",
@@ -318,7 +327,7 @@
     {
       "detector": "stripe-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 13,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -334,6 +343,8 @@
         ]
       },
       "evidenceFixtureIds": [
+        "stripe-positive-all-prefixes",
+        "stripe-positive-min-length",
         "stripe-positive-qualified"
       ],
       "policyClass": "always-redact",
@@ -344,7 +355,7 @@
     {
       "detector": "slack-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 13,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -360,6 +371,8 @@
         ]
       },
       "evidenceFixtureIds": [
+        "slack-positive-all-prefixes",
+        "slack-positive-min-length",
         "slack-positive-qualified"
       ],
       "policyClass": "always-redact",
@@ -370,7 +383,7 @@
     {
       "detector": "pypi-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 12,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -386,6 +399,7 @@
         ]
       },
       "evidenceFixtureIds": [
+        "pypi-positive-min-length",
         "pypi-positive-qualified"
       ],
       "policyClass": "always-redact",
@@ -396,7 +410,7 @@
     {
       "detector": "huggingface-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 12,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -412,6 +426,7 @@
         ]
       },
       "evidenceFixtureIds": [
+        "huggingface-positive-min-length",
         "huggingface-positive-qualified"
       ],
       "policyClass": "always-redact",
@@ -422,7 +437,7 @@
     {
       "detector": "docker-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 13,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -438,6 +453,8 @@
         ]
       },
       "evidenceFixtureIds": [
+        "docker-positive-all-prefixes",
+        "docker-positive-min-length",
         "docker-positive-qualified"
       ],
       "policyClass": "always-redact",
@@ -448,7 +465,7 @@
     {
       "detector": "cloudflare-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 12,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -464,6 +481,7 @@
         ]
       },
       "evidenceFixtureIds": [
+        "cloudflare-positive-min-length",
         "cloudflare-positive-qualified"
       ],
       "policyClass": "always-redact",
@@ -474,7 +492,7 @@
     {
       "detector": "digitalocean-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 13,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -490,6 +508,8 @@
         ]
       },
       "evidenceFixtureIds": [
+        "digitalocean-positive-all-prefixes",
+        "digitalocean-positive-min-length",
         "digitalocean-positive-qualified"
       ],
       "policyClass": "always-redact",
@@ -500,7 +520,7 @@
     {
       "detector": "linear-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 13,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -516,6 +536,8 @@
         ]
       },
       "evidenceFixtureIds": [
+        "linear-positive-all-prefixes",
+        "linear-positive-min-length",
         "linear-positive-qualified"
       ],
       "policyClass": "always-redact",
@@ -526,7 +548,7 @@
     {
       "detector": "supabase-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 12,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -542,6 +564,7 @@
         ]
       },
       "evidenceFixtureIds": [
+        "supabase-positive-min-length",
         "supabase-positive-qualified"
       ],
       "policyClass": "always-redact",
@@ -552,7 +575,7 @@
     {
       "detector": "vercel-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 13,
         "hostContextsExercised": [
           "plain-text"
         ],
@@ -568,6 +591,8 @@
         ]
       },
       "evidenceFixtureIds": [
+        "vercel-positive-all-prefixes",
+        "vercel-positive-min-length",
         "vercel-positive-qualified"
       ],
       "policyClass": "always-redact",

@@ -11,7 +11,9 @@ const PREFIXES: [&str; 2] = ["shpat_", "shppa_"];
 /// Recognizes Shopify's documented Admin API and delegate access-token
 /// prefixes. The suffix is opaque, so the minimum length and conservative
 /// alphabet favor precision while accepting that short or newly encoded
-/// values can be missed.
+/// values can be missed. The `shpca_` public storefront-access prefix is
+/// deliberately excluded: it is a public identifier, not an elevated-access
+/// secret, so matching it would be a false positive.
 pub(super) struct ShopifyTokenDetector;
 
 impl Detector for ShopifyTokenDetector {

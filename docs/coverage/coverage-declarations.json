@@ -287,6 +287,8 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "gitlab-positive-all-prefixes",
+            "gitlab-positive-min-length",
             "gitlab-positive-personal-access"
           ],
           "state": "supported"
@@ -308,21 +310,30 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
-            "gitlab-boundary-custom-prefix"
+            "gitlab-boundary-below-min",
+            "gitlab-boundary-case-sensitivity",
+            "gitlab-boundary-custom-prefix",
+            "gitlab-boundary-delimiter",
+            "gitlab-boundary-invalid-alphabet"
           ],
           "state": "supported"
         },
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "gitlab-negative-common-identifier"
+            "gitlab-negative-common-identifier",
+            "gitlab-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
-            "gitlab-boundary-custom-prefix"
+            "gitlab-boundary-below-min",
+            "gitlab-boundary-case-sensitivity",
+            "gitlab-boundary-custom-prefix",
+            "gitlab-boundary-delimiter",
+            "gitlab-boundary-invalid-alphabet"
           ],
           "state": "supported"
         },
@@ -357,6 +368,8 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "openai-positive-all-prefixes",
+            "openai-positive-min-length",
             "openai-positive-project"
           ],
           "state": "supported"
@@ -378,6 +391,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "openai-boundary-below-min",
+            "openai-boundary-case-sensitivity",
+            "openai-boundary-delimiter",
+            "openai-boundary-invalid-alphabet",
             "openai-boundary-short"
           ],
           "state": "supported"
@@ -385,13 +402,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "openai-negative-model-name"
+            "openai-negative-lookalike",
+            "openai-negative-model-name",
+            "openai-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "openai-boundary-below-min",
+            "openai-boundary-case-sensitivity",
+            "openai-boundary-delimiter",
+            "openai-boundary-invalid-alphabet",
             "openai-boundary-short"
           ],
           "state": "supported"
@@ -427,6 +450,7 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "anthropic-positive-min-length",
             "anthropic-positive-versioned"
           ],
           "state": "supported"
@@ -448,6 +472,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "anthropic-boundary-below-min",
+            "anthropic-boundary-case-sensitivity",
+            "anthropic-boundary-delimiter",
+            "anthropic-boundary-invalid-alphabet",
             "anthropic-boundary-version"
           ],
           "state": "supported"
@@ -455,6 +483,7 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
+            "anthropic-negative-placeholder",
             "anthropic-negative-unrelated-id"
           ],
           "state": "supported"
@@ -462,6 +491,10 @@
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "anthropic-boundary-below-min",
+            "anthropic-boundary-case-sensitivity",
+            "anthropic-boundary-delimiter",
+            "anthropic-boundary-invalid-alphabet",
             "anthropic-boundary-version"
           ],
           "state": "supported"
@@ -497,7 +530,9 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
-            "shopify-positive-admin-access"
+            "shopify-positive-admin-access",
+            "shopify-positive-all-prefixes",
+            "shopify-positive-min-length"
           ],
           "state": "supported"
         },
@@ -518,6 +553,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "shopify-boundary-below-min",
+            "shopify-boundary-case-sensitivity",
+            "shopify-boundary-delimiter",
+            "shopify-boundary-invalid-alphabet",
             "shopify-boundary-short"
           ],
           "state": "supported"
@@ -525,13 +564,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "shopify-negative-header-name"
+            "shopify-negative-header-name",
+            "shopify-negative-lookalike",
+            "shopify-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "shopify-boundary-below-min",
+            "shopify-boundary-case-sensitivity",
+            "shopify-boundary-delimiter",
+            "shopify-boundary-invalid-alphabet",
             "shopify-boundary-short"
           ],
           "state": "supported"
@@ -567,6 +612,8 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "vault-positive-all-prefixes",
+            "vault-positive-min-length",
             "vault-positive-service-token"
           ],
           "state": "supported"
@@ -588,6 +635,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "vault-boundary-below-min",
+            "vault-boundary-case-sensitivity",
+            "vault-boundary-delimiter",
+            "vault-boundary-invalid-alphabet",
             "vault-boundary-legacy-prefix"
           ],
           "state": "supported"
@@ -595,13 +646,18 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "vault-negative-common-identifier"
+            "vault-negative-common-identifier",
+            "vault-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "vault-boundary-below-min",
+            "vault-boundary-case-sensitivity",
+            "vault-boundary-delimiter",
+            "vault-boundary-invalid-alphabet",
             "vault-boundary-legacy-prefix"
           ],
           "state": "supported"
@@ -637,6 +693,8 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "stripe-positive-all-prefixes",
+            "stripe-positive-min-length",
             "stripe-positive-qualified"
           ],
           "state": "supported"
@@ -658,6 +716,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "stripe-boundary-below-min",
+            "stripe-boundary-case-sensitivity",
+            "stripe-boundary-delimiter",
+            "stripe-boundary-invalid-alphabet",
             "stripe-boundary-short"
           ],
           "state": "supported"
@@ -665,13 +727,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "stripe-negative-ordinary-reference"
+            "stripe-negative-lookalike",
+            "stripe-negative-ordinary-reference",
+            "stripe-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "stripe-boundary-below-min",
+            "stripe-boundary-case-sensitivity",
+            "stripe-boundary-delimiter",
+            "stripe-boundary-invalid-alphabet",
             "stripe-boundary-short"
           ],
           "state": "supported"
@@ -707,6 +775,8 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "slack-positive-all-prefixes",
+            "slack-positive-min-length",
             "slack-positive-qualified"
           ],
           "state": "supported"
@@ -728,6 +798,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "slack-boundary-below-min",
+            "slack-boundary-case-sensitivity",
+            "slack-boundary-delimiter",
+            "slack-boundary-invalid-alphabet",
             "slack-boundary-short"
           ],
           "state": "supported"
@@ -735,13 +809,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "slack-negative-ordinary-reference"
+            "slack-negative-lookalike",
+            "slack-negative-ordinary-reference",
+            "slack-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "slack-boundary-below-min",
+            "slack-boundary-case-sensitivity",
+            "slack-boundary-delimiter",
+            "slack-boundary-invalid-alphabet",
             "slack-boundary-short"
           ],
           "state": "supported"
@@ -777,6 +857,7 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "pypi-positive-min-length",
             "pypi-positive-qualified"
           ],
           "state": "supported"
@@ -798,6 +879,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "pypi-boundary-below-min",
+            "pypi-boundary-case-sensitivity",
+            "pypi-boundary-delimiter",
+            "pypi-boundary-invalid-alphabet",
             "pypi-boundary-short"
           ],
           "state": "supported"
@@ -805,13 +890,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "pypi-negative-ordinary-reference"
+            "pypi-negative-lookalike",
+            "pypi-negative-ordinary-reference",
+            "pypi-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "pypi-boundary-below-min",
+            "pypi-boundary-case-sensitivity",
+            "pypi-boundary-delimiter",
+            "pypi-boundary-invalid-alphabet",
             "pypi-boundary-short"
           ],
           "state": "supported"
@@ -847,6 +938,7 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "huggingface-positive-min-length",
             "huggingface-positive-qualified"
           ],
           "state": "supported"
@@ -868,6 +960,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "huggingface-boundary-below-min",
+            "huggingface-boundary-case-sensitivity",
+            "huggingface-boundary-delimiter",
+            "huggingface-boundary-invalid-alphabet",
             "huggingface-boundary-short"
           ],
           "state": "supported"
@@ -875,13 +971,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "huggingface-negative-ordinary-reference"
+            "huggingface-negative-lookalike",
+            "huggingface-negative-ordinary-reference",
+            "huggingface-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "huggingface-boundary-below-min",
+            "huggingface-boundary-case-sensitivity",
+            "huggingface-boundary-delimiter",
+            "huggingface-boundary-invalid-alphabet",
             "huggingface-boundary-short"
           ],
           "state": "supported"
@@ -917,6 +1019,8 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "docker-positive-all-prefixes",
+            "docker-positive-min-length",
             "docker-positive-qualified"
           ],
           "state": "supported"
@@ -938,6 +1042,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "docker-boundary-below-min",
+            "docker-boundary-case-sensitivity",
+            "docker-boundary-delimiter",
+            "docker-boundary-invalid-alphabet",
             "docker-boundary-short"
           ],
           "state": "supported"
@@ -945,13 +1053,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "docker-negative-ordinary-reference"
+            "docker-negative-lookalike",
+            "docker-negative-ordinary-reference",
+            "docker-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "docker-boundary-below-min",
+            "docker-boundary-case-sensitivity",
+            "docker-boundary-delimiter",
+            "docker-boundary-invalid-alphabet",
             "docker-boundary-short"
           ],
           "state": "supported"
@@ -987,6 +1101,7 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "cloudflare-positive-min-length",
             "cloudflare-positive-qualified"
           ],
           "state": "supported"
@@ -1008,6 +1123,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "cloudflare-boundary-below-min",
+            "cloudflare-boundary-case-sensitivity",
+            "cloudflare-boundary-delimiter",
+            "cloudflare-boundary-invalid-alphabet",
             "cloudflare-boundary-short"
           ],
           "state": "supported"
@@ -1015,13 +1134,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "cloudflare-negative-ordinary-reference"
+            "cloudflare-negative-lookalike",
+            "cloudflare-negative-ordinary-reference",
+            "cloudflare-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "cloudflare-boundary-below-min",
+            "cloudflare-boundary-case-sensitivity",
+            "cloudflare-boundary-delimiter",
+            "cloudflare-boundary-invalid-alphabet",
             "cloudflare-boundary-short"
           ],
           "state": "supported"
@@ -1057,6 +1182,8 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "digitalocean-positive-all-prefixes",
+            "digitalocean-positive-min-length",
             "digitalocean-positive-qualified"
           ],
           "state": "supported"
@@ -1078,6 +1205,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "digitalocean-boundary-below-min",
+            "digitalocean-boundary-case-sensitivity",
+            "digitalocean-boundary-delimiter",
+            "digitalocean-boundary-invalid-alphabet",
             "digitalocean-boundary-short"
           ],
           "state": "supported"
@@ -1085,13 +1216,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "digitalocean-negative-ordinary-reference"
+            "digitalocean-negative-lookalike",
+            "digitalocean-negative-ordinary-reference",
+            "digitalocean-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "digitalocean-boundary-below-min",
+            "digitalocean-boundary-case-sensitivity",
+            "digitalocean-boundary-delimiter",
+            "digitalocean-boundary-invalid-alphabet",
             "digitalocean-boundary-short"
           ],
           "state": "supported"
@@ -1127,6 +1264,8 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "linear-positive-all-prefixes",
+            "linear-positive-min-length",
             "linear-positive-qualified"
           ],
           "state": "supported"
@@ -1148,6 +1287,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "linear-boundary-below-min",
+            "linear-boundary-case-sensitivity",
+            "linear-boundary-delimiter",
+            "linear-boundary-invalid-alphabet",
             "linear-boundary-short"
           ],
           "state": "supported"
@@ -1155,13 +1298,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "linear-negative-ordinary-reference"
+            "linear-negative-lookalike",
+            "linear-negative-ordinary-reference",
+            "linear-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "linear-boundary-below-min",
+            "linear-boundary-case-sensitivity",
+            "linear-boundary-delimiter",
+            "linear-boundary-invalid-alphabet",
             "linear-boundary-short"
           ],
           "state": "supported"
@@ -1197,6 +1346,7 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "supabase-positive-min-length",
             "supabase-positive-qualified"
           ],
           "state": "supported"
@@ -1218,6 +1368,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "supabase-boundary-below-min",
+            "supabase-boundary-case-sensitivity",
+            "supabase-boundary-delimiter",
+            "supabase-boundary-invalid-alphabet",
             "supabase-boundary-short"
           ],
           "state": "supported"
@@ -1225,13 +1379,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "supabase-negative-ordinary-reference"
+            "supabase-negative-lookalike",
+            "supabase-negative-ordinary-reference",
+            "supabase-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "supabase-boundary-below-min",
+            "supabase-boundary-case-sensitivity",
+            "supabase-boundary-delimiter",
+            "supabase-boundary-invalid-alphabet",
             "supabase-boundary-short"
           ],
           "state": "supported"
@@ -1267,6 +1427,8 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "vercel-positive-all-prefixes",
+            "vercel-positive-min-length",
             "vercel-positive-qualified"
           ],
           "state": "supported"
@@ -1288,6 +1450,10 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "vercel-boundary-below-min",
+            "vercel-boundary-case-sensitivity",
+            "vercel-boundary-delimiter",
+            "vercel-boundary-invalid-alphabet",
             "vercel-boundary-short"
           ],
           "state": "supported"
@@ -1295,13 +1461,19 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "vercel-negative-ordinary-reference"
+            "vercel-negative-lookalike",
+            "vercel-negative-ordinary-reference",
+            "vercel-negative-placeholder"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "vercel-boundary-below-min",
+            "vercel-boundary-case-sensitivity",
+            "vercel-boundary-delimiter",
+            "vercel-boundary-invalid-alphabet",
             "vercel-boundary-short"
           ],
           "state": "supported"
