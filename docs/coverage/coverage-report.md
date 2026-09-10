@@ -55,7 +55,7 @@ Coverage declarations: 33.
 | aws_access_key_id | aws-access-key | provider | supported | not-applicable | none |
 | bearer_token | bearer-token | structural | supported | not-applicable | host-context, overlap |
 | cloudflare_api_token | cloudflare-token | provider | supported | not-applicable | none |
-| connection_string_password | connection-string | structural | supported | supported, unresolved | host-context |
+| connection_string_password | connection-string | structural | supported | supported | host-context |
 | contextual_secret | generic-token | contextual | supported | not-applicable | overlap |
 | digitalocean_token | digitalocean-token | provider | supported | not-applicable | none |
 | docker_token | docker-token | provider | supported | not-applicable | none |
@@ -80,16 +80,16 @@ Coverage declarations: 33.
 | --- | --- | --- | --- |
 | generic-token | authorization_credential | basic | supported |
 | generic-token | authorization_credential | token | supported |
-| connection-string | connection_string_password | amqp | unresolved |
-| connection-string | connection_string_password | amqps | unresolved |
-| connection-string | connection_string_password | mariadb | unresolved |
+| connection-string | connection_string_password | amqp | supported |
+| connection-string | connection_string_password | amqps | supported |
+| connection-string | connection_string_password | mariadb | supported |
 | connection-string | connection_string_password | mongodb | supported |
-| connection-string | connection_string_password | mongodb+srv | unresolved |
-| connection-string | connection_string_password | mysql | unresolved |
+| connection-string | connection_string_password | mongodb+srv | supported |
+| connection-string | connection_string_password | mysql | supported |
 | connection-string | connection_string_password | postgres | supported |
-| connection-string | connection_string_password | postgresql | unresolved |
+| connection-string | connection_string_password | postgresql | supported |
 | connection-string | connection_string_password | redis | supported |
-| connection-string | connection_string_password | rediss | unresolved |
+| connection-string | connection_string_password | rediss | supported |
 
 ## Coverage by evidence dimension
 
@@ -115,13 +115,7 @@ None.
 
 ### Unresolved schemes
 
-- connection_string_password/amqp
-- connection_string_password/amqps
-- connection_string_password/mariadb
-- connection_string_password/mongodb+srv
-- connection_string_password/mysql
-- connection_string_password/postgresql
-- connection_string_password/rediss
+None.
 
 ### Pending evidence dimensions
 

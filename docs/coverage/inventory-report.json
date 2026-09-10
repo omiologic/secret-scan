@@ -659,7 +659,7 @@
     {
       "detector": "connection-string",
       "evidence": {
-        "fixtureCount": 14,
+        "fixtureCount": 46,
         "hostContextsExercised": [
           "log",
           "plain-text"
@@ -677,69 +677,93 @@
         ]
       },
       "evidenceFixtureIds": [
+        "connection-positive-amqp-query",
+        "connection-positive-amqps",
         "connection-positive-encoded-ipv6",
+        "connection-positive-mariadb-percent-encoded",
         "connection-positive-mongodb-seed-list",
+        "connection-positive-mongodb-srv",
         "connection-positive-port",
         "connection-positive-postgres",
-        "connection-positive-redis-password-only"
+        "connection-positive-postgresql",
+        "connection-positive-redis-password-only",
+        "connection-positive-rediss-fragment"
       ],
       "policyClass": "always-redact",
       "schemeRows": [
         {
-          "evidenceFixtureIds": [],
+          "evidenceFixtureIds": [
+            "connection-positive-postgresql"
+          ],
           "scheme": "postgresql",
-          "state": "unresolved"
+          "state": "supported"
         },
         {
           "evidenceFixtureIds": [
-            "connection-positive-postgres"
+            "connection-positive-postgres",
+            "connection-positive-postgresql"
           ],
           "scheme": "postgres",
           "state": "supported"
         },
         {
-          "evidenceFixtureIds": [],
+          "evidenceFixtureIds": [
+            "connection-positive-port"
+          ],
           "scheme": "mysql",
-          "state": "unresolved"
-        },
-        {
-          "evidenceFixtureIds": [],
-          "scheme": "mariadb",
-          "state": "unresolved"
-        },
-        {
-          "evidenceFixtureIds": [],
-          "scheme": "mongodb+srv",
-          "state": "unresolved"
+          "state": "supported"
         },
         {
           "evidenceFixtureIds": [
-            "connection-positive-mongodb-seed-list"
+            "connection-positive-mariadb-percent-encoded"
+          ],
+          "scheme": "mariadb",
+          "state": "supported"
+        },
+        {
+          "evidenceFixtureIds": [
+            "connection-positive-mongodb-srv"
+          ],
+          "scheme": "mongodb+srv",
+          "state": "supported"
+        },
+        {
+          "evidenceFixtureIds": [
+            "connection-positive-mongodb-seed-list",
+            "connection-positive-mongodb-srv"
           ],
           "scheme": "mongodb",
           "state": "supported"
         },
         {
           "evidenceFixtureIds": [
-            "connection-positive-redis-password-only"
+            "connection-positive-redis-password-only",
+            "connection-positive-rediss-fragment"
           ],
           "scheme": "redis",
           "state": "supported"
         },
         {
-          "evidenceFixtureIds": [],
+          "evidenceFixtureIds": [
+            "connection-positive-rediss-fragment"
+          ],
           "scheme": "rediss",
-          "state": "unresolved"
+          "state": "supported"
         },
         {
-          "evidenceFixtureIds": [],
+          "evidenceFixtureIds": [
+            "connection-positive-amqp-query",
+            "connection-positive-amqps"
+          ],
           "scheme": "amqp",
-          "state": "unresolved"
+          "state": "supported"
         },
         {
-          "evidenceFixtureIds": [],
+          "evidenceFixtureIds": [
+            "connection-positive-amqps"
+          ],
           "scheme": "amqps",
-          "state": "unresolved"
+          "state": "supported"
         }
       ],
       "state": "supported",
