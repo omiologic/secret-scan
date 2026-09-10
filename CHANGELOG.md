@@ -7,6 +7,13 @@ select or authorize a release.
 
 ### Added
 
+- `docs/audits/closed-issue-acceptance-evidence-ledger.md` records criterion-level
+  acceptance evidence for the closed Rust-core migration issues (#3-#10 and
+  #12-#32): every original criterion, its class, the current files and
+  deterministic tests that establish it, and the recorded CI run that executes
+  them, with the remaining gaps classified and attributed to their open work
+  items. It records evidence only and authorizes no release operation.
+
 - CPython packaging for the Python binding: the `omiologic-secret-scan`
   distribution (imported as `secret_scan`), built by maturin as a `cp310-abi3`
   wheel that serves every CPython from 3.10 upward with no pure-Python
