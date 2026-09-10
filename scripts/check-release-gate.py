@@ -4,12 +4,16 @@
 Issue #77 (`RB-7`) requires that the `publish` job in
 `.github/workflows/release.yml` is unreachable unless every job in the
 required qualification set has succeeded for the exact commit being
-released. This script fails when that graph drifts: a required reusable
-workflow call job is removed, its `uses:` target is repointed, or `publish`
-stops declaring it in `needs:`.
+released. Issue #34's acceptance criterion "build and test all artifacts
+before any registry publication step is eligible" extends that requirement to
+every registry publish job -- npm, crates.io, and PyPI alike -- so this script
+also fails when `publish-crates` or `publish-pypi` stop declaring the same
+qualification set in `needs:`, not just `publish`. This script fails when
+that graph drifts: a required reusable workflow call job is removed, its
+`uses:` target is repointed, or a publish job stops declaring it in `needs:`.
 
-`REQUIRED_GATES` is the qualification set this repository enforces before
-`publish` may run.
+`REQUIRED_GATES` is the qualification set this repository enforces before any
+job in `PUBLISH_JOBS` may run.
 
 This intentionally parses the workflow YAML with plain text and regular
 expressions rather than a YAML library, matching
@@ -31,6 +35,12 @@ REQUIRED_GATES = {
     "python-wheels": "./.github/workflows/python-wheels.yml",
     "artifact-qualification": "./.github/workflows/artifact-qualification.yml",
 }
+
+# Every job that publishes to a registry. Each one must declare the full
+# REQUIRED_GATES set in `needs:` -- a partial gate on one registry's publish
+# job while another one publishes unqualified would defeat the point of the
+# qualification set.
+PUBLISH_JOBS = ("publish", "publish-crates", "publish-pypi")
 
 JOB_HEADER_PREFIX = "  "
 ATTRIBUTE_PREFIX = "    "
@@ -128,15 +138,16 @@ def validate(root: Path) -> list[str]:
         ):
             errors.append(f"{called_workflow.as_posix()}: does not expose workflow_call")
 
-    publish = jobs.get("publish")
-    if publish is None:
-        errors.append(f"{RELEASE_WORKFLOW.as_posix()}: missing publish job")
-    else:
+    for publish_job in PUBLISH_JOBS:
+        publish = jobs.get(publish_job)
+        if publish is None:
+            errors.append(f"{RELEASE_WORKFLOW.as_posix()}: missing {publish_job} job")
+            continue
         needs = set(extract_needs(publish))
         missing = sorted(set(REQUIRED_GATES) - needs)
         if missing:
             errors.append(
-                f"{RELEASE_WORKFLOW.as_posix()}: publish job does not need {', '.join(missing)}"
+                f"{RELEASE_WORKFLOW.as_posix()}: {publish_job} job does not need {', '.join(missing)}"
             )
 
     return errors

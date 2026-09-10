@@ -56,6 +56,32 @@ jobs:
     steps:
       - name: Check out repository
         run: echo noop
+
+  publish-crates:
+    name: Publish crates.io
+    needs: [ci, python-wheels, artifact-qualification]
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        run: echo noop
+
+  publish-pypi:
+    name: Publish PyPI
+    needs: [ci, python-wheels, artifact-qualification]
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        run: echo noop
 """
 
 CI_YML = """\
@@ -185,6 +211,43 @@ class ReleaseGateTests(unittest.TestCase):
         self._write("release.yml", broken)
         errors = CHECK.validate(self.root)
         self.assertTrue(any("missing publish job" in error for error in errors))
+
+    def test_publish_crates_not_needing_a_gate_is_an_error(self) -> None:
+        broken = RELEASE_YML.replace(
+            "  publish-crates:\n    name: Publish crates.io\n    needs: [ci, python-wheels, artifact-qualification]\n",
+            "  publish-crates:\n    name: Publish crates.io\n    needs: [ci, python-wheels]\n",
+        )
+        self._write("release.yml", broken)
+        errors = CHECK.validate(self.root)
+        self.assertTrue(
+            any("publish-crates job does not need artifact-qualification" in error for error in errors)
+        )
+
+    def test_publish_pypi_not_needing_a_gate_is_an_error(self) -> None:
+        broken = RELEASE_YML.replace(
+            "  publish-pypi:\n    name: Publish PyPI\n    needs: [ci, python-wheels, artifact-qualification]\n",
+            "  publish-pypi:\n    name: Publish PyPI\n    needs: [ci]\n",
+        )
+        self._write("release.yml", broken)
+        errors = CHECK.validate(self.root)
+        self.assertTrue(
+            any(
+                "publish-pypi job does not need artifact-qualification, python-wheels" in error
+                for error in errors
+            )
+        )
+
+    def test_missing_publish_crates_job_is_an_error(self) -> None:
+        broken = RELEASE_YML[: RELEASE_YML.index("  publish-crates:")] + RELEASE_YML[RELEASE_YML.index("  publish-pypi:") :]
+        self._write("release.yml", broken)
+        errors = CHECK.validate(self.root)
+        self.assertTrue(any("missing publish-crates job" in error for error in errors))
+
+    def test_missing_publish_pypi_job_is_an_error(self) -> None:
+        broken = RELEASE_YML[: RELEASE_YML.index("  publish-pypi:")]
+        self._write("release.yml", broken)
+        errors = CHECK.validate(self.root)
+        self.assertTrue(any("missing publish-pypi job" in error for error in errors))
 
 
 if __name__ == "__main__":
