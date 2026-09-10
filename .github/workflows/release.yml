@@ -3,10 +3,12 @@ name: Release
 # One dispatch publishes the whole product in lockstep
 # (decision-release-bindings-in-lockstep, decision-ship-first-release-artifact-set):
 # the npm package, the `secret-scan` and `secret-scan-cli` crates, and the
-# `omiologic-secret-scan` PyPI distribution. `publish-pypi` depends on
-# `qualify-wheels` (a `workflow_call` to `python-wheels.yml`) so it publishes
-# the exact wheels that workflow already qualified for this commit, rather
-# than rebuilding them.
+# `omiologic-secret-scan` PyPI distribution. `ci`, `python-wheels`, and
+# `artifact-qualification` call the qualification workflows as reusable
+# workflows (issue #77, RB-7) so every publish job below -- `publish`,
+# `publish-crates`, and `publish-pypi` -- gates on the exact same commit this
+# workflow is running for, and `publish-pypi` downloads the wheels
+# `python-wheels` already qualified rather than rebuilding them.
 #
 # `@omiologic/secret-scan-node`'s six platform packages and
 # `@omiologic/secret-scan-wasm` are not published by this workflow: their
@@ -34,13 +36,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  qualify-wheels:
-    name: Qualify Python wheels
-    uses: ./.github/workflows/python-wheels.yml
+  # These call the qualification workflows as reusable workflows rather than
+  # duplicating their jobs, so every publish job below gates on the exact
+  # same commit this workflow is running for (`github.sha` is shared with
+  # the caller) instead of a separate, potentially-stale CI run on the same
+  # ref.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
 
-  publish-npm:
+  python-wheels:
+    name: Python wheels
+    uses: ./.github/workflows/python-wheels.yml
+    permissions:
+      contents: read
+
+  artifact-qualification:
+    name: Artifact qualification
+    uses: ./.github/workflows/artifact-qualification.yml
+    permissions:
+      contents: read
+
+  publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+    # `ci` covers the four ci.yml Rust jobs and the wasm32 job (rust-policy,
+    # rust-native, rust-msrv, rust-wasm) plus the Node test matrix.
+    # `artifact-qualification` is the Node addon, browser artifact, and CLI
+    # qualification workflow issue #74 (RB-4) added.
+    needs:
+      - ci
+      - python-wheels
+      - artifact-qualification
     environment:
       name: release
     permissions:
@@ -184,6 +213,7 @@ jobs:
 
   publish-crates:
     name: Publish crates.io
+    needs: [ci, python-wheels, artifact-qualification]
     runs-on: ubuntu-latest
     environment:
       name: release
@@ -281,7 +311,7 @@ jobs:
 
   publish-pypi:
     name: Publish PyPI
-    needs: qualify-wheels
+    needs: [ci, python-wheels, artifact-qualification]
     runs-on: ubuntu-latest
     environment:
       name: release
@@ -359,7 +389,7 @@ jobs:
   # "Versioning, qualification, and release" section).
   record-manifest:
     name: Record release manifest
-    needs: [publish-npm, publish-crates, publish-pypi]
+    needs: [publish, publish-crates, publish-pypi]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -381,7 +411,7 @@ jobs:
           # A job that was skipped or failed before its own "report state"
           # step ran leaves its output empty, not `{}` -- default it here so
           # a partial release still yields a manifest instead of a jq error.
-          npm_json='${{ needs.publish-npm.outputs.registry_state_json }}'
+          npm_json='${{ needs.publish.outputs.registry_state_json }}'
           [[ -z "$npm_json" ]] && npm_json='{}'
           crates_json='${{ needs.publish-crates.outputs.registry_state_json }}'
           [[ -z "$crates_json" ]] && crates_json='{}'
