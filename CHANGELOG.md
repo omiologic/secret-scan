@@ -262,6 +262,31 @@ select or authorize a release.
   major `engines.node >=20` claims is exercised, and is callable as a reusable
   workflow so one qualification run carries its evidence.
 
+- `Release` (#141): added `publish-native-dependencies` and
+  `publish-wasm-dependency`, which pack, content-check, publish, and verify
+  the six native `@omiologic/secret-scan-<platform>` packages and
+  `@omiologic/secret-scan-wasm` from the exact artifacts `Artifact
+  qualification` already qualified for the release commit, never rebuilding
+  them. The wrapper's `publish` job now declares both in `needs:`
+  (`scripts/check-release-gate.py` enforces the edge), so it cannot become
+  eligible ahead of its own runtime dependencies. `verify-registry-install`
+  and `verify-registry-install-browser` then install the real, published
+  package from the registry — no local tarball, no `overrides` — on each
+  supported Node platform class and in the browser, and `record-manifest`
+  records every dependency package's registry state alongside the wrapper's.
+  `scripts/publish-dependency-package.mjs` is idempotent by registry state,
+  not by a first-cutover/routine-release switch, so the first dispatch and
+  every routine one after it are the same graph: there is no separate
+  "publish only the wrapper" path to run by mistake.
+
+- `Package Release Rehearsal` (#141) now exercises a real no-publication
+  rehearsal instead of a synthetic terminal outcome: it calls `Artifact
+  qualification`, validates `Release`'s dependency-cutover job graph, packs
+  and content-checks (never publishes) every runtime dependency package the
+  qualified artifacts resolve, and records the intended publish order and
+  package inventory as `dependency-cutover-plan.json`
+  (`scripts/record-dependency-cutover-plan.py`).
+
 ### Removed
 
 - `RB-2` (#72): removed the repository-root TypeScript detector core

@@ -41,6 +41,32 @@ jobs:
     permissions:
       contents: read
 
+  publish-native-dependencies:
+    name: Publish npm dependency
+    runs-on: ubuntu-latest
+    needs: [ci, python-wheels, artifact-qualification]
+    environment:
+      name: release
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        run: echo noop
+
+  publish-wasm-dependency:
+    name: Publish npm dependency (wasm)
+    runs-on: ubuntu-latest
+    needs: [ci, python-wheels, artifact-qualification]
+    environment:
+      name: release
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        run: echo noop
+
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
@@ -48,6 +74,8 @@ jobs:
       - ci
       - python-wheels
       - artifact-qualification
+      - publish-native-dependencies
+      - publish-wasm-dependency
     environment:
       name: release
     permissions:
@@ -248,6 +276,51 @@ class ReleaseGateTests(unittest.TestCase):
         self._write("release.yml", broken)
         errors = CHECK.validate(self.root)
         self.assertTrue(any("missing publish-pypi job" in error for error in errors))
+
+    def test_publish_not_needing_native_dependencies_is_an_error(self) -> None:
+        broken = RELEASE_YML.replace(
+            "      - publish-native-dependencies\n      - publish-wasm-dependency\n",
+            "      - publish-wasm-dependency\n",
+        )
+        self._write("release.yml", broken)
+        errors = CHECK.validate(self.root)
+        self.assertTrue(
+            any(
+                "publish job does not need publish-native-dependencies" in error
+                for error in errors
+            )
+        )
+
+    def test_publish_not_needing_wasm_dependency_is_an_error(self) -> None:
+        broken = RELEASE_YML.replace(
+            "      - publish-native-dependencies\n      - publish-wasm-dependency\n",
+            "      - publish-native-dependencies\n",
+        )
+        self._write("release.yml", broken)
+        errors = CHECK.validate(self.root)
+        self.assertTrue(
+            any("publish job does not need publish-wasm-dependency" in error for error in errors)
+        )
+
+    def test_missing_publish_native_dependencies_job_is_an_error(self) -> None:
+        broken = RELEASE_YML[: RELEASE_YML.index("  publish-native-dependencies:")] + RELEASE_YML[
+            RELEASE_YML.index("  publish-wasm-dependency:") :
+        ]
+        self._write("release.yml", broken)
+        errors = CHECK.validate(self.root)
+        self.assertTrue(
+            any("missing required job 'publish-native-dependencies'" in error for error in errors)
+        )
+
+    def test_missing_publish_wasm_dependency_job_is_an_error(self) -> None:
+        broken = RELEASE_YML[: RELEASE_YML.index("  publish-wasm-dependency:")] + RELEASE_YML[
+            RELEASE_YML.index("  publish:") :
+        ]
+        self._write("release.yml", broken)
+        errors = CHECK.validate(self.root)
+        self.assertTrue(
+            any("missing required job 'publish-wasm-dependency'" in error for error in errors)
+        )
 
 
 if __name__ == "__main__":

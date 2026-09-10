@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+/**
+ * Issue #141, "registry-backed clean install" criterion: installs the real,
+ * published `@omiologic/secret-scan` from the npm registry -- no local
+ * tarball, no `overrides` -- into a clean directory outside this repository,
+ * and awaits `initialize()` and a correct `scan()` on the requested runtime.
+ *
+ * This runs only after `publish`, `publish-native-dependencies`, and
+ * `publish-wasm-dependency` have all succeeded (`.github/workflows/release.yml`'s
+ * `needs:`), so `npm install` resolves every dependency from the registry
+ * exactly the way an actual consumer's install would: `optionalDependencies`
+ * platform matching on the node lane, and the wasm package as an ordinary
+ * dependency on both. `scripts/qualify-package-consumer.mjs` proves the same
+ * contract before those packages exist, with packed local tarballs standing
+ * in for the registry; this proves it once they do, against the registry
+ * itself, which is the one thing a pre-publish check cannot do.
+ *
+ * Usage: node scripts/verify-registry-install.mjs --lane node|browser
+ */
+
+import { execFileSync } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { CANONICAL_FIXTURE_ID, loadCanonicalFixture, packageVersion } from "./qualify-runtime-fixture.mjs";
+import { qualifyBrowser, qualifyNode } from "./consumer-harness.mjs";
+
+function parseArgs(argv) {
+  const index = argv.indexOf("--lane");
+  const lane = index === -1 ? undefined : argv[index + 1];
+  if (lane !== "node" && lane !== "browser") {
+    throw new Error("usage: verify-registry-install.mjs --lane node|browser");
+  }
+  return { lane };
+}
+
+/**
+ * A package.json outside the repository whose only dependency is the real,
+ * published wrapper at its exact version -- nothing here resolves back into
+ * this checkout, and nothing overrides what the registry serves.
+ */
+async function buildConsumerProject(version) {
+  const root = await mkdtemp(join(tmpdir(), "secret-scan-registry-consumer-"));
+  const manifest = {
+    name: "secret-scan-registry-install-verification",
+    private: true,
+    type: "module",
+    dependencies: {
+      "@omiologic/secret-scan": version,
+    },
+  };
+  await writeFile(join(root, "package.json"), JSON.stringify(manifest, null, 2));
+  execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", [
+    "install",
+    "--no-audit",
+    "--no-fund",
+  ], { cwd: root, stdio: "inherit" });
+  return root;
+}
+
+async function main() {
+  const { lane } = parseArgs(process.argv.slice(2));
+  const fixture = await loadCanonicalFixture(CANONICAL_FIXTURE_ID);
+  const expectedVersion = await packageVersion();
+
+  let consumerRoot;
+  try {
+    consumerRoot = await buildConsumerProject(expectedVersion);
+    if (lane === "node") {
+      qualifyNode(consumerRoot, fixture, expectedVersion);
+    } else {
+      await qualifyBrowser(consumerRoot, fixture, expectedVersion);
+    }
+  } finally {
+    if (consumerRoot) await rm(consumerRoot, { recursive: true, force: true });
+  }
+
+  console.log(
+    `Registry install verification passed (${lane} lane, fixture ${fixture.id}, ` +
+      `version ${expectedVersion}): the published package installed from the ` +
+      "registry into a clean directory and initialized.",
+  );
+}
+
+await main();
