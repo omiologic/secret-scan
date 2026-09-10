@@ -7,6 +7,24 @@ select or authorize a release.
 
 ### Added
 
+- `docs/audits/release-gap-disposition.md` records one disposition for every
+  finding the Rust-core migration retrospective produced (#66): all 55 findings
+  from the closed-issue acceptance evidence ledger and the three independent
+  reviews, classified against issue #66's blocker test into 26 release blockers,
+  25 deferred quality findings, and 4 intentional exclusions. It specifies nine
+  bounded remediation Tasks under Feature #11 (#71-#79), each recording its
+  source finding ids, inputs, outputs, deterministic acceptance criteria,
+  dependencies, and exact exit evidence; resolves all twenty release-readiness criteria of #3,
+  #11, #60, and #61 to evidence, a blocker, a deferred item, or an intentional
+  exclusion; and rules that `_notes/` is deliberately untracked so no tracked
+  file may cite a path inside it. It classifies and specifies work only, changes
+  no closed issue's state, and authorizes no release operation.
+
+- `docs/audits/deferred-quality-backlog.md` records the 25 non-blocking findings
+  with their class, severity, evidence, and exact exit condition, tracked by #80
+  and deliberately outside Epic #60's tree so none of them blocks the closeout. Three of them
+  close as side effects of blocker work, and each says which.
+
 - `docs/audits/ci-release-automation-supply-chain-review.md` records an
   independent review of the release candidate's pre-release qualification and
   operational controls (#65): the five workflows, the release and reconcile
