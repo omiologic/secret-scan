@@ -313,6 +313,22 @@ class BuildDeclarationsIntegrationTests(unittest.TestCase):
         self.assertIn("positive", pending_dims)
         self.assertIn("boundary", pending_dims)
 
+    def test_committed_coverage_declarations_is_up_to_date(self) -> None:
+        """A built-in capability (detector, finding type, corpus evidence)
+        added or removed without regenerating and committing
+        ``docs/coverage/coverage-declarations.json`` fails here -- issue #104's
+        drift-as-a-CI-failure guarantee for the canonical declarations file."""
+        committed_path = ROOT / "docs" / "coverage" / "coverage-declarations.json"
+        fresh = json.dumps(self.report, indent=2, sort_keys=True) + "\n"
+        committed = committed_path.read_text(encoding="utf-8")
+        self.assertEqual(
+            fresh,
+            committed,
+            "docs/coverage/coverage-declarations.json is out of date; regenerate it with "
+            "`python3 -B scripts/generate-coverage-declarations.py "
+            "--out docs/coverage/coverage-declarations.json`",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

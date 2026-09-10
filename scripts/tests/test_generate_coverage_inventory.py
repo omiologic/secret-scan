@@ -279,6 +279,24 @@ class RealRepoReconciliationTests(unittest.TestCase):
         types = [entry["type"] for entry in manifest["types"]]
         self.assertEqual(len(types), len(set(types)), "declared finding types must be unique")
 
+    def test_committed_inventory_report_is_up_to_date(self) -> None:
+        """A built-in capability (detector, finding type, corpus evidence)
+        added or removed without regenerating and committing
+        ``docs/coverage/inventory-report.json`` fails here -- issue #104's
+        drift-as-a-CI-failure guarantee for the generated inventory report."""
+        manifest = GEN.load_json(GEN.MANIFEST_PATH)
+        corpus = GEN.load_json(GEN.CORPUS_PATH)
+        report = GEN.build_report(manifest, corpus, ROOT)
+        fresh = json.dumps(report, indent=2, sort_keys=True) + "\n"
+        committed = (ROOT / "docs" / "coverage" / "inventory-report.json").read_text(encoding="utf-8")
+        self.assertEqual(
+            fresh,
+            committed,
+            "docs/coverage/inventory-report.json is out of date; regenerate it with "
+            "`python3 -B scripts/generate-coverage-inventory.py "
+            "--out docs/coverage/inventory-report.json`",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

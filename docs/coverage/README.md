@@ -74,6 +74,54 @@ Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_cover
   canonical fixture file against the schema, and re-runs the generator twice
   to prove the migration is deterministic).
 
+- [`coverage-report.md`](./coverage-report.md) — the reviewable coverage
+  report (issue [#104](https://github.com/omiologic/secret-scan/issues/104),
+  tracking-key `dacd-f1-t4`): the two machine-oriented documents above,
+  summarized by detector, finding type, scheme, evidence dimension, and
+  unresolved/pending state, for a human reviewer to scan in one pass.
+  Produced deterministically by
+  [`scripts/generate-coverage-report.py`](../../scripts/generate-coverage-report.py)
+  from `inventory-report.json` and `coverage-declarations.json` only — it
+  never reads the corpus or the registry directly, so it can carry nothing
+  those two documents did not already sanitize (no fixture `input`, no
+  matched value). Regenerate it after regenerating either input:
+
+  ```sh
+  python3 -B scripts/generate-coverage-report.py --out docs/coverage/coverage-report.md
+  ```
+
+  The generator's own exit code reflects a second, independent
+  reconciliation: every finding type declared in `inventory-report.json` must
+  appear in `coverage-declarations.json` with the same detector, and vice
+  versa — defense in depth against the two documents drifting from each
+  other even when each is independently in sync with the registry and corpus.
+
+  Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_coverage_report.py'`.
+
+## Coverage drift is a CI failure
+
+`npm run ci` runs `npm run coverage:check`, which fails the build if:
+
+- the built-in detector registry or `DefaultPolicy` disagrees with
+  `detector-inventory.json` (`cargo test -p secret-scan --test
+  detector_inventory`, part of the `rust-native` CI job);
+- `inventory-report.json` or `coverage-declarations.json` is out of date with
+  the real registry and corpus (`coverage:check`'s committed-baseline-
+  freshness tests);
+- `coverage-report.md` is out of date with those two documents, or they
+  disagree with each other about which finding types are declared
+  (`coverage:check`'s freshness and reconciliation tests); or
+- `coverage-declarations.json` fails `conformance/schema.ts`'s
+  `validateCanonicalCoverageDeclarations` (`vitest run
+  conformance/schema.test.ts`, also part of `coverage:check`).
+
+Adding or removing a built-in capability — a detector, a finding type, a
+scheme — without regenerating and committing the affected documents above
+fails one of these checks. See `scripts/generate-coverage-inventory.py`,
+`scripts/generate-coverage-declarations.py`, and
+`scripts/generate-coverage-report.py`'s regeneration commands, above, to
+reconcile.
+
 ## Scope
 
 This is the baseline, the evidence model that defines what a row needs to
@@ -85,7 +133,5 @@ resolve honestly, and that model encoded as data:
   applied against every row of `detector-inventory.json` and `consumers`.
 - `coverage-declarations.json` and `conformance/schema.ts`'s coverage-
   declaration types (above) — that model, machine-validated (issue #103).
-
-It does not yet make coverage drift a CI failure (issue
-[#104](https://github.com/omiologic/secret-scan/issues/104)) — none of the
-scripts here are wired into `npm run ci` yet, deliberately.
+- `coverage-report.md` and "Coverage drift is a CI failure" (above) — that
+  baseline and model, summarized for review and enforced in CI (issue #104).
