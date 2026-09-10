@@ -42,7 +42,7 @@ class Artifacts:
             "cli-x86_64-pc-windows-msvc": ["secret-scan.exe"],
             "python-wheel-aarch64-apple-darwin": ["package-cp310-abi3-macosx.whl"],
             "python-sdist": ["package-0.1.0.tar.gz"],
-            "browser-artifact": ["secret_scan_wasm.js", "secret_scan_wasm_bg.wasm"],
+            "wasm-web": ["secret_scan_wasm.js", "secret_scan_wasm_bg.wasm"],
         }
 
     def build(self) -> Path:
@@ -111,7 +111,7 @@ class InventoryTests(unittest.TestCase):
 
     def test_a_missing_browser_artifact_fails(self) -> None:
         def configure(artifacts: Artifacts) -> None:
-            del artifacts.files["browser-artifact"]
+            del artifacts.files["wasm-web"]
 
         self.assertEqual(self.errors(configure), ["browser: no artifact was produced"])
 

@@ -53,11 +53,7 @@ const PACKAGE_ENTRY = join(REPO_ROOT, "packages", "javascript", "dist", "index.j
 const ENGINES = ["chromium", "firefox", "webkit"];
 
 /** The artifact files the page loads, copied next to the harness. */
-const ARTIFACT_FILES = [
-  "secret_scan_wasm.js",
-  "secret_scan_wasm_bg.wasm",
-  "package.json",
-];
+const ARTIFACT_FILES = ["secret_scan_wasm.js", "secret_scan_wasm_bg.wasm"];
 
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -143,11 +139,10 @@ function buildFixtures(artifactDir) {
     );
   }
 
-  const manifest = JSON.parse(
-    readFileSync(join(artifactDir, "package.json"), "utf8"),
-  );
   return {
-    version: manifest.version,
+    version: JSON.parse(
+      readFileSync(join(REPO_ROOT, "package.json"), "utf8"),
+    ).version,
     // "not-yet-evaluated" fixtures carry no expectation and document a
     // future gap, not a current behavioral contract.
     synchronous: synchronous.fixtures

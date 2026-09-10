@@ -226,14 +226,27 @@ function conformAddon(fixtures) {
 }
 
 /**
- * Resolves the addon under the specifier the package requires, by linking it
- * into the package's own `node_modules`. That is where an installed consumer
- * would find it, so `runtime/node.js` takes exactly the path it takes in
- * production instead of a test-only shortcut.
+ * Resolves the addon under the specifier the package actually requires, by
+ * linking it into the package's own `node_modules`.
+ *
+ * `packages/javascript` declares one per-platform addon package per
+ * supported host (issue #79) and `runtime/node.js` picks between them; the
+ * name is asked of that module rather than restated here, so this links
+ * exactly what a consumer install would resolve. Nothing publishes those
+ * packages during a qualification run, so the local build stands in for the
+ * one npm would have fetched.
  */
-function linkAddon() {
+async function linkAddon() {
+  const { resolveAddonSpecifier } = await import(
+    pathToFileURL(join(JS_PACKAGE_DIR, "dist", "runtime", "node.js")).href
+  );
+  const specifier = resolveAddonSpecifier();
+  assert(
+    specifier !== undefined,
+    `no platform package is mapped for ${process.platform}/${process.arch}`,
+  );
   const scope = join(JS_PACKAGE_DIR, "node_modules", "@omiologic");
-  const link = join(scope, "secret-scan-node");
+  const link = join(scope, specifier.split("/")[1]);
   mkdirSync(scope, { recursive: true });
   rmSync(link, { recursive: true, force: true });
   symlinkSync(ADDON_DIR, link, "junction");
@@ -265,7 +278,7 @@ async function integrateWithPackage() {
   const fixture = await loadCanonicalFixture(CANONICAL_FIXTURE_ID);
   const expectedVersion = await packageVersion();
 
-  const link = linkAddon();
+  const link = await linkAddon();
   try {
     const api = await import(pathToFileURL(entry).href);
 

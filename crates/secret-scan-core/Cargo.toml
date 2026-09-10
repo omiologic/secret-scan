@@ -19,8 +19,10 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
-# Publication is enabled by the release process, not by this scaffold.
-publish.workspace = true
+# Publication runs only through the gated release process
+# (decision-ship-first-release-artifact-set); this override is what makes
+# `cargo publish -p secret-scan` possible at all.
+publish = true
 
 [lib]
 name = "secret_scan"

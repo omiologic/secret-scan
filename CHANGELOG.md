@@ -39,8 +39,11 @@ select or authorize a release.
   directions, so a platform cannot be added or dropped in one file alone, and
   the CLI matrix must stay a subset of the addon's. The same check enforces
   that every workflow and every job declares its own least-privilege
-  `permissions` and that every third-party action is pinned to a commit SHA.
-  27 unit tests cover each failure.
+  `permissions` and that every third-party action is pinned to a commit SHA
+  — `release.yml`'s `contents: write` for tagging and `id-token: write` for
+  PyPI Trusted Publishing are the only entries on that allowlist. 25 unit
+  tests cover each failure. `engines.node` stays
+  `scripts/check-rust-workspace.py`'s rule, so the two never contradict.
 
 - `scripts/record-artifact-inventory.py` closes a qualification run by
   requiring the whole declared matrix and recording `artifact-inventory.json`
@@ -52,6 +55,23 @@ select or authorize a release.
 - `docs/qualification.md` documents the declaration, the workflow, the runner
   map, what each qualifier proves, the inventory, and how to run the whole
   thing locally.
+
+- `decision-ship-first-release-artifact-set` (#79): the first release ships
+  the full four-artifact product — the `secret-scan` crate on crates.io, the
+  `secret-scan` CLI, the `omiologic-secret-scan` PyPI distribution, and the
+  `@omiologic/secret-scan` npm package. `publish` is lifted for the
+  `secret-scan` and `secret-scan-cli` crates; `release.yml` gains
+  `publish-crates` and `publish-pypi` jobs alongside the existing npm job, all
+  under the same `release` environment gate; and `packages/javascript`
+  declares its Node and WebAssembly dependencies for real —
+  `optionalDependencies` on one `@omiologic/secret-scan-<platform>` package
+  per `napi.targets`, resolved at runtime by `process.platform`/
+  `process.arch`, plus an ordinary `dependencies` entry on
+  `@omiologic/secret-scan-wasm`. `scripts/qualify-package-consumer.mjs`
+  installs the packed `packages/javascript` tarball into a clean directory
+  outside the repository and awaits `initialize()` on both the Node and
+  browser runtimes. Publishing `packages/javascript` and its native/wasm
+  dependencies for the first time remains `RB-2`'s cutover (#72).
 
 - `docs/audits/release-gap-disposition.md` records one disposition for every
   finding the Rust-core migration retrospective produced (#66): all 55 findings
@@ -230,6 +250,13 @@ select or authorize a release.
   rather than inheriting the workflow default.
 
 ### Notes
+
+- The eight-target addon matrix outruns the six per-platform npm packages
+  `packages/javascript` declares (#79), and `runtime/node.ts` maps hosts by
+  platform and architecture with no libc dimension, so an npm install on
+  Alpine resolves the glibc package. The musl addons are qualified artifacts
+  without a publication path; #79 owns deciding between two more platform
+  packages and a glibc-only npm claim.
 
 - Neither JavaScript artifact builds a streaming session, so
   `createIncrementalSanitizer` reports the fixed `INCREMENTAL_UNAVAILABLE`

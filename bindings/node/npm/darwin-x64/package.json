@@ -1,0 +1,18 @@
+{
+  "name": "@omiologic/secret-scan-darwin-x64",
+  "description": "N-API native addon for @omiologic/secret-scan (darwin-x64). Not intended for direct use; installed as an optional dependency of @omiologic/secret-scan.",
+  "version": "0.1.0-beta.1",
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "main": "secret-scan.darwin-x64.node",
+  "files": ["secret-scan.darwin-x64.node"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omiologic/secret-scan.git",
+    "directory": "bindings/node"
+  },
+  "engines": {
+    "node": "20.x || 22.x"
+  }
+}

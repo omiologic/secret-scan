@@ -312,29 +312,10 @@ class MatrixTests(unittest.TestCase):
 
         self.assertOneError(configure, "the musl smoke-test majors omits 22")
 
-    def test_engines_node_wider_than_the_matrix_fails(self) -> None:
-        def configure(repository: Repository) -> None:
-            repository.engines_node = ">=18"
-
-        errors = self.validate(configure)
-        self.assertEqual(len(errors), 3, errors)
-        for error in errors:
-            self.assertIn("engines.node is '>=18'", error)
-
-    def test_each_manifest_declaring_engines_node_is_checked(self) -> None:
-        for manifest in CHECK.ENGINE_MANIFESTS:
-            with self.subTest(manifest=manifest.as_posix()):
-                with tempfile.TemporaryDirectory() as directory:
-                    repository = Repository(Path(directory))
-                    root = repository.build()
-                    path = root / manifest
-                    content = json.loads(path.read_text(encoding="utf-8"))
-                    content["engines"]["node"] = ">=21"
-                    path.write_text(json.dumps(content, indent=2) + "\n", encoding="utf-8")
-                    errors = CHECK.validate(root)
-                self.assertEqual(len(errors), 1, errors)
-                self.assertIn(manifest.as_posix(), errors[0])
-                self.assertIn("engines.node is '>=21'", errors[0])
+    # `engines.node` itself is `check-rust-workspace.py`'s rule: it derives
+    # the exact majors from `ci.yml` and requires every lockstep manifest to
+    # enumerate them. `test_check_rust_workspace.py` covers that; this script
+    # deliberately does not check it a second, contradictory way.
 
     # --- Workflow hygiene -------------------------------------------------
 

@@ -38,6 +38,16 @@ bindings, and it must not reimplement detector behavior. Build it with
 `npm run js:build`, type-check it with `npm run js:typecheck`, and test it with
 `npm run js:test`; `npm run ci` runs all three.
 
+It depends on those bindings the N-API way
+(`decision-ship-first-release-artifact-set`): an `optionalDependencies` entry
+per `bindings/node/package.json`'s `napi.targets`
+(`@omiologic/secret-scan-<platform>`, `os`/`cpu`/`libc`-scoped so npm skips
+the ones that do not match a given install), resolved at runtime by
+`process.platform`/`process.arch` in `src/runtime/node.ts`, plus an ordinary
+`dependencies` entry on `@omiologic/secret-scan-wasm`. Neither is published
+before `RB-2` (issue #72) cuts the published npm artifact over to this
+package.
+
 ## Policies
 
 ### Format

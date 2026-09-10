@@ -21,7 +21,9 @@
   metadata (`src/metadata.rs`); it never sees the scanned input or a matched
   value, and any failure (a thrown exception or an unexpected return value)
   becomes a fixed, input-free error, never the exception's own message.
-- Consumed by `packages/javascript`; never published or imported directly.
+- Consumed by `packages/javascript` as the ordinary dependency
+  `@omiologic/secret-scan-wasm` (`npm/package.json` in this directory); never
+  imported directly by an application.
 - CI checks this crate and the core on the wasm32 target so the core cannot
   grow a dependency that does not compile for browsers, and runs this
   crate's own test suite for that target under Node (no browser needed) via

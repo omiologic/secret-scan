@@ -24,8 +24,9 @@ Checks, in order:
    and the engine list in ``scripts/qualify-browser-artifact.mjs``.
 4. Node.js support: ``node-support-majors`` equals the ``node-version``
    matrix in ``ci.yml`` and the majors the qualification workflow smoke-tests
-   the addon on, and every manifest declaring ``engines.node`` claims exactly
-   ``>={lowest major}``. A claim CI does not exercise is a claim that drifts.
+   the addon on, so an artifact is proved on every major CI claims.
+   ``engines.node`` itself belongs to ``check-rust-workspace.py``, which
+   derives the exact majors from ``ci.yml``.
 5. Least privilege: every workflow declares a top-level ``permissions`` and
    every job declares its own, and no job takes a write scope outside the
    recorded allowlist.
@@ -53,19 +54,14 @@ ADDON_QUALIFIER = Path("scripts") / "qualify-node-addon.mjs"
 CLI_QUALIFIER = Path("scripts") / "qualify-cli-binary.mjs"
 BROWSER_QUALIFIER = Path("scripts") / "qualify-browser-artifact.mjs"
 
-# Manifests that declare `engines.node`, all of which must claim the same
-# range the Node matrix exercises.
-ENGINE_MANIFESTS = (
-    Path("package.json"),
-    Path("packages") / "javascript" / "package.json",
-    NODE_PACKAGE,
-)
-
 # The only write scopes any job in this repository is allowed to take, and
 # the job that may take each. `Release` needs `contents: write` to create the
-# annotated tag its own workflow documents.
+# annotated tag its own workflow documents, and `id-token: write` for PyPI
+# Trusted Publishing, which mints a short-lived OIDC token instead of holding
+# a long-lived API token as a secret. Every other job is read-only.
 WRITE_SCOPE_ALLOWLIST = {
     ("release.yml", "publish", "contents"),
+    ("release.yml", "publish-pypi", "id-token"),
     ("reconcile-release.yml", "reconcile", "contents"),
 }
 
@@ -273,20 +269,10 @@ def check_node_support(root: Path, policy: dict, workflow: str) -> list[str]:
         )
     )
 
-    expected = f">={min(declared)}"
-    for path in ENGINE_MANIFESTS:
-        manifest = read_json(root, path)
-        if manifest is None:
-            errors.append(f"{path.as_posix()}: missing")
-            continue
-        claimed = manifest.get("engines", {}).get("node")
-        if claimed is None:
-            errors.append(f"{path.as_posix()}: declares no engines.node")
-        elif claimed != expected:
-            errors.append(
-                f"{path.as_posix()}: engines.node is {claimed!r}, but the matrix "
-                f"exercises {expected!r}"
-            )
+    # `engines.node` itself is checked by `scripts/check-rust-workspace.py`,
+    # which derives the exact majors from `ci.yml` and requires every
+    # lockstep manifest to enumerate them. Repeating that here with a
+    # different spelling would let the two checks contradict each other.
     return errors
 
 

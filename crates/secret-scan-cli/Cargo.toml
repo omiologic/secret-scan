@@ -9,7 +9,10 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
-publish.workspace = true
+# Publication runs only through the gated release process
+# (decision-ship-first-release-artifact-set); this override is what makes
+# `cargo publish -p secret-scan-cli` possible at all.
+publish = true
 
 [[bin]]
 name = "secret-scan"

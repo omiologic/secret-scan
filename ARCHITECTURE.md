@@ -424,3 +424,4 @@ The accepted records governing this architecture are:
 - [Define runtime bindings](./docs/decisions/2026-09-09-define-runtime-bindings.md)
 - [Govern cross-language conformance](./docs/decisions/2026-09-09-govern-cross-language-conformance.md)
 - [Release bindings in lockstep](./docs/decisions/2026-09-09-release-bindings-in-lockstep.md)
+- [Ship the first release's full artifact set](./docs/decisions/2026-09-10-ship-first-release-artifact-set.md)

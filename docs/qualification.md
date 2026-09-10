@@ -46,11 +46,13 @@ places that must agree with those lists drifts:
   `scripts/qualify-browser-artifact.mjs`, each of which must know every
   target or engine it may be asked to verify;
 - the `node-version` matrix in `.github/workflows/ci.yml` and the per-major
-  addon smoke steps against `node-support-majors`; and
-- `engines.node` in every manifest that declares one — the root package, the
-  published JavaScript package, and the addon — against the lowest major the
-  matrix exercises. A supported-runtime claim CI does not run is a claim that
-  drifts.
+  addon smoke steps against `node-support-majors`.
+
+`engines.node` itself belongs to `scripts/check-rust-workspace.py`, which
+derives the exact majors from `ci.yml` and requires every lockstep manifest
+to enumerate them (`20.x || 22.x || 24.x`) rather than leave the claim
+open-ended: `>=20` cannot be bound to a finite matrix. Only one script owns
+that rule, so the two cannot contradict each other.
 
 The same script enforces the two CI controls the release decision depends on:
 every workflow declares a top-level `permissions` and every job declares its
@@ -76,6 +78,7 @@ pull request does not trigger it.
 | `node-addon` | Builds the addon for each triple and qualifies it on Node 20, 22, and 24 |
 | `browser` | Builds the WebAssembly artifact and qualifies it, and the package on top of it, in each engine |
 | `cli` | Builds the CLI for each triple and qualifies the binary |
+| `package-consumer` | Packs the package and its native dependencies, installs the tarballs into a clean directory outside the checkout, and initializes both runtimes |
 | `inventory` | Requires the whole declared matrix and records what was built |
 
 Because `rust` and `python` are called workflows rather than copies, their
@@ -193,6 +196,20 @@ then writes `artifact-inventory.json` and a job summary carrying:
 - the declared matrices as they stood at that revision; and
 - every artifact file with its family, target, size, and SHA-256, plus the
   file-by-file contents of the npm package and the public Rust crate.
+
+## The musl addon has no publication path yet
+
+`node-addon-targets` builds and qualifies eight addons, but
+`packages/javascript` declares six per-platform `optionalDependencies`
+(issue #79) and `runtime/node.ts` selects between them by
+`process.platform`/`process.arch` alone — there is no libc dimension. So an
+npm install on Alpine resolves the *gnu* package. The musl addons this
+matrix builds are qualified artifacts with no publication path, and the
+package-level pass here links the local build under whichever specifier the
+runtime resolves, which is why it passes on musl too.
+
+Closing that is issue #79's call: either two more platform packages and a
+libc-aware mapping, or a recorded decision that npm ships glibc only.
 
 ## Incremental sanitization is unavailable on both JavaScript runtimes
 

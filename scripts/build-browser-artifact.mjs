@@ -8,11 +8,10 @@
  * the generated `default()` init resolves `secret_scan_wasm_bg.wasm` relative
  * to its own `import.meta.url`.
  *
- * The emitted `package.json` names the artifact `@omiologic/secret-scan-wasm`,
- * the specifier `packages/javascript/src/runtime/browser.ts` imports, and
- * carries the shared product version so a bundler and
- * `scripts/qualify-browser-artifact.mjs` resolve exactly what a consumer
- * would (`decision-release-bindings-in-lockstep`).
+ * Only the four generated files are emitted. The published manifest for
+ * `@omiologic/secret-scan-wasm` lives at `bindings/wasm/npm/package.json`
+ * (issue #79), and `scripts/qualify-package-consumer.mjs` copies this
+ * directory over it, so a manifest emitted here would overwrite it.
  *
  * The `wasm-bindgen` CLI must be the exact version the crate is compiled
  * against; a mismatch produces glue that cannot instantiate the module, so it
@@ -22,7 +21,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,8 +29,6 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** The crate whose cdylib becomes the browser artifact. */
 const CRATE = "secret-scan-wasm";
-/** The npm specifier the JavaScript package's browser runtime imports. */
-const ARTIFACT_PACKAGE = "@omiologic/secret-scan-wasm";
 /** The `--out-name` given to `wasm-bindgen`; every emitted file uses it. */
 const OUT_NAME = "secret_scan_wasm";
 const DEFAULT_OUT_DIR = join("bindings", "wasm", "pkg");
@@ -134,45 +131,8 @@ function main() {
     { stdio: "inherit" },
   );
 
-  // A minimal manifest: the artifact is resolved by specifier and loaded as
-  // an ES module, and it is published in lockstep rather than on its own.
-  writeFileSync(
-    join(outDir, "package.json"),
-    `${JSON.stringify(
-      {
-        name: ARTIFACT_PACKAGE,
-        version: workspace.version,
-        // Private for the same reason `bindings/node/package.json` is: this
-        // is build output resolved by specifier, and what a release ships is
-        // a separate, approved decision.
-        private: true,
-        description:
-          "WebAssembly browser artifact for @omiologic/secret-scan. Built from bindings/wasm; not published on its own.",
-        license: "MIT",
-        type: "module",
-        main: `${OUT_NAME}.js`,
-        module: `${OUT_NAME}.js`,
-        types: `${OUT_NAME}.d.ts`,
-        sideEffects: [`./${OUT_NAME}.js`],
-        files: [
-          `${OUT_NAME}.js`,
-          `${OUT_NAME}.d.ts`,
-          `${OUT_NAME}_bg.wasm`,
-          `${OUT_NAME}_bg.wasm.d.ts`,
-        ],
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  copyFileSync(join(REPO_ROOT, "LICENSE"), join(outDir, "LICENSE"));
-  copyFileSync(
-    join(REPO_ROOT, "bindings", "wasm", "README.md"),
-    join(outDir, "README.md"),
-  );
-
   console.log(
-    `built ${ARTIFACT_PACKAGE}@${workspace.version} (${options.profile}) in ${options.outDir}`,
+    `built the browser artifact ${workspace.version} (${options.profile}) in ${options.outDir}`,
   );
 }
 

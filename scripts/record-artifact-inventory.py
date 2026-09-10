@@ -92,7 +92,7 @@ def collect(artifacts: Path) -> list[dict]:
             family, target = "python-wheel", name.removeprefix("python-wheel-")
         elif name == "python-sdist":
             family, target = "python-sdist", None
-        elif name == "browser-artifact":
+        elif name == "wasm-web":
             family, target = "browser", None
         else:
             family, target = "unknown", None
