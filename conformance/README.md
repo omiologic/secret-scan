@@ -186,3 +186,14 @@ and `canonical-incremental-oracle.test.ts`), Rust's native UTF-8 bytes
 that the canonical offsets are char-aligned and select the same substring),
 and Python's Unicode code points
 (`bindings/python/src/lib.rs`'s `byte_offset_to_char_offset` and its tests).
+
+The `Qualification Matrix` workflow adds three artifact-level consumers of the
+synchronous corpus, each running it through a built artifact rather than
+through the source tree: the N-API addon
+(`scripts/qualify-node-addon.mjs`), the browser WebAssembly artifact in
+Chromium, Firefox, and WebKit (`scripts/browser-harness.mjs`), and the CLI
+(`scripts/qualify-cli-binary.mjs`, which compares against the corpus's own
+UTF-8 byte offsets because the CLI reports that unit). The first two convert
+canonical offsets to UTF-16 code units with a reference conversion
+independent of the binding under test, as the Python runner does for code
+points. See [docs/qualification.md](../docs/qualification.md).

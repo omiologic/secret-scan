@@ -340,6 +340,18 @@ python3 scripts/qualify-python-wheel.py --conformance dist/*.whl
 python3 scripts/qualify-python-wheel.py --build-sdist dist/*.tar.gz
 ```
 
+Build and qualify the Node addon, the browser artifact, and the CLI for this
+host (see [docs/qualification.md](./docs/qualification.md)):
+
+```bash
+npm run matrix:check
+npm --prefix bindings/node ci && npm --prefix bindings/node run build
+npm run js:build && npm run addon:qualify -- --target <triple>
+npm run wasm:build && npm run browser:qualify
+cargo build --release --locked -p secret-scan-cli
+npm run cli:qualify -- --binary target/release/secret-scan
+```
+
 The repository layout is:
 
 ```text
@@ -355,7 +367,22 @@ src/ and test/          temporary TypeScript oracle
 
 Release qualification must build and test the Rust crate, npm package, Python
 package, and CLI from the same commit without publishing. The artifacts share
-one SemVer version and one eventual `v{version}` tag.
+one SemVer version and one eventual `v{version}` tag. The `Qualification
+Matrix` workflow is that run: it builds the N-API addon, the CPython abi3
+wheels, the browser WebAssembly artifact, and the CLI binary for every
+declared target, smoke-tests each on the architecture it targets, exercises
+the browser artifact in Chromium, Firefox, and WebKit, and records an artifact
+inventory tied to the source commit. `[workspace.metadata.secret-scan]`
+declares those matrices once and `npm run matrix:check` fails when any file
+that consumes them drifts. See
+[docs/qualification.md](./docs/qualification.md).
+
+Browser and Node support is currently qualified at the artifact boundary — the
+WebAssembly module through its own exports, the addon through its own consumer
+surface. Neither built artifact carries `createIncrementalSanitizer`, so
+`initialize()` from `@omiologic/secret-scan` itself does not yet succeed on a
+real artifact; issues #73 and #74 own that gap and
+[docs/qualification.md](./docs/qualification.md) records how the matrix pins it.
 
 ## Security and release process
 

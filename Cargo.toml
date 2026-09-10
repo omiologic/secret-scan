@@ -181,6 +181,39 @@ python-wheel-targets = [
   "x86_64-unknown-linux-musl",
 ]
 
+# The cross-platform qualification matrix, enforced by
+# `scripts/check-qualification-matrix.py`. Every list below is the single
+# declaration of a supported surface: `.github/workflows/qualification.yml`
+# must build exactly these, `bindings/node/package.json` `napi.targets` must
+# equal `node-addon-targets`, and every manifest declaring `engines.node`
+# must claim exactly the majors `node-support-majors` names. A platform
+# leaves a list only by dropping support for it. See docs/qualification.md.
+node-addon-targets = [
+  "aarch64-apple-darwin",
+  "aarch64-pc-windows-msvc",
+  "aarch64-unknown-linux-gnu",
+  "aarch64-unknown-linux-musl",
+  "x86_64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+]
+cli-release-targets = [
+  "aarch64-apple-darwin",
+  "aarch64-pc-windows-msvc",
+  "aarch64-unknown-linux-gnu",
+  "aarch64-unknown-linux-musl",
+  "x86_64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+]
+# Every browser engine the WebAssembly artifact is initialized and scanned
+# in by `scripts/qualify-browser-artifact.mjs`.
+browser-engines = ["chromium", "firefox", "webkit"]
+# Every Node.js major `engines.node` claims and CI therefore exercises.
+node-support-majors = [20, 22, 24]
+
 [profile.release]
 codegen-units = 1
 lto = "fat"

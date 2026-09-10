@@ -379,6 +379,23 @@ is not transactional; only an explicitly authorized reconcile operation may
 complete a partially published matching version without rebuilding artifacts
 that already succeeded.
 
+The `Qualification Matrix` workflow is that candidate run. From one revision it
+calls the Rust and CPython workflows and additionally builds the N-API addon,
+the browser WebAssembly artifact, and the CLI binary for every declared target,
+smoke-testing each on the architecture it targets, exercising the browser
+artifact in Chromium, Firefox, and WebKit, and recording an artifact inventory
+— source commit, product version, conformance-corpus digests, per-artifact
+SHA-256, and the file-by-file contents of each publishable package — that
+states `"published": false`. The supported target, engine, and Node.js lists
+live once in `[workspace.metadata.secret-scan]`, and a declaration check binds
+every manifest, script, and workflow matrix to them so a supported platform
+cannot be added or dropped in one file alone. That check also enforces
+least-privilege workflow permissions and commit-pinned third-party actions.
+See [docs/qualification.md](./docs/qualification.md), which also records the
+one surface that matrix does not yet cover: the published JavaScript package
+driven end to end on a real artifact, because no built artifact yet carries
+the incremental session the internal binding contract requires.
+
 Release readiness does not authorize selecting a version, tagging, publishing,
 deploying, or archiving another repository. Those actions require the separate
 release approval defined by repository governance.

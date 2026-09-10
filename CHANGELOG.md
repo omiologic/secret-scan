@@ -7,6 +7,48 @@ select or authorize a release.
 
 ### Added
 
+- A cross-platform qualification matrix (#33). The new `Qualification Matrix`
+  workflow builds and proves every supported artifact from one commit and
+  publishes nothing: it calls `CI` and `Python wheels` for the Rust workspace
+  and the eight-target abi3 wheel matrix, and adds the N-API addon and the CLI
+  binary for eight targets each — Linux glibc and musl on x64 and arm64, macOS
+  on x64 and arm64, Windows on x64 and arm64 — plus the browser WebAssembly
+  artifact. Every native artifact is smoke-tested on the architecture it
+  targets, musl artifacts inside a musl container; the addon is qualified on
+  Node.js 20, 22, and 24; and the browser artifact is initialized and scanned
+  in Chromium, Firefox, and WebKit. Each qualifier runs the canonical
+  conformance corpus through the artifact under test — the addon and the
+  browser module against UTF-16 offsets converted by an independent reference
+  conversion, the CLI against the corpus's own UTF-8 byte offsets, which also
+  gives the CLI its first corpus-backed check. `scripts/qualify-node-addon.mjs`,
+  `scripts/qualify-browser-artifact.mjs` with `scripts/browser-harness.mjs`,
+  `scripts/build-browser-artifact.mjs`, and `scripts/qualify-cli-binary.mjs`
+  are runnable outside CI, exposed as `npm run addon:qualify`,
+  `browser:qualify`, `wasm:build`, and `cli:qualify`.
+
+- A single declaration of the supported surface, in
+  `[workspace.metadata.secret-scan]`: `node-addon-targets`,
+  `cli-release-targets`, `browser-engines`, and `node-support-majors` alongside
+  the existing `python-wheel-targets`. `scripts/check-qualification-matrix.py`
+  (`npm run matrix:check`, now part of `npm run ci`) fails when
+  `bindings/node/package.json`, either workflow matrix, any qualifier script,
+  or any manifest declaring `engines.node` disagrees with it — in both
+  directions, so a platform cannot be added or dropped in one file alone. The
+  same check enforces that every workflow and every job declares its own
+  least-privilege `permissions` and that every third-party action is pinned to
+  a commit SHA. 25 unit tests cover each failure.
+
+- `scripts/record-artifact-inventory.py` closes a qualification run by
+  requiring the whole declared matrix and recording `artifact-inventory.json`
+  against the source commit: the product version, `"published": false`, the
+  SHA-256 of every canonical fixture file, the declared matrices, every
+  artifact file's size and SHA-256, and the file-by-file contents of the npm
+  package and the public Rust crate. 12 unit tests cover it.
+
+- `docs/qualification.md` documents the declaration, the workflow, the runner
+  map, what each qualifier proves, the inventory, and how to run the whole
+  thing locally.
+
 - `docs/audits/release-gap-disposition.md` records one disposition for every
   finding the Rust-core migration retrospective produced (#66): all 55 findings
   from the closed-issue acceptance evidence ledger and the three independent
@@ -165,6 +207,33 @@ select or authorize a release.
   Input that is not valid UTF-8 fails closed with an input-free diagnostic, and
   a partial read, a limit failure, an abort, or a closed downstream pipe leaves
   no retained plaintext.
+
+### Changed
+
+- The N-API addon and the CLI now declare `x86_64-unknown-linux-musl` and
+  `aarch64-unknown-linux-musl` as supported targets, matching the wheel matrix,
+  and `bindings/node/package-lock.json` is tracked so the addon build toolchain
+  installs reproducibly with `npm ci`.
+
+- `CI` runs the JavaScript checks on Node.js 24 as well as 20 and 22, so every
+  major `engines.node >=20` claims is exercised, and is callable as a reusable
+  workflow so one qualification run carries its evidence.
+
+### Fixed
+
+- Every job in `Package Release Rehearsal` now declares its own permissions
+  rather than inheriting the workflow default.
+
+### Known gaps
+
+- No built artifact carries `createIncrementalSanitizer`, which
+  `packages/javascript/src/native.ts` makes part of the internal binding
+  contract, so `initialize()` from `@omiologic/secret-scan` does not yet
+  succeed on a real addon or a real browser artifact. Browser and Node support
+  is therefore qualified at the artifact boundary. `scripts/qualify-node-addon.mjs`
+  asserts that this is the single outstanding contract member, so the check
+  fails when the bindings gain the incremental surface. Issues #73 and #74 own
+  closing it.
 
 ## 0.1.0-beta.1 - 2026-08-31
 
