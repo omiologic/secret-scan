@@ -56,7 +56,7 @@ Coverage declarations: 33.
 | bearer_token | bearer-token | structural | supported | not-applicable | host-context, overlap |
 | cloudflare_api_token | cloudflare-token | provider | supported | not-applicable | none |
 | connection_string_password | connection-string | structural | supported | supported, unresolved | host-context |
-| contextual_secret | generic-token | contextual | supported | not-applicable | host-context, overlap |
+| contextual_secret | generic-token | contextual | supported | not-applicable | overlap |
 | digitalocean_token | digitalocean-token | provider | supported | not-applicable | none |
 | docker_token | docker-token | provider | supported | not-applicable | none |
 | github_token | github-token | provider | supported | not-applicable | none |
@@ -97,7 +97,7 @@ Coverage declarations: 33.
 | --- | --- | --- | --- |
 | adversarial | 33 | 0 | 0 |
 | boundary | 23 | 0 | 0 |
-| host-context | 17 | 0 | 6 |
+| host-context | 18 | 0 | 5 |
 | incremental | 3 | 7 | 0 |
 | malformed | 33 | 0 | 0 |
 | near-miss-negative | 23 | 0 | 0 |
@@ -130,7 +130,6 @@ None.
 - bearer_token.host-context (`structural-host-context-breadth`)
 - bearer_token.overlap (`bearer-token-overlap`)
 - connection_string_password.host-context (`structural-host-context-breadth`)
-- contextual_secret.host-context (`contextual-secret-host-context-breadth`)
 - contextual_secret.overlap (`contextual-secret-overlap`)
 - jwt.host-context (`structural-host-context-breadth`)
 - private_key.host-context (`structural-host-context-breadth`)

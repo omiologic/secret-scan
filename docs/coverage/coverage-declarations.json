@@ -1729,6 +1729,12 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "contextual-host-chat",
+            "contextual-host-dotenv",
+            "contextual-host-http",
+            "contextual-host-javascript",
+            "contextual-host-log",
+            "contextual-host-shell",
             "contextual-positive-assignment",
             "contextual-positive-aws-secret-access-key",
             "contextual-positive-aws-session-token",
@@ -1762,6 +1768,8 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
+            "contextual-negative-json-env-reference",
+            "contextual-negative-shell-placeholder",
             "contextual-negative-token-name"
           ],
           "state": "supported"
@@ -1775,12 +1783,23 @@
         },
         {
           "dimension": "host-context",
-          "evidenceFixtureIds": [],
-          "exception": {
-            "backlogId": "contextual-secret-host-context-breadth",
-            "code": "pending"
-          },
-          "state": "pending"
+          "evidenceFixtureIds": [
+            "contextual-adversarial-overlong",
+            "contextual-host-chat",
+            "contextual-host-dotenv",
+            "contextual-host-http",
+            "contextual-host-javascript",
+            "contextual-host-log",
+            "contextual-host-shell",
+            "contextual-negative-json-env-reference",
+            "contextual-negative-shell-placeholder",
+            "contextual-negative-token-name",
+            "contextual-positive-assignment",
+            "contextual-positive-aws-secret-access-key",
+            "contextual-positive-aws-session-token",
+            "contextual-positive-escaped-quote"
+          ],
+          "state": "supported"
         },
         {
           "classLevel": true,
