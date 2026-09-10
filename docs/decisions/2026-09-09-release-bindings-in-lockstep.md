@@ -5,7 +5,6 @@ scope: workspace
 title: Release bindings in lockstep
 decided_at: 2026-09-09
 ---
-
 # Release bindings in lockstep
 
 ## Decision
@@ -27,7 +26,7 @@ package name. A registry-specific name may differ from the product name without
 changing the shared product version.
 
 After the monorepo's Python binding is ready, archive the separately created
-`secret-scan-python` repository and leave a redirect to the monorepo. Do not use
+`secret-scan-python` repository(empty now) and leave a redirect to the monorepo. Do not use  
 it as a source mirror or an independently released package.
 
 ## Rationale
@@ -40,18 +39,19 @@ atomic.
 ## Alternatives considered
 
 - Independent binding versions were rejected because consumers would need a
-  separate compatibility matrix for combinations tested from the same source.
+separate compatibility matrix for combinations tested from the same source.
 - Core-only versioning was rejected because user-visible binding behavior is
-  part of the supported product contract.
+part of the supported product contract.
 - Keeping the Python repository as a mirror was rejected because it introduces
-  a second source and synchronization path.
+a second source and synchronization path.
 
 ## Consequences
 
 - Even binding-specific fixes advance the shared product version and qualify
-  all supported artifacts.
+all supported artifacts.
 - Release automation needs explicit partial-publication detection and
-  reconciliation behavior.
+reconciliation behavior.
 - This decision does not select a version or authorize a branch, tag, archive,
-  publication, deployment, or release. Existing release authority remains in
-  force.
+publication, deployment, or release. Existing release authority remains in
+force.
+
