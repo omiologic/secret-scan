@@ -10,6 +10,12 @@ const ROOT_CONSUMER =
 const WEB_STREAM_CONSUMER =
   'import { createWebStreamSanitizer } from "@omiologic/secret-scan/web-stream"; globalThis.secretScanEntry = [createWebStreamSanitizer];';
 
+/**
+ * The Node addon is one of six `optionalDependencies`, selected at runtime
+ * by `process.platform`/`process.arch` (`runtime/node.ts`), so unlike the
+ * wasm glue below it is never a statically resolvable specifier for a
+ * bundler to see — nothing here needs to mark it external.
+ */
 async function bundle(
   platform: "browser" | "node",
   contents: string = ROOT_CONSUMER,
@@ -19,7 +25,7 @@ async function bundle(
     format: "esm",
     metafile: true,
     platform,
-    external: ["@omiologic/secret-scan-wasm", "@omiologic/secret-scan-node"],
+    external: ["@omiologic/secret-scan-wasm"],
     stdin: {
       contents,
       loader: "js",
@@ -49,7 +55,6 @@ describe("bundler conditions", () => {
     expect(inputs.some((path) => path.startsWith("node:"))).toBe(false);
     expect(output).not.toContain("node:module");
     expect(output).not.toContain("createRequire");
-    expect(output).not.toContain("@omiologic/secret-scan-node");
   });
 
   it("routes a Node build through the N-API adapter only", async () => {

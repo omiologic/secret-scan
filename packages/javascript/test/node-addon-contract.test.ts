@@ -2,10 +2,10 @@
  * The N-API addon binding's own adapter contract (`runtime/node.ts`).
  *
  * Every test here runs against `createBindingFromAddon` — the same
- * normalization `runtime/node.ts` applies to the real
- * `@omiologic/secret-scan-node` addon, exercised here against a plain object
- * double instead of the compiled addon, which is not present in a source
- * checkout.
+ * normalization `runtime/node.ts` applies to the real per-platform addon
+ * (`@omiologic/secret-scan-<platform>`), exercised here against a plain
+ * object double instead of the compiled addon, which is not present in a
+ * source checkout.
  */
 
 import { describe, expect, it } from "vitest";

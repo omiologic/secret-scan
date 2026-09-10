@@ -32,3 +32,15 @@ __pycache__/
 /bindings/node/index.js
 /bindings/node/index.d.ts
 /bindings/node/*.node
+
+# Each npm/<platform> directory under bindings/node ships one published
+# package.json plus a compiled addon copied in at publish/qualification time
+# (issue #79); only the manifest is tracked.
+/bindings/node/npm/*/*.node
+
+# bindings/wasm/npm ships one published package.json plus the
+# `wasm-bindgen --target web` output copied in at publish/qualification time
+# (issue #79); only the manifest is tracked.
+/bindings/wasm/npm/*.js
+/bindings/wasm/npm/*.wasm
+/bindings/wasm/npm/*.d.ts

@@ -7,6 +7,23 @@ select or authorize a release.
 
 ### Added
 
+- `decision-ship-first-release-artifact-set` (#79): the first release ships
+  the full four-artifact product — the `secret-scan` crate on crates.io, the
+  `secret-scan` CLI, the `omiologic-secret-scan` PyPI distribution, and the
+  `@omiologic/secret-scan` npm package. `publish` is lifted for the
+  `secret-scan` and `secret-scan-cli` crates; `release.yml` gains
+  `publish-crates` and `publish-pypi` jobs alongside the existing npm job, all
+  under the same `release` environment gate; and `packages/javascript`
+  declares its Node and WebAssembly dependencies for real —
+  `optionalDependencies` on one `@omiologic/secret-scan-<platform>` package
+  per `napi.targets`, resolved at runtime by `process.platform`/
+  `process.arch`, plus an ordinary `dependencies` entry on
+  `@omiologic/secret-scan-wasm`. `scripts/qualify-package-consumer.mjs`
+  installs the packed `packages/javascript` tarball into a clean directory
+  outside the repository and awaits `initialize()` on both the Node and
+  browser runtimes. Publishing `packages/javascript` and its native/wasm
+  dependencies for the first time remains `RB-2`'s cutover (#72).
+
 - `docs/audits/release-gap-disposition.md` records one disposition for every
   finding the Rust-core migration retrospective produced (#66): all 55 findings
   from the closed-issue acceptance evidence ledger and the three independent
