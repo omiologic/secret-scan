@@ -53,6 +53,7 @@
     "decisions:validate": "python3 -B -m unittest discover -s scripts/tests -p 'test_validate_decisions.py' && python3 -B scripts/validate-decisions.py",
     "python:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_python_package.py' && python3 -B scripts/check-python-package.py",
     "rust:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_rust_workspace.py' && python3 -B scripts/check-rust-workspace.py",
+    "artifacts:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_artifact_matrix.py' && python3 -B scripts/check-artifact-matrix.py",
     "release:check": "npm run ci && npm pack --dry-run",
     "release": "npm publish --access public",
     "corpus:migrate": "esbuild scripts/migrate-conformance-corpus.ts --bundle --platform=node --format=esm --outfile=dist/.corpus-migrate.mjs && node dist/.corpus-migrate.mjs",
@@ -65,7 +66,7 @@
     "vitest": "^4.1.11"
   },
   "engines": {
-    "node": ">=20"
+    "node": "20.x || 22.x"
   },
   "version": "0.1.0-beta.1"
 }
