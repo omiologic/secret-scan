@@ -7,6 +7,19 @@ select or authorize a release.
 
 ### Added
 
+- `docs/audits/ci-release-automation-supply-chain-review.md` records an
+  independent review of the release candidate's pre-release qualification and
+  operational controls (#65): the five workflows, the release and reconcile
+  automation, the documented Rust, Node native, browser, Python wheel, CLI, and
+  package-artifact matrices, and the supply-chain posture behind them. It
+  records what was verified — SHA-pinned actions, empty default workflow
+  permissions, non-persisted checkout credentials, `--ignore-scripts`
+  installation, the enforced MSRV and wheel-matrix cross-checks, and the
+  fully qualified eight-target wheel matrix — and twenty-three evidence-backed
+  findings, five of them blocking, each with its affected control, severity, and
+  an exact exit condition. It dispatched no workflow and records evidence only;
+  it authorizes no release operation.
+
 - `docs/audits/javascript-python-bindings-package-contracts-review.md` records
   an independent review of the release candidate across the JavaScript runtime
   adapters, the Python binding, and the npm and PyPI package contracts (#64):
