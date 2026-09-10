@@ -15,11 +15,9 @@
  *    (`decision-govern-cross-language-conformance`) through the addon's
  *    `scan`, with each expectation's UTF-8 byte offsets converted to UTF-16
  *    code units by an independent reference conversion.
- * 4. **Integrate** — the published JavaScript package resolving the same
- *    addon under its own specifier, the way an installed consumer resolves
- *    it. That layer is not yet passable end to end: see
- *    {@link integrateWithPackage}, which pins the outstanding gap so it
- *    cannot close silently.
+ * 4. **Integrate** — the published JavaScript package's public API driven
+ *    against the same addon, resolved the way an installed consumer resolves
+ *    it, so the package's own binding glue is covered end to end.
  *
  * Every corpus input is synthetic or explicitly revoked, and no diagnostic
  * printed here carries an input, a matched value, or a placeholder. Usage:
@@ -41,17 +39,21 @@ import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import {
+  CANONICAL_FIXTURE_ID,
+  assertMatchesFixture,
+  loadCanonicalFixture,
+  packageVersion,
+} from "./qualify-runtime-fixture.mjs";
+
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ADDON_DIR = join(REPO_ROOT, "bindings", "node");
 const JS_PACKAGE_DIR = join(REPO_ROOT, "packages", "javascript");
 const FIXTURES_DIR = join(REPO_ROOT, "conformance", "fixtures");
 
-/** The specifier the JavaScript package's Node runtime requires. */
-const ADDON_PACKAGE = "@omiologic/secret-scan-node";
-
 /**
  * The `<platform>-<arch>[-<abi>]` name `@napi-rs/cli` gives the compiled
- * file for each declared target. `scripts/check-qualification-matrix.py`
+ * file for each declared target. `scripts/check-artifact-matrix.py`
  * requires every target in the declared matrix to appear here.
  */
 const TARGET_PLATFORM_NAMES = {
@@ -64,6 +66,18 @@ const TARGET_PLATFORM_NAMES = {
   "x86_64-pc-windows-msvc": "win32-x64-msvc",
   "aarch64-pc-windows-msvc": "win32-arm64-msvc",
 };
+
+/**
+ * Limits generous enough that no canonical fixture reaches one. They only
+ * have to be structurally valid: the Node runtime rejects the call before
+ * any of them is consulted.
+ */
+const GENEROUS_LIMITS = Object.freeze({
+  maxInputCodeUnits: 1_000_000,
+  maxBufferedCodeUnits: 16_512,
+  maxTokenCodeUnits: 8_192,
+  maxMultilineCodeUnits: 16_384,
+});
 
 const failures = [];
 
@@ -227,34 +241,19 @@ function linkAddon() {
 }
 
 /**
- * The internal binding contract `packages/javascript/src/native.ts` declares
- * and `runtime/node.js` requires every member of before it will initialize.
- */
-const BINDING_CONTRACT = [
-  "version",
-  "initialize",
-  "scan",
-  "redact",
-  "scanAndRedact",
-  "createIncrementalSanitizer",
-];
-
-/**
- * Drives the published package against the real addon, resolved under the
- * specifier an installed consumer resolves.
+ * Drives the published package's public API against the real addon,
+ * resolved under the specifier an installed consumer resolves.
  *
- * This is where the one layer no other check reaches — the package's own
- * binding glue — meets the artifact, and on Node it records a gap rather
- * than a pass: the addon exports no `createIncrementalSanitizer`, so
- * `runtime/node.js` refuses it and `initialize()` rejects with
- * `INITIALIZATION_FAILED`. The browser runtime settled the same question the
- * other way — it declares incremental sanitization unavailable and rejects
- * with `INCREMENTAL_UNAVAILABLE` — so the equivalent browser pass is
- * complete and lives in `scripts/browser-package-harness.mjs`.
+ * This is the one layer no other check reaches: the package's own binding
+ * glue, on a real artifact. `bindings/node` exports no incremental session,
+ * and `runtime/node.js` now treats that the way `runtime/browser.ts` treats
+ * `bindings/wasm`'s documented non-support — `INCREMENTAL_UNAVAILABLE` at
+ * call time rather than a load-time failure — so `initialize()` succeeds and
+ * the whole synchronous surface is exercised here.
  *
- * The assertion below pins that exact state, so it fails the moment the
- * addon gains the incremental surface (issue #74) and must then be replaced
- * by the positive public-API pass.
+ * The single-fixture assertion goes through `qualify-runtime-fixture.mjs`,
+ * so this script embeds no fixture input or matched value of its own; the
+ * whole-corpus pass above already covers the addon's own `scan`.
  */
 async function integrateWithPackage() {
   const entry = join(JS_PACKAGE_DIR, "dist", "index.js");
@@ -263,42 +262,53 @@ async function integrateWithPackage() {
     `${entry}: missing; build the package with \`npm run js:build\``,
   );
 
+  const fixture = await loadCanonicalFixture(CANONICAL_FIXTURE_ID);
+  const expectedVersion = await packageVersion();
+
   const link = linkAddon();
   try {
-    const addon = createRequire(join(JS_PACKAGE_DIR, "dist", "runtime", "node.js"))(
-      ADDON_PACKAGE,
-    );
-    const missing = BINDING_CONTRACT.filter(
-      (name) => typeof addon[name] !== "function",
-    );
-    assertEqual(
-      addon.version(),
-      JSON.parse(readFileSync(join(JS_PACKAGE_DIR, "package.json"), "utf8")).version,
-      "the resolved addon reports the package's version",
-    );
-    assertEqual(
-      missing,
-      ["createIncrementalSanitizer"],
-      "the addon's outstanding gap against the binding contract",
-    );
-
     const api = await import(pathToFileURL(entry).href);
-    let rejected;
-    try {
-      await api.initialize();
-    } catch (error) {
-      rejected = error;
+
+    // Idempotent, and it must succeed: a rejection here means the addon no
+    // longer satisfies the binding contract the package declares.
+    await api.initialize();
+    await api.initialize();
+    assertEqual(api.VERSION, expectedVersion, "the package's reported version");
+    assertEqual(api.RANGE_UNIT, "utf16-code-units", "RANGE_UNIT");
+
+    const findings = api.scan(fixture.input);
+    assertEqual(findings.length, 1, `fixture ${fixture.id} finding count`);
+    assertMatchesFixture(findings[0], fixture);
+    assert(Object.isFrozen(findings[0]), "the package returned a mutable finding");
+
+    const { text, findings: combined } = api.scanAndRedact(fixture.input);
+    assertEqual(
+      text,
+      api.redact(fixture.input, api.scan(fixture.input)),
+      `fixture ${fixture.id} scanAndRedact disagreed with scan + redact`,
+    );
+    for (const finding of combined) {
+      if (finding.action !== "redact" && finding.action !== "block") continue;
+      assert(
+        !text.includes(fixture.input.slice(finding.start, finding.end)),
+        `fixture ${fixture.id} left a redacted span in the output`,
+      );
     }
+
+    // `bindings/node` builds no streaming session, so the adapter reports
+    // that at call time with a fixed code instead of refusing to load.
+    let thrown;
+    try {
+      api.createIncrementalSanitizer({ limits: GENEROUS_LIMITS });
+    } catch (error) {
+      thrown = error;
+    }
+    assert(thrown !== undefined, "the Node runtime opened a session");
     assert(
-      rejected !== undefined,
-      "initialize() resolved; the incremental surface has landed and this " +
-        "check must be replaced by the positive public-API pass (#74)",
+      thrown instanceof api.SecretScanError,
+      "a foreign error escaped the package",
     );
-    assertEqual(rejected.code, "INITIALIZATION_FAILED", "initialize() code");
-    console.log(
-      "#   known gap: the addon exports no createIncrementalSanitizer, so " +
-        "the package cannot initialize on it (issue #74)",
-    );
+    assertEqual(thrown.code, "INCREMENTAL_UNAVAILABLE", "incremental code");
   } finally {
     rmSync(link, { recursive: true, force: true });
   }
@@ -318,7 +328,7 @@ async function main() {
     conformAddon(fixtures),
   );
   await reportAsync(
-    "the JavaScript package resolves the real addon under its own specifier",
+    "the JavaScript package's public API runs on the real addon",
     integrateWithPackage,
   );
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record the artifact inventory a qualification run produced.
 
-The last job of ``.github/workflows/qualification.yml``: it proves the whole
+The last job of ``.github/workflows/artifact-qualification.yml``: it proves the whole
 declared matrix was actually built from one revision, and writes down what
 was built. Publication is not part of it and never happens here
 (``decision-release-bindings-in-lockstep``).

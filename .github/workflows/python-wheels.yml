@@ -36,7 +36,7 @@ permissions: {}
 
 concurrency:
   # `github.workflow` is the *calling* workflow's name when this one is
-  # called, so a `Qualification Matrix` run and a direct `Python wheels` run
+  # called, so an `Artifact qualification` run and a direct `Python wheels` run
   # on the same ref do not serialize behind each other.
   group: python-wheels-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

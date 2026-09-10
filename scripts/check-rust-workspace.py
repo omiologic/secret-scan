@@ -13,22 +13,26 @@ Checks, in order:
    named in ``LOCKSTEP_MANIFESTS`` (``package.json``,
    ``bindings/node/package.json``, ``packages/javascript/package.json``)
    share one product version.
-4. MSRV: the declared ``rust-version`` is inherited by every member, is at
+4. Node engines: every manifest in ``LOCKSTEP_MANIFESTS`` declares
+   ``engines.node`` as exactly the Node majors ``ci.yml``'s ``test`` job
+   matrix exercises, so the promised platform and the tested platform cannot
+   drift apart.
+5. MSRV: the declared ``rust-version`` is inherited by every member, is at
    least the highest ``rust-version`` required by any resolved dependency, and
    matches the ``MSRV`` value exercised by the CI workflow.
-5. Public API: the names the core crate root exports, and the names its
+6. Public API: the names the core crate root exports, and the names its
    documented "Public surface" table cites, both match ``core-public-api``
    exactly — so nothing joins or leaves the published surface without a
    manifest change to review, and the documentation cannot fall behind it.
-6. Source boundary: no core source names a runtime I/O, environment,
+7. Source boundary: no core source names a runtime I/O, environment,
    process, clock, or thread facility, and no core source reaches for a
    binding crate. This is the compile-time half of the "no runtime I/O"
    guarantee; the dependency boundary in check 1 is the other half.
-7. Core manifest shape: the core declares no Cargo features, no optional or
+8. Core manifest shape: the core declares no Cargo features, no optional or
    target-specific dependencies, and no dependency named in
    ``binding-dependencies`` — the crate a dependent gets is the crate this
    repository tests, with no feature-selected variants.
-8. Package contents: every file ``cargo package`` would publish for the core
+9. Package contents: every file ``cargo package`` would publish for the core
    matches ``core-package-globs``, and the files in
    ``core-package-required`` are all present.
 
@@ -51,6 +55,10 @@ from pathlib import Path, PurePosixPath
 
 CI_WORKFLOW = Path(".github") / "workflows" / "ci.yml"
 CI_MSRV = re.compile(r"^\s*MSRV:\s*[\"']?(\d+\.\d+(?:\.\d+)?)[\"']?\s*$", re.M)
+# The `test` job's `node-version` matrix: one or more `- <major>` entries
+# immediately under the `node-version:` key.
+CI_NODE_VERSIONS = re.compile(r"node-version:\s*\n((?:\s*-\s*\d+\s*\n)+)")
+NODE_VERSION_ENTRY = re.compile(r"-\s*(\d+)")
 FORBID_UNSAFE = re.compile(r"^\s*#!\[forbid\(unsafe_code\)\]\s*$", re.M)
 FORBID_UNSAFE_ROOTS = {"secret-scan": "src/lib.rs", "secret-scan-cli": "src/main.rs"}
 LOCKSTEP_MANIFESTS = ("package.json", "bindings/node/package.json", "packages/javascript/package.json")
@@ -185,6 +193,52 @@ def check_version_lockstep(root: Path, metadata: dict, root_manifest: dict) -> l
         found = json.loads(path.read_text(encoding="utf-8")).get("version")
         if found != version:
             errors.append(f"{relative}: version {found} differs from workspace version {version}")
+    return errors
+
+
+def ci_node_majors(workflow_text: str) -> list[int]:
+    """The Node majors the `test` job's matrix exercises, ascending."""
+    match = CI_NODE_VERSIONS.search(workflow_text)
+    if not match:
+        return []
+    return sorted(int(entry) for entry in NODE_VERSION_ENTRY.findall(match.group(1)))
+
+
+def expected_node_engines(majors: list[int]) -> str:
+    """The `engines.node` range that names exactly these majors, no others.
+
+    `>=20` cannot be bound to a finite CI matrix: it also claims every future
+    major CI has never run. `20.x || 22.x` claims exactly the majors tested,
+    so a manifest and the CI matrix can be checked against each other.
+    """
+    return " || ".join(f"{major}.x" for major in majors)
+
+
+def check_node_engines(root: Path) -> list[str]:
+    """Every lockstep manifest's `engines.node` names exactly the Node majors
+    `ci.yml`'s `test` job matrix exercises — narrowed to that finite set
+    rather than left open-ended, so the two cannot drift apart
+    (`docs/audits/release-gap-disposition.md` `R/F-23`)."""
+    workflow = root / CI_WORKFLOW
+    if not workflow.is_file():
+        return [f"{CI_WORKFLOW}: missing CI workflow"]
+    majors = ci_node_majors(workflow.read_text(encoding="utf-8"))
+    if not majors:
+        return [f"{CI_WORKFLOW}: no Node major versions found in the test job's node-version matrix"]
+
+    expected = expected_node_engines(majors)
+    errors: list[str] = []
+    for relative in LOCKSTEP_MANIFESTS:
+        path = root / relative
+        if not path.is_file():
+            errors.append(f"{relative}: missing lockstep manifest")
+            continue
+        declared = json.loads(path.read_text(encoding="utf-8")).get("engines", {}).get("node")
+        if declared != expected:
+            errors.append(
+                f"{relative}: engines.node {declared!r} must be {expected!r}, "
+                f"the exact Node majors {CI_WORKFLOW.as_posix()} tests"
+            )
     return errors
 
 
@@ -417,6 +471,7 @@ def validate(root: Path, metadata: dict, package_lister=None) -> list[str]:
     errors.extend(check_core_boundary(metadata, policy))
     errors.extend(check_unsafe_policy(root, metadata, root_manifest))
     errors.extend(check_version_lockstep(root, metadata, root_manifest))
+    errors.extend(check_node_engines(root))
     errors.extend(check_msrv(root, metadata, root_manifest))
     errors.extend(check_core_public_api(root, metadata, policy))
     errors.extend(check_core_source_boundary(root, metadata, policy))

@@ -379,7 +379,7 @@ is not transactional; only an explicitly authorized reconcile operation may
 complete a partially published matching version without rebuilding artifacts
 that already succeeded.
 
-The `Qualification Matrix` workflow is that candidate run. From one revision it
+The `Artifact qualification` workflow is that candidate run. From one revision it
 calls the Rust and CPython workflows and additionally builds the N-API addon,
 the browser WebAssembly artifact, and the CLI binary for every declared target,
 smoke-testing each on the architecture it targets, exercising the browser
@@ -392,11 +392,10 @@ every manifest, script, and workflow matrix to them so a supported platform
 cannot be added or dropped in one file alone. That check also enforces
 least-privilege workflow permissions and commit-pinned third-party actions.
 See [docs/qualification.md](./docs/qualification.md), which also records the
-one surface that matrix does not yet cover: the published JavaScript package
-driven end to end on a real *Node* addon, because that addon exports no
-incremental session and the internal binding contract requires one. The
-browser half is covered — the package runs on the real WebAssembly artifact
-in every supported engine.
+one deliberate asymmetry: neither JavaScript artifact builds a streaming
+session, so `createIncrementalSanitizer` reports `INCREMENTAL_UNAVAILABLE` on
+both runtimes while the Python binding offers it, and the CLI ships no musl
+variant while the N-API addon does.
 
 Release readiness does not authorize selecting a version, tagging, publishing,
 deploying, or archiving another repository. Those actions require the separate

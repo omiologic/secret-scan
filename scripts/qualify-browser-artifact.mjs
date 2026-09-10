@@ -17,11 +17,14 @@
  *
  * Chromium, Firefox, and WebKit are the supported engines, declared in
  * `[workspace.metadata.secret-scan] browser-engines`, and
- * `scripts/check-qualification-matrix.py` keeps this list and the workflow
+ * `scripts/check-artifact-matrix.py` keeps this list and the workflow
  * matrix in agreement. Usage:
  *
  *     node scripts/qualify-browser-artifact.mjs --engine chromium
  *     node scripts/qualify-browser-artifact.mjs            # every engine
+ *
+ * `--artifact-dir` (also accepted as `--wasm-dir`) points at a build other
+ * than the default `bindings/wasm/pkg`.
  *
  * Every corpus input is synthetic or explicitly revoked, and no diagnostic
  * this script prints carries an input, a matched value, or a placeholder.
@@ -111,10 +114,10 @@ function parseArguments(argv) {
         fail(`--engine must be one of ${ENGINES.join(", ")}`);
       }
       options.engines.push(value);
-    } else if (argument === "--artifact-dir") {
+    } else if (argument === "--artifact-dir" || argument === "--wasm-dir") {
       index += 1;
       const value = argv[index];
-      if (value === undefined) fail("--artifact-dir requires a directory");
+      if (value === undefined) fail(`${argument} requires a directory`);
       options.artifactDir = resolve(REPO_ROOT, value);
     } else {
       fail(`unknown argument: ${argument}`);

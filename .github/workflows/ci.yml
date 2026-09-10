@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-  # `Qualification Matrix` calls this workflow so one commit's Rust format,
+  # `Artifact qualification` calls this workflow so one commit's Rust format,
   # lint, test, MSRV, conformance, and wasm32 evidence is part of the same
   # run as every artifact built from it.
   workflow_call:
@@ -30,7 +30,7 @@ jobs:
       matrix:
         # Every major `engines.node` claims, declared once as
         # `node-support-majors` in the root Cargo.toml and enforced by
-        # `scripts/check-qualification-matrix.py`.
+        # `scripts/check-artifact-matrix.py`.
         node-version:
           - 20
           - 22

@@ -49,18 +49,18 @@ const FIXTURES_DIR = join(REPO_ROOT, "conformance", "fixtures");
 
 /**
  * Every target the CLI is released for, and the suffix its executable
- * carries. `scripts/check-qualification-matrix.py` requires the declared CLI
- * matrix to be exactly these keys.
+ * carries. `scripts/check-artifact-matrix.py` requires every triple in
+ * `cli-release-targets` to appear here. The CLI ships no musl variant, so
+ * this is the six triples the addon shares with the wheels, not the addon's
+ * own eight.
  */
 const TARGET_SUFFIXES = {
   "aarch64-apple-darwin": "",
   "aarch64-pc-windows-msvc": ".exe",
   "aarch64-unknown-linux-gnu": "",
-  "aarch64-unknown-linux-musl": "",
   "x86_64-apple-darwin": "",
   "x86_64-pc-windows-msvc": ".exe",
   "x86_64-unknown-linux-gnu": "",
-  "x86_64-unknown-linux-musl": "",
 };
 
 const BINARY_NAME = "secret-scan";

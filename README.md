@@ -344,7 +344,7 @@ Build and qualify the Node addon, the browser artifact, and the CLI for this
 host (see [docs/qualification.md](./docs/qualification.md)):
 
 ```bash
-npm run matrix:check
+npm run artifacts:check
 npm --prefix bindings/node ci && npm --prefix bindings/node run build
 npm run js:build && npm run addon:qualify -- --target <triple>
 npm run wasm:build && npm run browser:qualify
@@ -373,17 +373,17 @@ wheels, the browser WebAssembly artifact, and the CLI binary for every
 declared target, smoke-tests each on the architecture it targets, exercises
 the browser artifact in Chromium, Firefox, and WebKit, and records an artifact
 inventory tied to the source commit. `[workspace.metadata.secret-scan]`
-declares those matrices once and `npm run matrix:check` fails when any file
+declares those matrices once and `npm run artifacts:check` fails when any file
 that consumes them drifts. See
 [docs/qualification.md](./docs/qualification.md).
 
-In the browser the matrix goes all the way through the published package: it
-loads `@omiologic/secret-scan` on the real WebAssembly artifact in each engine
-and runs the canonical corpus through its public API. On Node it stops at the
-artifact boundary, because the addon exports no `createIncrementalSanitizer`
-and the internal binding contract requires one, so `initialize()` rejects
-there; issue #74 owns that gap and
-[docs/qualification.md](./docs/qualification.md) records how the matrix pins it.
+On both JavaScript runtimes the matrix goes all the way through the published
+package: it loads `@omiologic/secret-scan` on the real artifact — the N-API
+addon on every target's own runner, the WebAssembly build in each browser
+engine — and runs the canonical corpus through its public API. Neither
+artifact builds a streaming session, so `createIncrementalSanitizer` rejects
+with the fixed `INCREMENTAL_UNAVAILABLE` code on both; that is a documented
+runtime difference from the Python binding, and both qualifiers assert it.
 
 ## Security and release process
 

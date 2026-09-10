@@ -187,7 +187,7 @@ that the canonical offsets are char-aligned and select the same substring),
 and Python's Unicode code points
 (`bindings/python/src/lib.rs`'s `byte_offset_to_char_offset` and its tests).
 
-The `Qualification Matrix` workflow adds three artifact-level consumers of the
+The `Artifact qualification` workflow adds three artifact-level consumers of the
 synchronous corpus, each running it through a built artifact rather than
 through the source tree: the N-API addon
 (`scripts/qualify-node-addon.mjs`), the browser WebAssembly artifact in

@@ -27,18 +27,20 @@ supported surface once:
 | `browser-engines` | Every engine the WebAssembly artifact is initialized and scanned in |
 | `node-support-majors` | Every Node.js major `engines.node` claims, and CI therefore exercises |
 
-All five lists are the same platform story: Linux glibc and musl on x64 and
-arm64, macOS on x64 and arm64, and Windows on x64 and arm64 — eight triples
-per native family — plus Chromium, Firefox, and WebKit for the browser, and
-Node.js 20, 22, and 24.
+The native lists are the same platform story: Linux glibc and musl on x64
+and arm64, macOS on x64 and arm64, and Windows on x64 and arm64 — eight
+triples — with one deliberate exception. **The CLI ships no musl variant**,
+so `cli-release-targets` is the six non-musl triples and the check requires
+it to stay a subset of `node-addon-targets`. On top of that: Chromium,
+Firefox and WebKit for the browser, and Node.js 20, 22 and 24.
 
-`scripts/check-qualification-matrix.py` (run by `npm run matrix:check`, and by
+`scripts/check-artifact-matrix.py` (run by `npm run artifacts:check`, and by
 the `Matrix declaration` job every other job waits on) fails when any of the
 places that must agree with those lists drifts:
 
 - `bindings/node/package.json` `napi.targets` against `node-addon-targets`;
 - the `addon-target`, `cli-target`, and `engine` matrices in
-  `.github/workflows/qualification.yml` against their declarations, in both
+  `.github/workflows/artifact-qualification.yml` against their declarations, in both
   directions, so a target cannot be added to one file alone;
 - `scripts/qualify-node-addon.mjs`, `scripts/qualify-cli-binary.mjs`, and
   `scripts/qualify-browser-artifact.mjs`, each of which must know every
@@ -55,12 +57,12 @@ every workflow declares a top-level `permissions` and every job declares its
 own, with `write` only where `WRITE_SCOPE_ALLOWLIST` names it; and every
 `uses:` outside this repository is pinned to a full 40-character commit SHA.
 
-`scripts/tests/test_check_qualification_matrix.py` covers each of those
+`scripts/tests/test_check_artifact_matrix.py` covers each of those
 failures in both directions against a synthetic repository.
 
 ## The workflow
 
-`.github/workflows/qualification.yml` runs on `workflow_dispatch`, on every
+`.github/workflows/artifact-qualification.yml` runs on `workflow_dispatch`, on every
 push to `main`, and on a pull request that changes the matrix's own machinery.
 It is also `workflow_call`-able, so release automation can require it rather
 than re-implement it. The full fan-out is expensive, which is why an ordinary
@@ -89,26 +91,20 @@ the architecture it targets — none is "built only":
 | --- | --- | --- |
 | `x86_64-unknown-linux-gnu` | `ubuntu-latest` | host |
 | `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | host |
-| `x86_64-unknown-linux-musl` | `ubuntu-latest` | `*-alpine` container |
-| `aarch64-unknown-linux-musl` | `ubuntu-24.04-arm` | `*-alpine` container |
+| `x86_64-unknown-linux-musl` | `ubuntu-latest` | `*-alpine` container (addon only) |
+| `aarch64-unknown-linux-musl` | `ubuntu-24.04-arm` | `*-alpine` container (addon only) |
 | `x86_64-apple-darwin` | `macos-15-intel` | host |
 | `aarch64-apple-darwin` | `macos-latest` | host |
 | `x86_64-pc-windows-msvc` | `windows-latest` | host |
 | `aarch64-pc-windows-msvc` | `windows-11-arm` | host |
 
-Every musl artifact is qualified inside a musl container of the same
-architecture, which is where it is meant to run. The two families build
-differently, because a static executable and a shared library are not the
-same problem:
-
-- the **CLI** links musl statically, which `musl-tools` on the glibc runner
-  does correctly; and
-- the **addon** is a cdylib, which `musl-tools` cannot link at all — its gcc
-  wrapper ships no musl `libgcc_s.so.1`. Routing rustc's self-contained
-  objects through the glibc driver instead does produce a library, and that
-  library segfaults the moment Node loads it, so the addon is built natively
-  inside a `rust:1-alpine` container where the host triple already is the
-  target.
+The musl rows apply to the addon only. That artifact is a cdylib, and
+`musl-tools` cannot link one — its gcc wrapper ships no musl
+`libgcc_s.so.1`. Routing rustc's self-contained objects through the glibc
+driver instead does produce a library, and that library segfaults the moment
+Node loads it. So the musl addon is built natively inside a `rust:1-alpine`
+container of the same architecture, where the host triple already is the
+target, and is then qualified in a musl image, which is where it runs.
 
 ## What each qualifier proves
 
@@ -122,10 +118,13 @@ same problem:
 3. Every canonical synchronous fixture goes through the addon's `scan`, with
    each expectation's UTF-8 byte offsets converted to UTF-16 code units by a
    reference conversion independent of the binding.
-4. The published JavaScript package resolves the addon under
-   `@omiologic/secret-scan-node` from `packages/javascript/node_modules`, the
-   way an installed consumer resolves it. See the Node gap below; the
-   equivalent browser pass is complete and lives in the browser qualifier.
+4. The published JavaScript package's public API, driven against that addon
+   resolved under `@omiologic/secret-scan-node` from
+   `packages/javascript/node_modules`, the way an installed consumer
+   resolves it: `initialize()`, one canonical fixture through
+   `scripts/qualify-runtime-fixture.mjs`, a frozen finding,
+   `scanAndRedact` against `scan` then `redact`, and
+   `createIncrementalSanitizer` rejecting with `INCREMENTAL_UNAVAILABLE`.
 
 ### `scripts/qualify-browser-artifact.mjs`
 
@@ -195,30 +194,24 @@ then writes `artifact-inventory.json` and a job summary carrying:
 - every artifact file with its family, target, size, and SHA-256, plus the
   file-by-file contents of the npm package and the public Rust crate.
 
-## Known gap: the package cannot initialize on a real Node addon
+## Incremental sanitization is unavailable on both JavaScript runtimes
 
-The N-API addon does not export `createIncrementalSanitizer`, which
-`packages/javascript/src/native.ts` makes part of the internal binding
-contract, and `runtime/node.js` refuses a binding missing a contract member —
-so `initialize()` rejects with `INITIALIZATION_FAILED` on a real addon.
+Neither `bindings/node` nor `bindings/wasm` builds a streaming session, so
+`createIncrementalSanitizer` is absent from both artifacts. Both adapters
+report that the same way — a fixed `INCREMENTAL_UNAVAILABLE` at call time
+rather than a load-time failure — so `initialize()` succeeds on a real
+artifact on both runtimes and the whole synchronous surface is qualified end
+to end above. Only `bindings/python`, which wraps the core's
+`IncrementalSanitizer` directly, offers the streaming API today.
 
-This is now a Node-only gap. The browser runtime resolved the same question
-the other way: `bindings/wasm` exports no streaming session either, but its
-adapter declares incremental sanitization unavailable on that runtime and
-rejects `createIncrementalSanitizer` with the fixed `INCREMENTAL_UNAVAILABLE`
-code, so `initialize()` succeeds and the package is qualified end to end in
-all three engines above.
-
-`scripts/qualify-node-addon.mjs` pins the Node gap rather than skipping it: it
-asserts that `createIncrementalSanitizer` is the single outstanding member and
-that `initialize()` rejects for exactly that reason, so the check fails the
-moment the addon gains the incremental surface and must then be replaced by
-the positive public-API pass. Issue #74 owns closing it.
+This is a documented runtime difference, not an outstanding gap in the
+matrix: both qualifiers assert the rejection, so an artifact that later gains
+the surface fails the check until the contract is revisited.
 
 ## Running it locally
 
 ```bash
-npm run matrix:check                    # the declaration and CI controls
+npm run artifacts:check                 # the declaration and CI controls
 
 npm --prefix bindings/node ci
 npm --prefix bindings/node run build    # this host's triple

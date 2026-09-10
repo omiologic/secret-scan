@@ -8,8 +8,8 @@ import unittest
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "check-qualification-matrix.py"
-SPEC = importlib.util.spec_from_file_location("check_qualification_matrix", SCRIPT)
+SCRIPT = Path(__file__).resolve().parents[1] / "check-artifact-matrix.py"
+SPEC = importlib.util.spec_from_file_location("check_artifact_matrix", SCRIPT)
 assert SPEC and SPEC.loader
 CHECK = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = CHECK
@@ -118,18 +118,18 @@ class Repository:
             f"      - uses: {self.checkout}\n",
         )
         self.write(
-            ".github/workflows/qualification.yml",
+            ".github/workflows/artifact-qualification.yml",
             self._qualification(),
         )
         return self.root
 
     def _qualification(self) -> str:
         addon = "".join(
-            f"          - addon-target: {target}\n            runner: ubuntu-latest\n"
+            f"          - target: {target}\n            runner: ubuntu-latest\n"
             for target in self.workflow_addon_targets
         )
         cli = "".join(
-            f"          - cli-target: {target}\n            runner: ubuntu-latest\n"
+            f"          - target: {target}\n            runner: ubuntu-latest\n"
             for target in self.workflow_cli_targets
         )
         engines = "".join(f"          - {engine}\n" for engine in self.workflow_engines)
@@ -140,7 +140,7 @@ class Repository:
         )
         musl = " ".join(str(major) for major in self.musl_majors)
         return (
-            "name: Qualification Matrix\non:\n  workflow_dispatch:\n"
+            "name: Artifact qualification\non:\n  workflow_dispatch:\n"
             "permissions: {}\njobs:\n"
             "  node-addon:\n    runs-on: ubuntu-latest\n"
             f"{self.qualification_permissions}"
@@ -191,7 +191,7 @@ class MatrixTests(unittest.TestCase):
         def configure(repository: Repository) -> None:
             repository.workflow_addon_targets.pop()
 
-        self.assertOneError(configure, "the addon-target matrix omits")
+        self.assertOneError(configure, "job 'node-addon''s target matrix omits")
 
     def test_a_target_built_but_not_declared_fails(self) -> None:
         def configure(repository: Repository) -> None:
@@ -225,20 +225,51 @@ class MatrixTests(unittest.TestCase):
         def configure(repository: Repository) -> None:
             repository.workflow_cli_targets.pop()
 
-        self.assertOneError(configure, "the cli-target matrix omits")
+        self.assertOneError(configure, "job 'cli''s target matrix omits")
 
     def test_a_cli_target_built_but_not_declared_fails(self) -> None:
         def configure(repository: Repository) -> None:
             repository.workflow_cli_targets.append("x86_64-apple-darwin")
 
-        self.assertOneError(configure, "the cli-target matrix names x86_64-apple-darwin")
+        self.assertOneError(configure, "job 'cli''s target matrix names x86_64-apple-darwin")
 
     def test_a_cli_target_the_qualifier_does_not_know_fails(self) -> None:
         def configure(repository: Repository) -> None:
-            repository.cli_targets.append("x86_64-apple-darwin")
-            repository.workflow_cli_targets.append("x86_64-apple-darwin")
+            for targets in (
+                repository.cli_targets,
+                repository.workflow_cli_targets,
+                repository.addon_targets,
+                repository.napi_targets,
+                repository.workflow_addon_targets,
+                repository.qualifier_addon_targets,
+            ):
+                targets.append("x86_64-apple-darwin")
 
         self.assertOneError(configure, "its target list omits x86_64-apple-darwin")
+
+    def test_a_cli_target_the_addon_does_not_build_fails(self) -> None:
+        """The CLI ships no musl variant, so its matrix is a subset of the
+        addon's; a CLI-only target is a mistake, not a supported platform."""
+
+        def configure(repository: Repository) -> None:
+            repository.cli_targets.append("x86_64-apple-darwin")
+            repository.workflow_cli_targets.append("x86_64-apple-darwin")
+            repository.qualifier_cli_targets.append("x86_64-apple-darwin")
+
+        self.assertOneError(
+            configure,
+            "cli-release-targets names x86_64-apple-darwin, which node-addon-targets does not",
+        )
+
+    def test_the_cli_matrix_may_be_a_strict_subset_of_the_addon_matrix(self) -> None:
+        """The real repository's shape: eight addon targets, six CLI ones."""
+
+        def configure(repository: Repository) -> None:
+            repository.cli_targets.pop()
+            repository.workflow_cli_targets.pop()
+            repository.qualifier_cli_targets.pop()
+
+        self.assertEqual(self.validate(configure), [])
 
     # --- Browser engines -----------------------------------------------
 
@@ -246,13 +277,13 @@ class MatrixTests(unittest.TestCase):
         def configure(repository: Repository) -> None:
             repository.workflow_engines.pop()
 
-        self.assertOneError(configure, "the engine matrix omits webkit")
+        self.assertOneError(configure, "job 'browser''s engine matrix omits webkit")
 
     def test_an_engine_exercised_but_not_declared_fails(self) -> None:
         def configure(repository: Repository) -> None:
             repository.workflow_engines.append("firefox")
 
-        self.assertOneError(configure, "the engine matrix names firefox")
+        self.assertOneError(configure, "job 'browser''s engine matrix names firefox")
 
     def test_an_engine_the_browser_qualifier_rejects_fails(self) -> None:
         def configure(repository: Repository) -> None:

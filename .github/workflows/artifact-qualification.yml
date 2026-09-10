@@ -1,4 +1,4 @@
-name: Qualification Matrix
+name: Artifact qualification
 
 # Qualifies every supported artifact of the product from one commit, and
 # publishes nothing (`decision-release-bindings-in-lockstep`).
@@ -12,10 +12,14 @@ name: Qualification Matrix
 # job that records what was produced, tied to the source commit.
 #
 # `[workspace.metadata.secret-scan]` in the root Cargo.toml is the single
-# declaration of those matrices, and `scripts/check-qualification-matrix.py`
-# (the `declaration` job below, which everything else waits on) fails when
-# this file, `bindings/node/package.json`, or any manifest declaring
+# declaration of those matrices, and `scripts/check-artifact-matrix.py`
+# (the `policy` job below, which everything else waits on) fails when this
+# file, `bindings/node/package.json`, or any manifest declaring
 # `engines.node` disagrees with it.
+#
+# The CLI ships no musl variant, so `cli-release-targets` is six triples
+# where `node-addon-targets` is eight; the two are declared separately for
+# exactly that reason.
 #
 # On pull requests only the matrix's own machinery triggers a run: the full
 # fan-out is expensive, and every commit that reaches `main` runs it in full.
@@ -28,24 +32,25 @@ on:
       - main
   pull_request:
     paths:
-      - .github/workflows/qualification.yml
+      - .github/workflows/artifact-qualification.yml
       - Cargo.toml
       - bindings/node/package.json
       - scripts/browser-harness.mjs
       - scripts/browser-package-harness.mjs
       - scripts/build-browser-artifact.mjs
-      - scripts/check-qualification-matrix.py
+      - scripts/check-artifact-matrix.py
       - scripts/qualify-browser-artifact.mjs
       - scripts/qualify-cli-binary.mjs
       - scripts/qualify-node-addon.mjs
+      - scripts/qualify-runtime-fixture.mjs
       - scripts/record-artifact-inventory.py
-      - scripts/tests/test_check_qualification_matrix.py
+      - scripts/tests/test_check_artifact_matrix.py
       - scripts/tests/test_record_artifact_inventory.py
 
 permissions: {}
 
 concurrency:
-  group: qualification-${{ github.ref }}
+  group: artifact-qualification-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -55,8 +60,8 @@ env:
   WASM_BINDGEN_VERSION: "0.2.128"
 
 jobs:
-  declaration:
-    name: Matrix declaration
+  policy:
+    name: Artifact matrix policy
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,29 +75,29 @@ jobs:
       - name: Check that every declared matrix matches this workflow
         run: |
           python3 -B -m unittest discover -s scripts/tests \
-            -p 'test_check_qualification_matrix.py'
+            -p 'test_check_artifact_matrix.py'
           python3 -B -m unittest discover -s scripts/tests \
             -p 'test_record_artifact_inventory.py'
-          python3 -B scripts/check-qualification-matrix.py
+          python3 -B scripts/check-artifact-matrix.py
 
   rust:
     name: Rust
-    needs: declaration
+    needs: policy
     permissions:
       contents: read
     uses: ./.github/workflows/ci.yml
 
   python:
     name: Python
-    needs: declaration
+    needs: policy
     permissions:
       contents: read
     uses: ./.github/workflows/python-wheels.yml
 
   node-addon:
-    name: Addon ${{ matrix.addon-target }}
+    name: Addon ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    needs: declaration
+    needs: policy
     timeout-minutes: 45
     permissions:
       contents: read
@@ -100,30 +105,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - addon-target: x86_64-unknown-linux-gnu
+          - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
             smoke: host
-          - addon-target: aarch64-unknown-linux-gnu
+          - target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
             smoke: host
-          - addon-target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-musl
             runner: ubuntu-latest
             smoke: alpine
-          - addon-target: aarch64-unknown-linux-musl
+          - target: aarch64-unknown-linux-musl
             runner: ubuntu-24.04-arm
             smoke: alpine
-          - addon-target: x86_64-apple-darwin
+          - target: x86_64-apple-darwin
             # `macos-13` was the last standard Intel image and was retired on
             # 2025-12-04; `macos-15-intel` is its standard-size replacement.
             runner: macos-15-intel
             smoke: host
-          - addon-target: aarch64-apple-darwin
+          - target: aarch64-apple-darwin
             runner: macos-latest
             smoke: host
-          - addon-target: x86_64-pc-windows-msvc
+          - target: x86_64-pc-windows-msvc
             runner: windows-latest
             smoke: host
-          - addon-target: aarch64-pc-windows-msvc
+          - target: aarch64-pc-windows-msvc
             runner: windows-11-arm
             smoke: host
 
@@ -143,12 +148,12 @@ jobs:
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
         with:
           toolchain: stable
-          targets: ${{ matrix.addon-target }}
+          targets: ${{ matrix.target }}
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          key: addon-${{ matrix.addon-target }}
+          key: addon-${{ matrix.target }}
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
@@ -165,7 +170,7 @@ jobs:
         if: matrix.smoke == 'host'
         working-directory: bindings/node
         shell: bash
-        run: npx napi build --platform --release --target "${{ matrix.addon-target }}"
+        run: npx napi build --platform --release --target "${{ matrix.target }}"
 
       # The addon is a cdylib, and `musl-tools` cannot link one: its gcc
       # wrapper ships no musl `libgcc_s.so.1`, and routing rustc's
@@ -180,7 +185,7 @@ jobs:
         if: matrix.smoke == 'alpine'
         shell: bash
         env:
-          TARGET: ${{ matrix.addon-target }}
+          TARGET: ${{ matrix.target }}
         run: |
           linker=$(printf '%s' "CARGO_TARGET_${TARGET}_LINKER" | tr '[:lower:]-' '[:upper:]_')
           docker run --rm -v "$PWD:/io" -w /io/bindings/node \
@@ -196,7 +201,7 @@ jobs:
       # majors below are `node-support-majors`.
       - name: Qualify the addon on Node 20
         if: matrix.smoke == 'host'
-        run: node scripts/qualify-node-addon.mjs --target ${{ matrix.addon-target }}
+        run: node scripts/qualify-node-addon.mjs --target ${{ matrix.target }}
 
       - name: Set up Node 22
         if: matrix.smoke == 'host'
@@ -206,7 +211,7 @@ jobs:
 
       - name: Qualify the addon on Node 22
         if: matrix.smoke == 'host'
-        run: node scripts/qualify-node-addon.mjs --target ${{ matrix.addon-target }}
+        run: node scripts/qualify-node-addon.mjs --target ${{ matrix.target }}
 
       - name: Set up Node 24
         if: matrix.smoke == 'host'
@@ -216,7 +221,7 @@ jobs:
 
       - name: Qualify the addon on Node 24
         if: matrix.smoke == 'host'
-        run: node scripts/qualify-node-addon.mjs --target ${{ matrix.addon-target }}
+        run: node scripts/qualify-node-addon.mjs --target ${{ matrix.target }}
 
       # A musl addon cannot be loaded by the glibc runner's Node.js, so it is
       # qualified inside a musl image of the same architecture, on every
@@ -228,13 +233,13 @@ jobs:
           for major in 20 22 24; do
             docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
               -v "$PWD:/io" -w /io "node:${major}-alpine" \
-              node scripts/qualify-node-addon.mjs --target ${{ matrix.addon-target }}
+              node scripts/qualify-node-addon.mjs --target ${{ matrix.target }}
           done
 
       - name: Upload the addon
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: node-addon-${{ matrix.addon-target }}
+          name: node-addon-${{ matrix.target }}
           path: |
             bindings/node/*.node
             bindings/node/index.js
@@ -244,7 +249,7 @@ jobs:
   browser:
     name: Browser ${{ matrix.engine }}
     runs-on: ubuntu-latest
-    needs: declaration
+    needs: policy
     timeout-minutes: 30
     permissions:
       contents: read
@@ -308,9 +313,9 @@ jobs:
           if-no-files-found: error
 
   cli:
-    name: CLI ${{ matrix.cli-target }}
+    name: CLI ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    needs: declaration
+    needs: policy
     timeout-minutes: 45
     permissions:
       contents: read
@@ -318,30 +323,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - cli-target: x86_64-unknown-linux-gnu
+          - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
-            smoke: host
-          - cli-target: aarch64-unknown-linux-gnu
+          - target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
-            smoke: host
-          - cli-target: x86_64-unknown-linux-musl
-            runner: ubuntu-latest
-            smoke: alpine
-          - cli-target: aarch64-unknown-linux-musl
-            runner: ubuntu-24.04-arm
-            smoke: alpine
-          - cli-target: x86_64-apple-darwin
+          - target: x86_64-apple-darwin
             runner: macos-15-intel
-            smoke: host
-          - cli-target: aarch64-apple-darwin
+          - target: aarch64-apple-darwin
             runner: macos-latest
-            smoke: host
-          - cli-target: x86_64-pc-windows-msvc
+          - target: x86_64-pc-windows-msvc
             runner: windows-latest
-            smoke: host
-          - cli-target: aarch64-pc-windows-msvc
+          - target: aarch64-pc-windows-msvc
             runner: windows-11-arm
-            smoke: host
 
     steps:
       - name: Check out repository
@@ -358,48 +351,26 @@ jobs:
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
         with:
           toolchain: stable
-          targets: ${{ matrix.cli-target }}
+          targets: ${{ matrix.target }}
 
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          key: cli-${{ matrix.cli-target }}
-
-      - name: Install the musl toolchain
-        if: matrix.smoke == 'alpine'
-        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+          key: cli-${{ matrix.target }}
 
       - name: Build the CLI
-        shell: bash
-        env:
-          TARGET: ${{ matrix.cli-target }}
-        run: |
-          if [[ "$TARGET" == *-musl ]]; then
-            linker=$(printf '%s' "CARGO_TARGET_${TARGET}_LINKER" | tr '[:lower:]-' '[:upper:]_')
-            export "$linker=musl-gcc"
-          fi
-          cargo build --release --locked -p secret-scan-cli --target "$TARGET"
+        run: cargo build --release --locked -p secret-scan-cli --target ${{ matrix.target }}
 
-      - name: Qualify the CLI on this host
-        if: matrix.smoke == 'host'
-        run: node scripts/qualify-cli-binary.mjs --target ${{ matrix.cli-target }}
-
-      # A statically linked musl binary is qualified on musl, where it is
-      # meant to run, rather than on the glibc runner that produced it.
-      - name: Qualify the CLI on musl
-        if: matrix.smoke == 'alpine'
-        run: |
-          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
-            -v "$PWD:/io" -w /io node:20-alpine \
-            node scripts/qualify-cli-binary.mjs --target ${{ matrix.cli-target }}
+      - name: Qualify the CLI
+        run: node scripts/qualify-cli-binary.mjs --target ${{ matrix.target }}
 
       - name: Upload the CLI binary
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: cli-${{ matrix.cli-target }}
+          name: cli-${{ matrix.target }}
           path: |
-            target/${{ matrix.cli-target }}/release/secret-scan
-            target/${{ matrix.cli-target }}/release/secret-scan.exe
+            target/${{ matrix.target }}/release/secret-scan
+            target/${{ matrix.target }}/release/secret-scan.exe
           if-no-files-found: error
 
   inventory:
