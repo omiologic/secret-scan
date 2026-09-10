@@ -7,11 +7,14 @@ asks for the minimum evidence a row of the coverage baseline
 can honestly resolve, and the rule for when a row may instead resolve to
 `not-applicable` or `intentionally-unsupported`.
 
-This document defines that model. It does not change any schema, generator,
-or CI gate:
+This document defines that model. It does not itself change any generator or
+CI gate:
 
 - Encoding these requirements into the canonical corpus schema so they are
-  machine-validated is issue [#103](https://github.com/omiologic/secret-scan/issues/103).
+  machine-validated is issue [#103](https://github.com/omiologic/secret-scan/issues/103)
+  (tracking-key `dacd-f1-t3`) — see `conformance/schema.ts`'s
+  `CanonicalCoverageDeclaration`/`validateCanonicalCoverageDeclarations` and
+  the encoded result, [`docs/coverage/coverage-declarations.json`](./coverage-declarations.json).
 - Making drift from this model a CI failure is issue
   [#104](https://github.com/omiologic/secret-scan/issues/104).
 

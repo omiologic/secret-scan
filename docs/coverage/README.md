@@ -44,20 +44,48 @@ sufficient coverage evidence.
 
 Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_coverage_inventory.py'`.
 
+- [`coverage-declarations.json`](./coverage-declarations.json) — the
+  evidence-requirements model (below) encoded and machine-validated: one
+  `CanonicalCoverageDeclaration` row per declared finding type, the
+  cross-cutting `incremental` surface, and each declared consumer, with every
+  evidence dimension resolved to `supported`, `not-applicable`, or `pending`
+  per `evidence-requirements.md`'s requirement matrix and bounded exception
+  codes (issue [#103](https://github.com/omiologic/secret-scan/issues/103),
+  tracking-key `dacd-f1-t3`). Produced deterministically by
+  [`scripts/generate-coverage-declarations.py`](../../scripts/generate-coverage-declarations.py)
+  from `detector-inventory.json` and the canonical corpus — the same "migrate
+  the existing fixture files into the new schema without hand-authored
+  duplication" approach `conformance/convert.ts` used for the UTF-16 → UTF-8
+  migration. Regenerate it after changing any input:
+
+  ```sh
+  python3 -B scripts/generate-coverage-declarations.py --out docs/coverage/coverage-declarations.json
+  ```
+
+  The declarations validate against
+  [`conformance/schema.ts`](../../conformance/schema.ts)'s
+  `validateCanonicalCoverageDeclarations`, which rejects an unknown detector
+  or type, a row missing a dimension its behavior class requires, a stale
+  evidence id, a contradictory state/exception pairing, and an exception
+  whose reference does not resolve to a real, itself-`supported` dimension.
+
+  Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_coverage_declarations.py'`
+  and `npx vitest run conformance/schema.test.ts` (also validates every other
+  canonical fixture file against the schema, and re-runs the generator twice
+  to prove the migration is deterministic).
+
 ## Scope
 
-This is the baseline, plus the evidence model that defines what a row needs
-to resolve honestly:
+This is the baseline, the evidence model that defines what a row needs to
+resolve honestly, and that model encoded as data:
 
 - [`evidence-requirements.md`](./evidence-requirements.md) — the minimum
   evidence dimensions per behavior class and the bounded-rationale exception
   rule (issue [#102](https://github.com/omiologic/secret-scan/issues/102)),
   applied against every row of `detector-inventory.json` and `consumers`.
+- `coverage-declarations.json` and `conformance/schema.ts`'s coverage-
+  declaration types (above) — that model, machine-validated (issue #103).
 
-It does not yet:
-
-- encode coverage declarations into the canonical corpus schema itself
-  (issue [#103](https://github.com/omiologic/secret-scan/issues/103)), or
-- make coverage drift a CI failure (issue
-  [#104](https://github.com/omiologic/secret-scan/issues/104)) — neither
-  script here is wired into `npm run ci` yet, deliberately.
+It does not yet make coverage drift a CI failure (issue
+[#104](https://github.com/omiologic/secret-scan/issues/104)) — none of the
+scripts here are wired into `npm run ci` yet, deliberately.

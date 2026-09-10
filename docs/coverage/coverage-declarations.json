@@ -1,0 +1,2334 @@
+{
+  "declarations": [
+    {
+      "behaviorClass": "structural",
+      "detector": "private-key",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "private-key-positive"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "private-key-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "private-key-adversarial-incomplete",
+            "private-key-adversarial-mismatched",
+            "private-key-adversarial-nested"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "private-key-boundary-truncated"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "private-key-negative-public"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "private-key-boundary-truncated"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "structural-host-context-breadth",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for private_key (private-key), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "private_key"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "aws-access-key",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "aws-positive-akia"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "aws-overlap-context",
+            "compound-repeated-crlf-aws"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "adversarial-dense-aws-findings",
+            "aws-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "aws-boundary-embedded"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "aws-negative-role-id"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "aws-boundary-embedded"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for aws_access_key_id (aws-access-key), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "aws_access_key_id"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "github-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "github-positive-classic",
+            "github-positive-installation-stateless",
+            "host-chat-github",
+            "host-curl-github",
+            "host-docker-compose-github",
+            "host-dotenv-github",
+            "host-github-actions-github",
+            "host-http-github",
+            "host-javascript-github",
+            "host-json-github",
+            "host-kubernetes-github",
+            "host-log-github",
+            "host-markdown-github",
+            "host-powershell-github",
+            "host-python-github",
+            "host-shell-github",
+            "host-shell-heredoc-github",
+            "host-stack-trace-github",
+            "host-terminal-github",
+            "host-terraform-github",
+            "host-toml-github",
+            "host-typescript-github",
+            "host-xml-github",
+            "host-yaml-github",
+            "mutation-github-00-identity",
+            "mutation-github-06-punctuation-boundary",
+            "mutation-github-07-quoted",
+            "mutation-github-09-host-embedding"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "github-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "github-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "github-boundary-short",
+            "mutation-github-01-invalid-prefix",
+            "mutation-github-02-short-length",
+            "mutation-github-03-invalid-alphabet",
+            "mutation-github-04-whitespace-insertion",
+            "mutation-github-05-truncation",
+            "mutation-github-08-encoded-prefix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "github-negative-test-id"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "github-boundary-short",
+            "mutation-github-01-invalid-prefix",
+            "mutation-github-02-short-length",
+            "mutation-github-03-invalid-alphabet",
+            "mutation-github-04-whitespace-insertion",
+            "mutation-github-05-truncation",
+            "mutation-github-08-encoded-prefix"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [
+            "github-adversarial-long-suffix",
+            "github-negative-test-id",
+            "github-overlap-context",
+            "github-positive-classic",
+            "github-positive-installation-stateless",
+            "host-chat-github",
+            "host-curl-github",
+            "host-docker-compose-github",
+            "host-dotenv-github",
+            "host-github-actions-github",
+            "host-http-github",
+            "host-javascript-github",
+            "host-json-github",
+            "host-kubernetes-github",
+            "host-log-github",
+            "host-markdown-github",
+            "host-powershell-github",
+            "host-python-github",
+            "host-shell-github",
+            "host-shell-heredoc-github",
+            "host-stack-trace-github",
+            "host-terminal-github",
+            "host-terraform-github",
+            "host-toml-github",
+            "host-typescript-github",
+            "host-xml-github",
+            "host-yaml-github",
+            "mutation-github-00-identity",
+            "mutation-github-06-punctuation-boundary",
+            "mutation-github-07-quoted",
+            "mutation-github-09-host-embedding"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for github_token (github-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "github_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "gitlab-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "gitlab-positive-personal-access"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "gitlab-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "gitlab-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "gitlab-boundary-custom-prefix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "gitlab-negative-common-identifier"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "gitlab-boundary-custom-prefix"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for gitlab_token (gitlab-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "gitlab_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "openai-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "openai-positive-project"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "openai-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "openai-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "openai-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "openai-negative-model-name"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "openai-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for openai_api_key (openai-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "openai_api_key"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "anthropic-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "anthropic-positive-versioned"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "anthropic-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "anthropic-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "anthropic-boundary-version"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "anthropic-negative-unrelated-id"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "anthropic-boundary-version"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for anthropic_api_key (anthropic-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "anthropic_api_key"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "shopify-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "shopify-positive-admin-access"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "shopify-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "shopify-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "shopify-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "shopify-negative-header-name"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "shopify-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for shopify_access_token (shopify-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "shopify_access_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "vault-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "vault-positive-service-token"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "vault-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "vault-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "vault-boundary-legacy-prefix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "vault-negative-common-identifier"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "vault-boundary-legacy-prefix"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for vault_token (vault-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "vault_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "stripe-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "stripe-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "stripe-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "stripe-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "stripe-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "stripe-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "stripe-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for stripe_credential (stripe-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "stripe_credential"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "slack-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "slack-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "slack-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "slack-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "slack-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "slack-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "slack-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for slack_token (slack-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "slack_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "pypi-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "pypi-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "pypi-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "pypi-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "pypi-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "pypi-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "pypi-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for pypi_api_token (pypi-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "pypi_api_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "huggingface-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "huggingface-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "huggingface-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "huggingface-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "huggingface-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "huggingface-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "huggingface-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for huggingface_token (huggingface-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "huggingface_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "docker-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "docker-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "docker-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "docker-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "docker-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "docker-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "docker-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for docker_token (docker-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "docker_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "cloudflare-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "cloudflare-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "cloudflare-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "cloudflare-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "cloudflare-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "cloudflare-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "cloudflare-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for cloudflare_api_token (cloudflare-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "cloudflare_api_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "digitalocean-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "digitalocean-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "digitalocean-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "digitalocean-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "digitalocean-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "digitalocean-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "digitalocean-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for digitalocean_token (digitalocean-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "digitalocean_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "linear-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "linear-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "linear-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "linear-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "linear-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "linear-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "linear-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for linear_token (linear-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "linear_token"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "supabase-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "supabase-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "supabase-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "supabase-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "supabase-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "supabase-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "supabase-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for supabase_secret_key (supabase-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "supabase_secret_key"
+    },
+    {
+      "behaviorClass": "provider",
+      "detector": "vercel-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "vercel-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "vercel-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "vercel-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "vercel-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "vercel-negative-ordinary-reference"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "vercel-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for vercel_token (vercel-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "vercel_token"
+    },
+    {
+      "behaviorClass": "structural",
+      "detector": "jwt",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "jwt-positive-structured"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "jwt-overlap-bearer"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "jwt-adversarial-incomplete"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "jwt-boundary-short-signature"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "jwt-negative-dotted-id"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "jwt-boundary-short-signature"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "structural-host-context-breadth",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for jwt (jwt), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "jwt"
+    },
+    {
+      "behaviorClass": "structural",
+      "detector": "bearer-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "bearer-positive-scheme"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "bearer-token-overlap",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "bearer-adversarial-punctuation"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "bearer-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "bearer-negative-identifier"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "bearer-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "structural-host-context-breadth",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for bearer_token (bearer-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "bearer_token"
+    },
+    {
+      "behaviorClass": "structural",
+      "detector": "connection-string",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "connection-positive-encoded-ipv6",
+            "connection-positive-mongodb-seed-list",
+            "connection-positive-port",
+            "connection-positive-postgres",
+            "connection-positive-redis-password-only"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "connection-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "connection-adversarial-malformed-authority",
+            "connection-adversarial-overlong"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "connection-boundary-missing-password",
+            "connection-boundary-placeholder",
+            "connection-boundary-srv-multiple-hosts",
+            "regression-malformed-percent-authority"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "connection-negative-host-only",
+            "connection-negative-malformed-percent"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "connection-boundary-missing-password",
+            "connection-boundary-placeholder",
+            "connection-boundary-srv-multiple-hosts"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "structural-host-context-breadth",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for connection_string_password (connection-string), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "connection_string_password"
+    },
+    {
+      "behaviorClass": "contextual",
+      "detector": "generic-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "contextual-positive-assignment",
+            "contextual-positive-aws-secret-access-key",
+            "contextual-positive-aws-session-token",
+            "contextual-positive-escaped-quote"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "contextual-secret-overlap",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "contextual-adversarial-overlong"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "contextual-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "contextual-negative-token-name"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "contextual-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "contextual-secret-host-context-breadth",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for contextual_secret (generic-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "contextual_secret"
+    },
+    {
+      "behaviorClass": "contextual",
+      "detector": "generic-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "C/F-03",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "authorization-credential-overlap",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "single-detector-family",
+            "sharedWith": "contextual_secret"
+          },
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "C/F-03",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "C/F-03",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "single-detector-family",
+            "sharedWith": "contextual_secret"
+          },
+          "state": "supported"
+        },
+        {
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "C/F-03",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for authorization_credential (generic-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "authorization_credential"
+    },
+    {
+      "behaviorClass": "incremental",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "lifecycle-stream-malformed-utf8-after-buffered-plaintext",
+            "lifecycle-stream-malformed-utf8-continuation-byte"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [
+            "additional-provider-families",
+            "adjacent-findings",
+            "aws-contextual-assignment",
+            "contextual-assignment",
+            "encoded-connection",
+            "fixed-width-unicode",
+            "github-installation-stateless",
+            "legacy-variable-detector-families",
+            "mongodb-seed-list-connection",
+            "multiline-private-key",
+            "negative-end-of-stream",
+            "redis-password-only-connection",
+            "structural-overlap",
+            "synthetic-regression-malformed-authority",
+            "truncated-private-key",
+            "variable-provider"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "adversarial-dense-aws-findings",
+            "anthropic-adversarial-long-suffix",
+            "aws-adversarial-long-suffix",
+            "bearer-adversarial-punctuation",
+            "cloudflare-adversarial-long-suffix",
+            "connection-adversarial-malformed-authority",
+            "connection-adversarial-overlong",
+            "contextual-adversarial-overlong",
+            "digitalocean-adversarial-long-suffix",
+            "docker-adversarial-long-suffix",
+            "github-adversarial-long-suffix",
+            "gitlab-adversarial-long-suffix",
+            "huggingface-adversarial-long-suffix",
+            "jwt-adversarial-incomplete",
+            "linear-adversarial-long-suffix",
+            "openai-adversarial-long-suffix",
+            "private-key-adversarial-incomplete",
+            "private-key-adversarial-mismatched",
+            "private-key-adversarial-nested",
+            "pypi-adversarial-long-suffix",
+            "shopify-adversarial-long-suffix",
+            "slack-adversarial-long-suffix",
+            "stripe-adversarial-long-suffix",
+            "supabase-adversarial-long-suffix",
+            "vault-adversarial-long-suffix",
+            "vercel-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Cross-cutting incremental/stream surface: partition invariance, malformed-UTF-8 survival, and resource caps, reused from the whole-input synchronous corpus per evidence-requirements.md \u00a74.",
+      "type": "incremental"
+    },
+    {
+      "behaviorClass": "binding-edge",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "BUFFER_LIMIT_EXCEEDED",
+            "DETECTOR_FAILURE",
+            "INPUT_LIMIT_EXCEEDED",
+            "INVALID_CHUNK",
+            "INVALID_INPUT",
+            "INVALID_LIMITS",
+            "INVALID_OPTIONS",
+            "INVALID_PLACEHOLDER",
+            "INVALID_POLICY_ACTION",
+            "INVALID_STATE",
+            "INVALID_UTF8",
+            "MULTILINE_LIMIT_EXCEEDED",
+            "PLACEHOLDER_FAILURE",
+            "POLICY_FAILURE",
+            "TOKEN_LIMIT_EXCEEDED"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "no-concept"
+          },
+          "state": "not-applicable"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "crates/secret-scan-core/tests/adversarial_bounds.rs:adversarial"
+          },
+          "state": "supported"
+        }
+      ],
+      "note": "asserts scan() over every synchronous-corpus.json fixture matches its declared expectations",
+      "type": "crates/secret-scan-core/tests/canonical_corpus.rs"
+    },
+    {
+      "behaviorClass": "binding-edge",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "BUFFER_LIMIT_EXCEEDED",
+            "DETECTOR_FAILURE",
+            "INPUT_LIMIT_EXCEEDED",
+            "INVALID_CHUNK",
+            "INVALID_INPUT",
+            "INVALID_LIMITS",
+            "INVALID_OPTIONS",
+            "INVALID_PLACEHOLDER",
+            "INVALID_POLICY_ACTION",
+            "INVALID_STATE",
+            "INVALID_UTF8",
+            "MULTILINE_LIMIT_EXCEEDED",
+            "PLACEHOLDER_FAILURE",
+            "POLICY_FAILURE",
+            "TOKEN_LIMIT_EXCEEDED"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "no-concept"
+          },
+          "state": "not-applicable"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "crates/secret-scan-core/tests/adversarial_bounds.rs:adversarial"
+          },
+          "state": "supported"
+        }
+      ],
+      "note": "asserts scan_and_redact() equals scan()+redact() over the synchronous corpus",
+      "type": "crates/secret-scan-core/tests/public_api.rs"
+    },
+    {
+      "behaviorClass": "binding-edge",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "BUFFER_LIMIT_EXCEEDED",
+            "DETECTOR_FAILURE",
+            "INPUT_LIMIT_EXCEEDED",
+            "INVALID_CHUNK",
+            "INVALID_INPUT",
+            "INVALID_LIMITS",
+            "INVALID_OPTIONS",
+            "INVALID_PLACEHOLDER",
+            "INVALID_POLICY_ACTION",
+            "INVALID_STATE",
+            "INVALID_UTF8",
+            "MULTILINE_LIMIT_EXCEEDED",
+            "PLACEHOLDER_FAILURE",
+            "POLICY_FAILURE",
+            "TOKEN_LIMIT_EXCEEDED"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [
+            "additional-provider-families",
+            "adjacent-findings",
+            "aws-contextual-assignment",
+            "contextual-assignment",
+            "encoded-connection",
+            "fixed-width-unicode",
+            "github-installation-stateless",
+            "legacy-variable-detector-families",
+            "mongodb-seed-list-connection",
+            "multiline-private-key",
+            "negative-end-of-stream",
+            "redis-password-only-connection",
+            "structural-overlap",
+            "synthetic-regression-malformed-authority",
+            "truncated-private-key",
+            "variable-provider"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "crates/secret-scan-core/tests/adversarial_bounds.rs:adversarial"
+          },
+          "state": "supported"
+        }
+      ],
+      "note": "asserts partition invariance over incremental-corpus.json at every UTF-8/UTF-16 boundary",
+      "type": "crates/secret-scan-core/tests/incremental_partitions.rs"
+    },
+    {
+      "behaviorClass": "binding-edge",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "BUFFER_LIMIT_EXCEEDED",
+            "DETECTOR_FAILURE",
+            "INPUT_LIMIT_EXCEEDED",
+            "INVALID_CHUNK",
+            "INVALID_INPUT",
+            "INVALID_LIMITS",
+            "INVALID_OPTIONS",
+            "INVALID_PLACEHOLDER",
+            "INVALID_POLICY_ACTION",
+            "INVALID_STATE",
+            "INVALID_UTF8",
+            "MULTILINE_LIMIT_EXCEEDED",
+            "PLACEHOLDER_FAILURE",
+            "POLICY_FAILURE",
+            "TOKEN_LIMIT_EXCEEDED"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "no-concept"
+          },
+          "state": "not-applicable"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "adversarial-dense-aws-findings",
+            "anthropic-adversarial-long-suffix",
+            "aws-adversarial-long-suffix",
+            "bearer-adversarial-punctuation",
+            "cloudflare-adversarial-long-suffix",
+            "connection-adversarial-malformed-authority",
+            "connection-adversarial-overlong",
+            "contextual-adversarial-overlong",
+            "digitalocean-adversarial-long-suffix",
+            "docker-adversarial-long-suffix",
+            "github-adversarial-long-suffix",
+            "gitlab-adversarial-long-suffix",
+            "huggingface-adversarial-long-suffix",
+            "jwt-adversarial-incomplete",
+            "linear-adversarial-long-suffix",
+            "openai-adversarial-long-suffix",
+            "private-key-adversarial-incomplete",
+            "private-key-adversarial-mismatched",
+            "private-key-adversarial-nested",
+            "pypi-adversarial-long-suffix",
+            "shopify-adversarial-long-suffix",
+            "slack-adversarial-long-suffix",
+            "stripe-adversarial-long-suffix",
+            "supabase-adversarial-long-suffix",
+            "vault-adversarial-long-suffix",
+            "vercel-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "asserts the adversarial tier's declared resource caps hold on whole-input and incremental surfaces",
+      "type": "crates/secret-scan-core/tests/adversarial_bounds.rs"
+    },
+    {
+      "behaviorClass": "binding-edge",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "BUFFER_LIMIT_EXCEEDED",
+            "DETECTOR_FAILURE",
+            "INPUT_LIMIT_EXCEEDED",
+            "INVALID_CHUNK",
+            "INVALID_INPUT",
+            "INVALID_LIMITS",
+            "INVALID_OPTIONS",
+            "INVALID_PLACEHOLDER",
+            "INVALID_POLICY_ACTION",
+            "INVALID_STATE",
+            "INVALID_UTF8",
+            "MULTILINE_LIMIT_EXCEEDED",
+            "PLACEHOLDER_FAILURE",
+            "POLICY_FAILURE",
+            "TOKEN_LIMIT_EXCEEDED"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "no-concept"
+          },
+          "state": "not-applicable"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "crates/secret-scan-core/tests/adversarial_bounds.rs:adversarial"
+          },
+          "state": "supported"
+        }
+      ],
+      "note": "asserts the CLI's --redact output matches the canonical corpus's redacted text",
+      "type": "crates/secret-scan-cli/tests/cli.rs"
+    },
+    {
+      "behaviorClass": "binding-edge",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "BUFFER_LIMIT_EXCEEDED",
+            "DETECTOR_FAILURE",
+            "INPUT_LIMIT_EXCEEDED",
+            "INVALID_CHUNK",
+            "INVALID_INPUT",
+            "INVALID_LIMITS",
+            "INVALID_OPTIONS",
+            "INVALID_PLACEHOLDER",
+            "INVALID_POLICY_ACTION",
+            "INVALID_STATE",
+            "INVALID_UTF8",
+            "MULTILINE_LIMIT_EXCEEDED",
+            "PLACEHOLDER_FAILURE",
+            "POLICY_FAILURE",
+            "TOKEN_LIMIT_EXCEEDED"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "no-concept"
+          },
+          "state": "not-applicable"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "crates/secret-scan-core/tests/adversarial_bounds.rs:adversarial"
+          },
+          "state": "supported"
+        }
+      ],
+      "note": "asserts the Python binding's scan() matches the canonical synchronous corpus",
+      "type": "bindings/python/tests/test_conformance.py"
+    },
+    {
+      "behaviorClass": "binding-edge",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "BUFFER_LIMIT_EXCEEDED",
+            "DETECTOR_FAILURE",
+            "INPUT_LIMIT_EXCEEDED",
+            "INVALID_CHUNK",
+            "INVALID_INPUT",
+            "INVALID_LIMITS",
+            "INVALID_OPTIONS",
+            "INVALID_PLACEHOLDER",
+            "INVALID_POLICY_ACTION",
+            "INVALID_STATE",
+            "INVALID_UTF8",
+            "MULTILINE_LIMIT_EXCEEDED",
+            "PLACEHOLDER_FAILURE",
+            "POLICY_FAILURE",
+            "TOKEN_LIMIT_EXCEEDED"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [
+            "additional-provider-families",
+            "adjacent-findings",
+            "aws-contextual-assignment",
+            "contextual-assignment",
+            "encoded-connection",
+            "fixed-width-unicode",
+            "github-installation-stateless",
+            "legacy-variable-detector-families",
+            "mongodb-seed-list-connection",
+            "multiline-private-key",
+            "negative-end-of-stream",
+            "redis-password-only-connection",
+            "structural-overlap",
+            "synthetic-regression-malformed-authority",
+            "truncated-private-key",
+            "variable-provider"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "crates/secret-scan-core/tests/adversarial_bounds.rs:adversarial"
+          },
+          "state": "supported"
+        }
+      ],
+      "note": "asserts the Python incremental sanitizer matches the canonical incremental corpus",
+      "type": "bindings/python/tests/test_incremental.py"
+    },
+    {
+      "behaviorClass": "binding-edge",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "BUFFER_LIMIT_EXCEEDED",
+            "DETECTOR_FAILURE",
+            "INPUT_LIMIT_EXCEEDED",
+            "INVALID_CHUNK",
+            "INVALID_INPUT",
+            "INVALID_LIMITS",
+            "INVALID_OPTIONS",
+            "INVALID_PLACEHOLDER",
+            "INVALID_POLICY_ACTION",
+            "INVALID_STATE",
+            "INVALID_UTF8",
+            "MULTILINE_LIMIT_EXCEEDED",
+            "PLACEHOLDER_FAILURE",
+            "POLICY_FAILURE",
+            "TOKEN_LIMIT_EXCEEDED"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "no-concept"
+          },
+          "state": "not-applicable"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "crates/secret-scan-core/tests/adversarial_bounds.rs:adversarial"
+          },
+          "state": "supported"
+        }
+      ],
+      "note": "unit tests pin wasm scan/redact/scan_and_redact agreement on a synthetic finding",
+      "type": "bindings/wasm/src/lib.rs"
+    },
+    {
+      "behaviorClass": "binding-edge",
+      "detector": "unassigned",
+      "dimensions": [
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "BUFFER_LIMIT_EXCEEDED",
+            "DETECTOR_FAILURE",
+            "INPUT_LIMIT_EXCEEDED",
+            "INVALID_CHUNK",
+            "INVALID_INPUT",
+            "INVALID_LIMITS",
+            "INVALID_OPTIONS",
+            "INVALID_PLACEHOLDER",
+            "INVALID_POLICY_ACTION",
+            "INVALID_STATE",
+            "INVALID_UTF8",
+            "MULTILINE_LIMIT_EXCEEDED",
+            "PLACEHOLDER_FAILURE",
+            "POLICY_FAILURE",
+            "TOKEN_LIMIT_EXCEEDED"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "incremental",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "no-concept"
+          },
+          "state": "not-applicable"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "crates/secret-scan-core/tests/adversarial_bounds.rs:adversarial"
+          },
+          "state": "supported"
+        }
+      ],
+      "note": "unit tests pin the JS policy/detector callback contract, including safe-metadata-only visibility",
+      "type": "bindings/wasm/src/callbacks.rs"
+    }
+  ]
+}

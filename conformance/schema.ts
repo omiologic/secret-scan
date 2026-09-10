@@ -601,3 +601,397 @@ export function validateCanonicalErrorCodes(
 
   return value;
 }
+
+/**
+ * Coverage declarations (issue #103, tracking-key `dacd-f1-t3`).
+ *
+ * Encodes `docs/coverage/evidence-requirements.md`'s behavior classes,
+ * evidence dimensions, requirement matrix, and bounded exception codes as a
+ * machine-validated shape. A declaration carries no fixture `input`, no
+ * matched value, and no byte offset of its own -- it only cites the `id`s of
+ * fixtures already governed by the validators above, so the UTF-8 byte-range
+ * invariants those validators enforce are untouched by this section.
+ */
+
+export type CanonicalBehaviorClass =
+  | "provider"
+  | "structural"
+  | "contextual"
+  | "incremental"
+  | "binding-edge";
+
+export type CanonicalEvidenceDimension =
+  | "positive"
+  | "near-miss-negative"
+  | "boundary"
+  | "malformed"
+  | "overlap"
+  | "host-context"
+  | "range"
+  | "incremental"
+  | "adversarial";
+
+/** A requirement matrix cell (`evidence-requirements.md` §4). */
+export type CanonicalDimensionRequirement =
+  | "required"
+  | "class-level"
+  | "not-applicable";
+
+export type CanonicalDimensionState = "supported" | "not-applicable" | "pending";
+
+/** The fixed, bounded rationale codes (`evidence-requirements.md` §5). No
+ * other code may justify a non-`supported` dimension state. */
+export type CanonicalExceptionCode =
+  | "no-concept"
+  | "owned-elsewhere"
+  | "single-detector-family"
+  | "pending";
+
+export type CanonicalDimensionException =
+  | { readonly code: "no-concept" }
+  | { readonly code: "owned-elsewhere"; readonly ownedBy: string }
+  | { readonly code: "single-detector-family"; readonly sharedWith: string }
+  | { readonly code: "pending"; readonly backlogId: string };
+
+export interface CanonicalDimensionDeclaration {
+  readonly dimension: CanonicalEvidenceDimension;
+  readonly state: CanonicalDimensionState;
+  /** True for a `○` (representative-class-only) requirement cell resolved at
+   * the class level rather than re-evidenced by every member row. */
+  readonly classLevel?: boolean;
+  /** Fixture (or error-code) ids that directly evidence a `supported`
+   * dimension. Must be empty unless this row supplies its own evidence --
+   * `owned-elsewhere` and `single-detector-family` reuse another row's
+   * evidence instead of listing it again here. */
+  readonly evidenceFixtureIds: readonly string[];
+  readonly exception?: CanonicalDimensionException;
+}
+
+/**
+ * One coverage row: a declared finding type (`provider`/`structural`/
+ * `contextual`), the cross-cutting `incremental` surface, or a declared
+ * runtime consumer (`binding-edge`, `type` is the consumer path).
+ */
+export interface CanonicalCoverageDeclaration {
+  readonly type: string;
+  readonly detector: string | "unassigned";
+  readonly behaviorClass: CanonicalBehaviorClass;
+  readonly dimensions: readonly CanonicalDimensionDeclaration[];
+  readonly note: string;
+}
+
+/** Inputs a coverage declaration is checked against, so drift from the real
+ * registry, corpus, and consumer set is rejected rather than trusted. */
+export interface CanonicalCoverageContext {
+  /** Declared detector ids (`docs/coverage/detector-inventory.json`). */
+  readonly knownDetectors: ReadonlySet<string>;
+  /** `${detector}:${type}` pairs declared in the baseline. */
+  readonly knownDetectorTypes: ReadonlySet<string>;
+  /** Declared consumer paths, already confirmed to exist on disk. */
+  readonly knownConsumerPaths: ReadonlySet<string>;
+  /** Ids safe to cite as evidence: every canonical corpus fixture id
+   * (`synchronous-corpus.json`, `incremental-corpus.json`,
+   * `incremental-lifecycle-corpus.json`, `unicode-conversion-corpus.json`)
+   * regardless of `support` state, plus registered error codes. A fixture's
+   * `support` state does not gate whether it may be cited -- an
+   * `intentionally-unsupported` boundary fixture is itself the evidence a
+   * `boundary` or `malformed` dimension needs (evidence-requirements.md §2);
+   * this set only guards against citing an id that does not exist. */
+  readonly knownEvidenceIds: ReadonlySet<string>;
+}
+
+export const COVERAGE_REQUIREMENT_MATRIX: Readonly<
+  Record<
+    CanonicalBehaviorClass,
+    Readonly<Record<CanonicalEvidenceDimension, CanonicalDimensionRequirement>>
+  >
+> = {
+  provider: {
+    positive: "required",
+    "near-miss-negative": "required",
+    boundary: "required",
+    malformed: "required",
+    overlap: "required",
+    "host-context": "class-level",
+    range: "class-level",
+    incremental: "not-applicable",
+    adversarial: "required",
+  },
+  structural: {
+    positive: "required",
+    "near-miss-negative": "required",
+    boundary: "required",
+    malformed: "required",
+    overlap: "required",
+    "host-context": "class-level",
+    range: "class-level",
+    incremental: "not-applicable",
+    adversarial: "required",
+  },
+  contextual: {
+    positive: "required",
+    "near-miss-negative": "required",
+    boundary: "required",
+    malformed: "required",
+    overlap: "required",
+    "host-context": "required",
+    range: "class-level",
+    incremental: "not-applicable",
+    adversarial: "required",
+  },
+  incremental: {
+    positive: "not-applicable",
+    "near-miss-negative": "not-applicable",
+    boundary: "not-applicable",
+    malformed: "required",
+    overlap: "not-applicable",
+    "host-context": "not-applicable",
+    range: "required",
+    incremental: "required",
+    adversarial: "required",
+  },
+  "binding-edge": {
+    positive: "not-applicable",
+    "near-miss-negative": "not-applicable",
+    boundary: "not-applicable",
+    malformed: "required",
+    overlap: "not-applicable",
+    "host-context": "not-applicable",
+    range: "required",
+    incremental: "required",
+    adversarial: "required",
+  },
+};
+
+const BEHAVIOR_CLASSES: readonly CanonicalBehaviorClass[] = [
+  "provider",
+  "structural",
+  "contextual",
+  "incremental",
+  "binding-edge",
+];
+const EVIDENCE_DIMENSIONS: readonly CanonicalEvidenceDimension[] = [
+  "positive",
+  "near-miss-negative",
+  "boundary",
+  "malformed",
+  "overlap",
+  "host-context",
+  "range",
+  "incremental",
+  "adversarial",
+];
+const EXCEPTION_CODES: readonly CanonicalExceptionCode[] = [
+  "no-concept",
+  "owned-elsewhere",
+  "single-detector-family",
+  "pending",
+];
+const CONSUMER_PATH_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_./-]*$/;
+/** A bounded backlog id: either an existing ledger entry
+ * (`docs/audits/deferred-quality-backlog.md`'s `C/F-03` style) or a
+ * newly-named kebab-case tracking slug (this repo's own `CASE_ID_PATTERN`
+ * convention) for a gap this schema surfaces that has no ledger entry yet
+ * (evidence-requirements.md §5-6). Either way it is a stable identifier a
+ * reviewer can look up, never free-form prose standing alone. */
+const BACKLOG_ID_PATTERN = new RegExp(
+  `^(?:[A-Z]+/[A-Z]+-\\d{2,}|${CASE_ID_PATTERN.source.slice(1, -1)})$`,
+);
+const DIMENSION_EXCEPTION_KEYS: Record<CanonicalExceptionCode, ReadonlySet<string>> = {
+  "no-concept": new Set(["code"]),
+  "owned-elsewhere": new Set(["code", "ownedBy"]),
+  "single-detector-family": new Set(["code", "sharedWith"]),
+  "pending": new Set(["code", "backlogId"]),
+};
+/** The exception codes a `supported` state may carry when it reuses another
+ * row's evidence instead of listing its own. */
+const SUPPORTED_REUSE_CODES = new Set<CanonicalExceptionCode>([
+  "owned-elsewhere",
+  "single-detector-family",
+]);
+
+/**
+ * Validates coverage declarations against `evidence-requirements.md`'s
+ * requirement matrix and exception model. Rejects:
+ *
+ * - an unknown detector, `${detector}:${type}` pair, or consumer path (not
+ *   in `context`);
+ * - a row missing a dimension its behavior class requires, or declaring one
+ *   the matrix marks not-applicable for that class;
+ * - a dimension citing an evidence id that is not in
+ *   `context.knownEvidenceIds` (stale evidence);
+ * - a state/exception pairing the model does not allow, or evidence present
+ *   alongside an exception (contradictory states); and
+ * - an exception whose code is not one of the four bounded codes, whose
+ *   companion field (`ownedBy`, `sharedWith`, `backlogId`) is missing or
+ *   malformed, or whose reference does not resolve to a real, itself-
+ *   `supported` dimension declared elsewhere in the same array (unjustified
+ *   exceptions).
+ */
+export function validateCanonicalCoverageDeclarations(
+  value: readonly CanonicalCoverageDeclaration[],
+  context: CanonicalCoverageContext,
+): readonly CanonicalCoverageDeclaration[] {
+  if (!Array.isArray(value)) invalid("coverage-declarations", "not-an-array");
+
+  const types = new Set<string>();
+  const rowByType = new Map<string, CanonicalCoverageDeclaration>();
+  for (const row of value) {
+    const rawType = typeof row === "object" && row !== null && typeof row.type === "string"
+      ? row.type
+      : undefined;
+    const id = rawType !== undefined && rawType.length > 0 ? rawType : "unknown";
+    if (id === "unknown" || types.has(id)) invalid(id, "invalid-type");
+    types.add(id);
+    rowByType.set(id, row);
+  }
+
+  for (const row of value) {
+    const id = row.type;
+    const behaviorClass: CanonicalBehaviorClass = row.behaviorClass;
+    const detector: string = row.detector;
+    const dimensions: readonly CanonicalDimensionDeclaration[] = row.dimensions;
+
+    if (!BEHAVIOR_CLASSES.includes(behaviorClass)) {
+      invalid(id, "invalid-behavior-class");
+    }
+    if (typeof row.note !== "string" || row.note.length === 0) {
+      invalid(id, "invalid-metadata");
+    }
+
+    if (behaviorClass === "binding-edge") {
+      if (
+        detector !== "unassigned" ||
+        !CONSUMER_PATH_PATTERN.test(id) ||
+        !context.knownConsumerPaths.has(id)
+      ) {
+        invalid(id, "unknown-consumer");
+      }
+    } else if (behaviorClass === "incremental") {
+      if (detector !== "unassigned" || id !== "incremental") {
+        invalid(id, "invalid-incremental-row");
+      }
+    } else {
+      if (
+        detector === "unassigned" ||
+        !IDENTIFIER_PATTERN.test(detector) ||
+        !IDENTIFIER_PATTERN.test(id) ||
+        !context.knownDetectors.has(detector) ||
+        !context.knownDetectorTypes.has(`${detector}:${id}`)
+      ) {
+        invalid(id, "unknown-detector-or-type");
+      }
+    }
+
+    if (!Array.isArray(dimensions)) invalid(id, "invalid-metadata");
+    const matrix: Readonly<Record<CanonicalEvidenceDimension, CanonicalDimensionRequirement>> =
+      COVERAGE_REQUIREMENT_MATRIX[behaviorClass];
+    const declared = new Map<CanonicalEvidenceDimension, CanonicalDimensionDeclaration>();
+    for (const dimensionDeclaration of dimensions) {
+      const dimensionName: CanonicalEvidenceDimension = dimensionDeclaration.dimension;
+      if (
+        typeof dimensionDeclaration !== "object" ||
+        dimensionDeclaration === null ||
+        !EVIDENCE_DIMENSIONS.includes(dimensionName) ||
+        declared.has(dimensionName)
+      ) {
+        invalid(id, "invalid-dimension");
+      }
+      declared.set(dimensionName, dimensionDeclaration);
+
+      const requirement = matrix[dimensionName];
+      if (requirement === "not-applicable") {
+        invalid(id, "dimension-not-applicable-for-class");
+      }
+
+      const evidenceFixtureIds: readonly string[] = dimensionDeclaration.evidenceFixtureIds;
+      if (
+        !Array.isArray(evidenceFixtureIds) ||
+        evidenceFixtureIds.some((fixtureId) => typeof fixtureId !== "string")
+      ) {
+        invalid(id, "invalid-dimension");
+      }
+      const hasOwnEvidence = evidenceFixtureIds.length > 0;
+      const staleEvidence = evidenceFixtureIds.some(
+        (fixtureId) => !context.knownEvidenceIds.has(fixtureId),
+      );
+      const exception: CanonicalDimensionException | undefined = dimensionDeclaration.exception;
+      const state: CanonicalDimensionState = dimensionDeclaration.state;
+
+      switch (state) {
+        case "supported": {
+          if (exception === undefined) {
+            if (!hasOwnEvidence) invalid(id, "unsupported-claim");
+            if (staleEvidence) invalid(id, "stale-evidence-id");
+            break;
+          }
+          if (hasOwnEvidence || !SUPPORTED_REUSE_CODES.has(exception.code)) {
+            invalid(id, "contradictory-state");
+          }
+          break;
+        }
+        case "not-applicable": {
+          if (hasOwnEvidence || exception === undefined || exception.code !== "no-concept") {
+            invalid(id, "contradictory-state");
+          }
+          break;
+        }
+        case "pending": {
+          if (hasOwnEvidence || exception === undefined || exception.code !== "pending") {
+            invalid(id, "contradictory-state");
+          }
+          break;
+        }
+        default:
+          invalid(id, "invalid-dimension-state");
+      }
+
+      if (exception !== undefined) {
+        const exceptionCode: CanonicalExceptionCode = exception.code;
+        if (
+          !EXCEPTION_CODES.includes(exceptionCode) ||
+          Object.keys(exception).some(
+            (key) => !DIMENSION_EXCEPTION_KEYS[exceptionCode]?.has(key),
+          )
+        ) {
+          invalid(id, "unjustified-exception");
+        }
+        if (
+          exception.code === "pending" &&
+          !BACKLOG_ID_PATTERN.test(exception.backlogId)
+        ) {
+          invalid(id, "unjustified-exception");
+        }
+        if (exception.code === "single-detector-family") {
+          const sibling = rowByType.get(exception.sharedWith);
+          if (sibling === undefined || sibling.detector !== detector || sibling.type === id) {
+            invalid(id, "unjustified-exception");
+          }
+        }
+        if (exception.code === "owned-elsewhere") {
+          const [ownerType, ownerDimension] = exception.ownedBy.split(":");
+          const owner = ownerType !== undefined ? rowByType.get(ownerType) : undefined;
+          const ownerDeclaration = owner?.dimensions.find(
+            (candidate) => candidate.dimension === ownerDimension,
+          );
+          if (
+            owner === undefined ||
+            owner.type === id ||
+            ownerDeclaration === undefined ||
+            ownerDeclaration.state !== "supported" ||
+            ownerDeclaration.exception !== undefined
+          ) {
+            invalid(id, "unjustified-exception");
+          }
+        }
+      }
+    }
+
+    for (const dimensionName of EVIDENCE_DIMENSIONS) {
+      if (matrix[dimensionName] === "not-applicable") continue;
+      if (!declared.has(dimensionName)) invalid(id, "missing-required-dimension");
+    }
+  }
+
+  return value;
+}
