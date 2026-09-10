@@ -13,9 +13,9 @@ python3 -B scripts/generate-coverage-report.py --out docs/coverage/coverage-repo
 
 | Row state | Count |
 | --- | --- |
-| supported | 22 |
+| supported | 23 |
 | intentionally-unsupported | 0 |
-| unresolved | 1 |
+| unresolved | 0 |
 
 Coverage declarations: 33.
 
@@ -30,7 +30,7 @@ Coverage declarations: 33.
 | connection-string | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | digitalocean-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | docker-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
-| generic-token | 2 | supported: 1, intentionally-unsupported: 0, unresolved: 1 |
+| generic-token | 2 | supported: 2, intentionally-unsupported: 0, unresolved: 0 |
 | github-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | gitlab-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | huggingface-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
@@ -51,7 +51,7 @@ Coverage declarations: 33.
 | Type | Detector | Behavior class | State | Scheme states | Pending dimensions |
 | --- | --- | --- | --- | --- | --- |
 | anthropic_api_key | anthropic-token | provider | supported | not-applicable | none |
-| authorization_credential | generic-token | contextual | unresolved | unresolved | boundary, host-context, near-miss-negative, overlap, positive |
+| authorization_credential | generic-token | contextual | supported | supported | host-context, overlap |
 | aws_access_key_id | aws-access-key | provider | supported | not-applicable | none |
 | bearer_token | bearer-token | structural | supported | not-applicable | host-context, overlap |
 | cloudflare_api_token | cloudflare-token | provider | supported | not-applicable | none |
@@ -78,8 +78,8 @@ Coverage declarations: 33.
 
 | Detector | Type | Scheme | State |
 | --- | --- | --- | --- |
-| generic-token | authorization_credential | basic | unresolved |
-| generic-token | authorization_credential | token | unresolved |
+| generic-token | authorization_credential | basic | supported |
+| generic-token | authorization_credential | token | supported |
 | connection-string | connection_string_password | amqp | unresolved |
 | connection-string | connection_string_password | amqps | unresolved |
 | connection-string | connection_string_password | mariadb | unresolved |
@@ -96,13 +96,13 @@ Coverage declarations: 33.
 | Dimension | Supported | Not applicable | Pending |
 | --- | --- | --- | --- |
 | adversarial | 33 | 0 | 0 |
-| boundary | 22 | 0 | 1 |
+| boundary | 23 | 0 | 0 |
 | host-context | 17 | 0 | 6 |
 | incremental | 3 | 7 | 0 |
 | malformed | 33 | 0 | 0 |
-| near-miss-negative | 22 | 0 | 1 |
+| near-miss-negative | 23 | 0 | 0 |
 | overlap | 20 | 0 | 3 |
-| positive | 22 | 0 | 1 |
+| positive | 23 | 0 | 0 |
 | range | 33 | 0 | 0 |
 
 ## Unresolved and pending coverage
@@ -111,12 +111,10 @@ Coverage declarations: 33.
 
 ### Unresolved finding types
 
-- authorization_credential
+None.
 
 ### Unresolved schemes
 
-- authorization_credential/basic
-- authorization_credential/token
 - connection_string_password/amqp
 - connection_string_password/amqps
 - connection_string_password/mariadb
@@ -127,11 +125,8 @@ Coverage declarations: 33.
 
 ### Pending evidence dimensions
 
-- authorization_credential.boundary (`C/F-03`)
-- authorization_credential.host-context (`C/F-03`)
-- authorization_credential.near-miss-negative (`C/F-03`)
+- authorization_credential.host-context (`authorization-credential-host-context-breadth`)
 - authorization_credential.overlap (`authorization-credential-overlap`)
-- authorization_credential.positive (`C/F-03`)
 - bearer_token.host-context (`structural-host-context-breadth`)
 - bearer_token.overlap (`bearer-token-overlap`)
 - connection_string_password.host-context (`structural-host-context-breadth`)

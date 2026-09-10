@@ -359,15 +359,20 @@ def resolve_shared_family(rows_by_type: dict[str, dict], type_names: list[str]) 
 
 
 def apply_known_exceptions(rows_by_type: dict[str, dict]) -> None:
-    """``authorization_credential`` is the one documented, pre-existing gap
-    this baseline already tracks (evidence-requirements.md §5-6): the corpus
-    has zero fixtures referencing it, a real gap already carried as
-    ``C/F-03`` in ``docs/audits/deferred-quality-backlog.md``, cited here by
-    name rather than invented."""
+    """``C/F-03`` in ``docs/audits/deferred-quality-backlog.md`` names exactly
+    two dimensions of ``authorization_credential``'s gap: at least one
+    supported positive fixture per accepted scheme, plus one boundary
+    fixture pinning ``MIN_AUTHORIZATION_VALUE_LENGTH``. Issue #105 closed
+    that pair (and, alongside it, the near-miss-negative dimension issue
+    #105's own acceptance criteria bundled with boundary). Any dimension
+    still pending after that -- currently ``host-context`` -- is a real,
+    separately-unmet gap the requirement matrix names but ``C/F-03`` never
+    claimed to cover, so it is left to fall through to its own generated
+    backlog slug rather than borrowing a closed finding's name."""
     auth = rows_by_type.get("authorization_credential")
     if auth is not None:
         for dimension in auth["dimensions"]:
-            if dimension["dimension"] in ("positive", "boundary", "near-miss-negative", "host-context"):
+            if dimension["dimension"] in ("positive", "boundary", "near-miss-negative"):
                 if dimension["state"] == "pending":
                     dimension["exception"]["backlogId"] = "C/F-03"
 

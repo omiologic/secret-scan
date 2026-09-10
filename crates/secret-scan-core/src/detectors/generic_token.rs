@@ -619,6 +619,8 @@ mod tests {
         let basic = detect(basic_input);
         let (start, end) = only_range(&basic);
         assert_eq!(&basic_input[start..end], "U1lOVEhFVElDX1JFVk9LRUQ=");
+        assert_eq!(basic[0].type_name(), "authorization_credential");
+        assert_eq!(basic[0].confidence(), Confidence::High);
         assert_eq!(basic[0].specificity(), Some(Specificity::Structural));
 
         let token_input = "Authorization: Token SYNTHETIC_REVOKED_TOKEN_VALUE_1234";
@@ -628,6 +630,30 @@ mod tests {
             &token_input[start..end],
             "SYNTHETIC_REVOKED_TOKEN_VALUE_1234"
         );
+        assert_eq!(token[0].type_name(), "authorization_credential");
+        assert_eq!(token[0].confidence(), Confidence::High);
+        assert_eq!(token[0].specificity(), Some(Specificity::Structural));
+    }
+
+    #[test]
+    fn authorization_value_at_the_minimum_accepted_length_is_medium_confidence() {
+        let input = "Authorization: Token TOKENVALUE12";
+        let candidates = detect(input);
+        let (start, end) = only_range(&candidates);
+        assert_eq!(&input[start..end], "TOKENVALUE12");
+        assert_eq!(candidates[0].type_name(), "authorization_credential");
+        assert_eq!(candidates[0].confidence(), Confidence::Medium);
+        assert_eq!(candidates[0].specificity(), Some(Specificity::Structural));
+    }
+
+    #[test]
+    fn authorization_value_below_the_minimum_accepted_length_is_ignored() {
+        assert!(detect("Authorization: Basic short-value").is_empty());
+    }
+
+    #[test]
+    fn authorization_scheme_other_than_basic_or_token_is_ignored() {
+        assert!(detect("Authorization: Digest SYNTHETIC_REVOKED_DIGEST_VALUE_1234").is_empty());
     }
 
     #[test]

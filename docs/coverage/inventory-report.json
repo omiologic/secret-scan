@@ -719,7 +719,7 @@
     {
       "detector": "generic-token",
       "evidence": {
-        "fixtureCount": 19,
+        "fixtureCount": 23,
         "hostContextsExercised": [
           "javascript",
           "plain-text"
@@ -749,7 +749,7 @@
     {
       "detector": "generic-token",
       "evidence": {
-        "fixtureCount": 19,
+        "fixtureCount": 23,
         "hostContextsExercised": [
           "javascript",
           "plain-text"
@@ -765,28 +765,35 @@
           "supported"
         ]
       },
-      "evidenceFixtureIds": [],
+      "evidenceFixtureIds": [
+        "authorization-positive-basic",
+        "authorization-positive-token-minimum"
+      ],
       "policyClass": "always-redact",
       "schemeRows": [
         {
-          "evidenceFixtureIds": [],
+          "evidenceFixtureIds": [
+            "authorization-positive-basic"
+          ],
           "scheme": "basic",
-          "state": "unresolved"
+          "state": "supported"
         },
         {
-          "evidenceFixtureIds": [],
+          "evidenceFixtureIds": [
+            "authorization-positive-token-minimum"
+          ],
           "scheme": "token",
-          "state": "unresolved"
+          "state": "supported"
         }
       ],
-      "state": "unresolved",
+      "state": "supported",
       "type": "authorization_credential"
     }
   ],
   "summary": {
     "intentionally-unsupported": 0,
     "not-applicable": 0,
-    "supported": 22,
-    "unresolved": 1
+    "supported": 23,
+    "unresolved": 0
   }
 }
