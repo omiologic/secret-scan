@@ -393,6 +393,14 @@ findings and their exit conditions, is recorded in
 [docs/audits/ci-release-automation-supply-chain-review.md](./docs/audits/ci-release-automation-supply-chain-review.md).
 It records evidence only; it does not authorize any release operation.
 
+One disposition for every finding those four documents produced — which findings
+block a release, which are deferred, and which are intentional exclusions — with
+the bounded remediation Task each blocker becomes, is recorded in
+[docs/audits/release-gap-disposition.md](./docs/audits/release-gap-disposition.md),
+and the deferred remainder in
+[docs/audits/deferred-quality-backlog.md](./docs/audits/deferred-quality-backlog.md).
+They classify and specify work only; they do not authorize any release operation.
+
 ## License
 
 [MIT](./LICENSE)
