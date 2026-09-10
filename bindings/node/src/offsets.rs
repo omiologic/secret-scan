@@ -49,32 +49,61 @@ pub fn utf16_to_byte(text: &str, utf16_offset: usize) -> Result<usize, SecretSca
 mod tests {
     use super::*;
 
-    /// Mirrors `conformance/fixtures/unicode-conversion-corpus.json`
-    /// (`decision-govern-cross-language-conformance`): an astral
-    /// (supplementary-plane) character positioned before, within, and after
-    /// a finding's UTF-8 byte span, asserting the same canonical `start`/
-    /// `end` byte offsets convert to the UTF-16 code-unit offsets every
-    /// JavaScript consumer of this binding actually sees.
+    /// One `conformance/fixtures/unicode-conversion-corpus.json` fixture: an
+    /// input and the single canonical UTF-8 byte span it declares.
+    struct RangeFixture {
+        id: String,
+        input: String,
+        start: usize,
+        end: usize,
+    }
+
+    /// Reads `conformance/fixtures/unicode-conversion-corpus.json` directly
+    /// rather than copying its values into Rust, which
+    /// `decision-govern-cross-language-conformance` rejects: "Copying
+    /// fixtures into each binding was rejected because copies can diverge."
+    fn unicode_conversion_fixtures() -> Vec<RangeFixture> {
+        const CORPUS: &str =
+            include_str!("../../../conformance/fixtures/unicode-conversion-corpus.json");
+        let document: serde_json::Value = serde_json::from_str(CORPUS).unwrap();
+        assert_eq!(document["offsetUnit"], "utf8-byte");
+        let fixtures = document["fixtures"].as_array().unwrap();
+        assert!(!fixtures.is_empty());
+        fixtures
+            .iter()
+            .map(|fixture| {
+                let id = fixture["id"].as_str().unwrap().to_owned();
+                let expected = fixture["expected"].as_array().unwrap();
+                assert_eq!(expected.len(), 1, "{id}: expected exactly one expectation");
+                RangeFixture {
+                    input: fixture["input"].as_str().unwrap().to_owned(),
+                    start: usize::try_from(expected[0]["start"].as_u64().unwrap()).unwrap(),
+                    end: usize::try_from(expected[0]["end"].as_u64().unwrap()).unwrap(),
+                    id,
+                }
+            })
+            .collect()
+    }
+
+    /// An astral (supplementary-plane) character positioned before, within,
+    /// and after a finding's UTF-8 byte span, asserting the same canonical
+    /// `start`/`end` byte offsets convert to the UTF-16 code-unit offsets
+    /// every JavaScript consumer of this binding actually sees, checked
+    /// against `str::encode_utf16`'s count -- an independent reference
+    /// conversion, not `byte_to_utf16` under test.
     #[test]
     fn unicode_conversion_corpus_converts_to_utf16_offsets() {
-        let cases = [
-            // (input, canonical UTF-8 byte start/end, expected UTF-16 start/end)
-            ("\u{1F511} TOKEN_SYNTHETIC_REVOKED_VALUE", 5, 34, 3, 32),
-            ("TOKEN_\u{1F511}_SYNTHETIC_REVOKED", 0, 28, 0, 26),
-            ("TOKEN_SYNTHETIC_REVOKED_VALUE \u{1F511}", 0, 29, 0, 29),
-            ("e\u{0301} TOKEN_SYNTHETIC_REVOKED_VALUE", 4, 33, 3, 32),
-            ("键 TOKEN_SYNTHETIC_REVOKED_VALUE", 4, 33, 2, 31),
-            (
-                "\u{201c}TOKEN_SYNTHETIC_REVOKED_VALUE\u{201d}",
-                3,
-                32,
-                1,
-                30,
-            ),
-        ];
-        for (input, byte_start, byte_end, utf16_start, utf16_end) in cases {
-            assert_eq!(byte_to_utf16(input, byte_start), utf16_start, "{input:?}");
-            assert_eq!(byte_to_utf16(input, byte_end), utf16_end, "{input:?}");
+        for fixture in unicode_conversion_fixtures() {
+            for byte_offset in [fixture.start, fixture.end] {
+                let count = fixture.input[..byte_offset].encode_utf16().count();
+                let reference = u32::try_from(count).unwrap();
+                assert_eq!(
+                    byte_to_utf16(&fixture.input, byte_offset),
+                    reference,
+                    "{}",
+                    fixture.id,
+                );
+            }
         }
     }
 
