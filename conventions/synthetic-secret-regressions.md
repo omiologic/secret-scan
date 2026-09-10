@@ -13,6 +13,12 @@ minimum grammar and host context needed to reproduce the defect; never retain,
 quote, encode, hash, snapshot, or derive fixture material from a submitted
 credential.
 
+If the submitted material is, or might be, a still-active credential, stop
+before touching the corpus, an issue, or a pull request: report it privately
+through [`SECURITY.md`'s vulnerability reporting process](../SECURITY.md#reporting-a-vulnerability)
+first. Only a freshly constructed synthetic or revoked replacement — never the
+reported value in any transformed form — may proceed to the steps below.
+
 Before adding the fixture, record its stable corpus identity and expected safe
 metadata, then verify the assertion and failure paths name only that identity
 and metadata. If a report cannot be reproduced without retaining submitted

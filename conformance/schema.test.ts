@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
 import {
+  utf8ByteLength,
   validateCanonicalCoverageDeclarations,
   validateCanonicalErrorCodes,
   validateCanonicalFixtures,
@@ -17,6 +18,10 @@ import {
   type CanonicalIncrementalFixture,
   type CanonicalLifecycleFixture,
 } from "./schema.js";
+import {
+  GITHUB_CLASSIC_SEED_ID,
+  generateGithubClassicMutations,
+} from "./fixtures/github-classic-mutations.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -131,6 +136,192 @@ describe("canonical fixture files validate against the canonical schema", () => 
 
   test("error-codes.json", () => {
     expect(() => validateCanonicalErrorCodes(errorCodesDoc.codes)).not.toThrow();
+  });
+});
+
+/** A minimal, otherwise-valid canonical fixture a rejection test can mutate
+ * one field of at a time. Offsets are computed from the literal parts rather
+ * than hardcoded so an edit to either string cannot silently desync them. */
+function baseFixture(): CanonicalFixture {
+  const prefix = "TOKEN_VALUE=";
+  const body = "abcdefghijklmnopqrstuvwxyz012345";
+  return {
+    id: "schema-test-base",
+    detector: "generic-token",
+    kind: "positive",
+    support: "supported",
+    tier: "canonical",
+    contexts: ["plain-text"],
+    input: `${prefix}${body}`,
+    expected: [
+      {
+        detector: "generic-token",
+        type: "generic_token",
+        confidence: "high",
+        specificity: "structural",
+        start: prefix.length,
+        end: prefix.length + body.length,
+      },
+    ],
+    note: "schema validator test fixture",
+  };
+}
+
+describe("validateCanonicalFixtures (issue #116)", () => {
+  test("accepts a well-formed fixture", () => {
+    expect(() => validateCanonicalFixtures([baseFixture()])).not.toThrow();
+  });
+
+  test("rejects an expectation carrying a forbidden extra key", () => {
+    const fixture = baseFixture();
+    const tampered = {
+      ...fixture,
+      expected: [{ ...fixture.expected![0], matchedValue: "SYNTHETIC" }],
+    } as unknown as CanonicalFixture;
+    expect(() => validateCanonicalFixtures([tampered])).toThrow(
+      /plaintext-bearing-expectation/,
+    );
+  });
+
+  test("rejects invalid mutation provenance", () => {
+    const fixture = baseFixture();
+    const tampered: CanonicalFixture = {
+      ...fixture,
+      mutation: {
+        grammar: "github-classic",
+        seedId: GITHUB_CLASSIC_SEED_ID,
+        operation: "identity",
+        ordinal: -1,
+      },
+    };
+    expect(() => validateCanonicalFixtures([tampered])).toThrow(
+      /invalid-mutation-provenance/,
+    );
+  });
+
+  test("rejects a resource expectation smaller than the actual input", () => {
+    const fixture = baseFixture();
+    const adversarial: CanonicalFixture = {
+      ...fixture,
+      id: "schema-test-adversarial",
+      kind: "adversarial",
+      tier: "adversarial",
+      resource: {
+        maxInputBytes: utf8ByteLength(fixture.input) - 1,
+        maxFindings: 1,
+        maxRuntimeMs: 10,
+      },
+    };
+    expect(() => validateCanonicalFixtures([adversarial])).toThrow(
+      /invalid-resource-expectation/,
+    );
+  });
+
+  test("rejects an adversarial-kind fixture with no resource expectation", () => {
+    const fixture = baseFixture();
+    const adversarial: CanonicalFixture = {
+      ...fixture,
+      id: "schema-test-adversarial",
+      kind: "adversarial",
+      tier: "adversarial",
+    };
+    expect(() => validateCanonicalFixtures([adversarial])).toThrow(
+      /adversarial-without-resource-expectation/,
+    );
+  });
+
+  test("rejects a positive fixture with no expected finding", () => {
+    const fixture = baseFixture();
+    const tampered: CanonicalFixture = { ...fixture, expected: [] };
+    expect(() => validateCanonicalFixtures([tampered])).toThrow(
+      /positive-without-finding/,
+    );
+  });
+
+  test("rejects a negative fixture that carries a finding", () => {
+    const fixture = baseFixture();
+    const tampered: CanonicalFixture = {
+      ...fixture,
+      kind: "negative",
+      tier: "negative",
+    };
+    expect(() => validateCanonicalFixtures([tampered])).toThrow(
+      /excluded-with-finding/,
+    );
+  });
+
+  test("rejects overlapping expectations", () => {
+    const fixture = baseFixture();
+    const only = fixture.expected![0];
+    const tampered: CanonicalFixture = {
+      ...fixture,
+      expected: [only, { ...only, start: only.start + 1 }],
+    };
+    expect(() => validateCanonicalFixtures([tampered])).toThrow(
+      /invalid-expectation/,
+    );
+  });
+
+  test("rejects a duplicate fixture id", () => {
+    const fixture = baseFixture();
+    expect(() => validateCanonicalFixtures([fixture, fixture])).toThrow(
+      /invalid-id/,
+    );
+  });
+});
+
+describe("validateCanonicalIncrementalFixtures rejects unsafe shapes (issue #116)", () => {
+  test("rejects an expected entry carrying a forbidden extra key", () => {
+    const fixture = baseFixture();
+    const incremental = {
+      id: "schema-test-incremental",
+      input: fixture.input,
+      text: fixture.input,
+      expected: [{ ...fixture.expected![0], matchedValue: "SYNTHETIC" }],
+      note: "test",
+    } as unknown as CanonicalIncrementalFixture;
+    expect(() => validateCanonicalIncrementalFixtures([incremental])).toThrow(
+      /invalid-expectation/,
+    );
+  });
+});
+
+describe("validateCanonicalErrorCodes rejects unsafe shapes (issue #116)", () => {
+  test("rejects a duplicate error code", () => {
+    const entry: CanonicalErrorCode = {
+      code: "SCHEMA_TEST_ERROR",
+      message: "A fixed, input-free test message.",
+      surface: "incremental",
+    };
+    expect(() => validateCanonicalErrorCodes([entry, entry])).toThrow(
+      /invalid-code/,
+    );
+  });
+});
+
+describe("github-classic mutation reproducibility (issue #116)", () => {
+  test("regenerating the seeded mutation set is byte-identical", () => {
+    expect(generateGithubClassicMutations()).toEqual(generateGithubClassicMutations());
+  });
+
+  test("every corpus fixture declaring this grammar reproduces byte-for-byte", () => {
+    const generated = new Map(
+      generateGithubClassicMutations().map((mutation) => [mutation.ordinal, mutation]),
+    );
+    const declared = corpus.fixtures.filter(
+      (fixture) => fixture.mutation?.grammar === "github-classic",
+    );
+
+    expect(declared.length).toBe(generated.size);
+    for (const fixture of declared) {
+      const mutation = fixture.mutation!;
+      const reproduced = generated.get(mutation.ordinal);
+      expect(reproduced, `${fixture.id}: no generated case for ordinal ${mutation.ordinal}`)
+        .toBeDefined();
+      expect(mutation.seedId).toBe(GITHUB_CLASSIC_SEED_ID);
+      expect(mutation.operation).toBe(reproduced!.operation);
+      expect(fixture.input).toBe(reproduced!.input);
+    }
   });
 });
 
