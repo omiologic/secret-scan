@@ -1630,12 +1630,11 @@
       "dimensions": [
         {
           "dimension": "positive",
-          "evidenceFixtureIds": [],
-          "exception": {
-            "backlogId": "C/F-03",
-            "code": "pending"
-          },
-          "state": "pending"
+          "evidenceFixtureIds": [
+            "authorization-positive-basic",
+            "authorization-positive-token-minimum"
+          ],
+          "state": "supported"
         },
         {
           "dimension": "overlap",
@@ -1657,36 +1656,30 @@
         },
         {
           "dimension": "boundary",
-          "evidenceFixtureIds": [],
-          "exception": {
-            "backlogId": "C/F-03",
-            "code": "pending"
-          },
-          "state": "pending"
+          "evidenceFixtureIds": [
+            "authorization-boundary-short"
+          ],
+          "state": "supported"
         },
         {
           "dimension": "near-miss-negative",
-          "evidenceFixtureIds": [],
-          "exception": {
-            "backlogId": "C/F-03",
-            "code": "pending"
-          },
-          "state": "pending"
+          "evidenceFixtureIds": [
+            "authorization-negative-unsupported-scheme"
+          ],
+          "state": "supported"
         },
         {
           "dimension": "malformed",
-          "evidenceFixtureIds": [],
-          "exception": {
-            "code": "single-detector-family",
-            "sharedWith": "contextual_secret"
-          },
+          "evidenceFixtureIds": [
+            "authorization-boundary-short"
+          ],
           "state": "supported"
         },
         {
           "dimension": "host-context",
           "evidenceFixtureIds": [],
           "exception": {
-            "backlogId": "C/F-03",
+            "backlogId": "authorization-credential-host-context-breadth",
             "code": "pending"
           },
           "state": "pending"

@@ -1,6 +1,6 @@
 {
   "offsetUnit": "utf8-byte",
-  "fixtureCount": 171,
+  "fixtureCount": 175,
   "fixtures": [
     {
       "id": "host-dotenv-github",
@@ -5261,6 +5261,82 @@
       "note": "An overlong malformed authority is abandoned after a fixed scan bound."
     },
     {
+      "id": "authorization-positive-basic",
+      "detector": "generic-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "Authorization: Basic U1lOVEhFVElDX1JFVk9LRUQ=",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "authorization_credential",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 21,
+          "end": 45
+        }
+      ],
+      "note": "An explicit Basic authorization scheme is supported."
+    },
+    {
+      "id": "authorization-positive-token-minimum",
+      "detector": "generic-token",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "Authorization: Token TOKENVALUE12",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "authorization_credential",
+          "confidence": "medium",
+          "specificity": "structural",
+          "start": 21,
+          "end": 33
+        }
+      ],
+      "note": "An explicit Token authorization scheme is supported at the minimum accepted value length."
+    },
+    {
+      "id": "authorization-boundary-short",
+      "detector": "generic-token",
+      "kind": "boundary",
+      "support": "intentionally-unsupported",
+      "tier": "malformed",
+      "contexts": [
+        "plain-text"
+      ],
+      "mutation": {
+        "grammar": "generic-token",
+        "seedId": "authorization-boundary-short",
+        "operation": "declared-boundary",
+        "ordinal": 0
+      },
+      "input": "Authorization: Basic short-value",
+      "expected": [],
+      "note": "Authorization values below the minimum accepted length are deliberately ignored."
+    },
+    {
+      "id": "authorization-negative-unsupported-scheme",
+      "detector": "generic-token",
+      "kind": "negative",
+      "support": "supported",
+      "tier": "negative",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "Authorization: Digest SYNTHETIC_REVOKED_DIGEST_VALUE_1234",
+      "expected": [],
+      "note": "A scheme other than Basic or Token is not a near-miss match."
+    },
+    {
       "id": "contextual-positive-assignment",
       "detector": "generic-token",
       "kind": "positive",
@@ -5424,14 +5500,14 @@
       "id": "future-provider-family-pending",
       "detector": "unassigned",
       "kind": "boundary",
-      "support": "not-yet-evaluated",
+      "support": "intentionally-unsupported",
       "tier": "malformed",
       "contexts": [
         "plain-text"
       ],
       "input": "future_provider_SYNTHETIC_REVOKED_UNQUALIFIED_VALUE",
-      "expected": null,
-      "note": "Unqualified provider families require evidence before expectations are set."
+      "expected": [],
+      "note": "No provider-family grammar has been proposed or accepted for this placeholder value; inventing detection for an unqualified prefix would assert a grammar the corpus has no evidence for. Intentionally unsupported until a real provider proposes a concrete, evaluable grammar (see docs/audits/deferred-quality-backlog.md, C/F-03)."
     }
   ]
 }

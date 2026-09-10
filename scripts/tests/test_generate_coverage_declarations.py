@@ -303,15 +303,23 @@ class BuildDeclarationsIntegrationTests(unittest.TestCase):
                 backlog_id = dimension["exception"]["backlogId"]
                 self.assertTrue(backlog_id and " " not in backlog_id, backlog_id)
 
-    def test_authorization_credential_is_the_one_row_matching_the_baselines_tracked_gap(self) -> None:
+    def test_authorization_credential_resolves_the_dimensions_c_f_03_closed(self) -> None:
+        """Issue #105 closed `C/F-03`'s exact scope: a supported positive
+        fixture per scheme and a boundary fixture pinning
+        `MIN_AUTHORIZATION_VALUE_LENGTH`. `host-context` is a real,
+        separately-unmet gap the requirement matrix names but `C/F-03` never
+        claimed (see `generate-coverage-declarations.py`'s
+        `apply_known_exceptions`), so it stays pending under its own
+        generated backlog slug rather than `C/F-03`'s."""
         auth = next(
             row for row in self.report["declarations"] if row["type"] == "authorization_credential"
         )
-        pending_dims = {
-            d["dimension"] for d in auth["dimensions"] if d["state"] == "pending"
-        }
-        self.assertIn("positive", pending_dims)
-        self.assertIn("boundary", pending_dims)
+        by_dimension = {d["dimension"]: d for d in auth["dimensions"]}
+        self.assertEqual(by_dimension["positive"]["state"], "supported")
+        self.assertEqual(by_dimension["boundary"]["state"], "supported")
+        self.assertEqual(by_dimension["near-miss-negative"]["state"], "supported")
+        self.assertEqual(by_dimension["host-context"]["state"], "pending")
+        self.assertNotEqual(by_dimension["host-context"]["exception"]["backlogId"], "C/F-03")
 
     def test_committed_coverage_declarations_is_up_to_date(self) -> None:
         """A built-in capability (detector, finding type, corpus evidence)
