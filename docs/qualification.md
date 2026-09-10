@@ -72,7 +72,7 @@ pull request does not trigger it.
 | `rust` | Calls `CI`: format, lint, dependency policy, workspace tests on three hosts, MSRV, rustdoc, crate package contents, and the `wasm32-unknown-unknown` target and its `wasm-bindgen` tests |
 | `python` | Calls `Python wheels`: the abi3 wheel matrix and source distribution, each smoke-tested on the abi3 floor and a current interpreter |
 | `node-addon` | Builds the addon for each triple and qualifies it on Node 20, 22, and 24 |
-| `browser` | Builds the WebAssembly artifact and qualifies it in each engine |
+| `browser` | Builds the WebAssembly artifact and qualifies it, and the package on top of it, in each engine |
 | `cli` | Builds the CLI for each triple and qualifies the binary |
 | `inventory` | Requires the whole declared matrix and records what was built |
 
@@ -96,11 +96,19 @@ the architecture it targets — none is "built only":
 | `x86_64-pc-windows-msvc` | `windows-latest` | host |
 | `aarch64-pc-windows-msvc` | `windows-11-arm` | host |
 
-The musl builds cross-link with `musl-tools` on the glibc runner of the same
-architecture — the addon is a cdylib that resolves its N-API symbols at load
-time and the CLI links musl statically, so neither needs a musl build host —
-and are then qualified inside a musl container, which is where they are meant
-to run.
+Every musl artifact is qualified inside a musl container of the same
+architecture, which is where it is meant to run. The two families build
+differently, because a static executable and a shared library are not the
+same problem:
+
+- the **CLI** links musl statically, which `musl-tools` on the glibc runner
+  does correctly; and
+- the **addon** is a cdylib, which `musl-tools` cannot link at all — its gcc
+  wrapper ships no musl `libgcc_s.so.1`. Routing rustc's self-contained
+  objects through the glibc driver instead does produce a library, and that
+  library segfaults the moment Node loads it, so the addon is built natively
+  inside a `rust:1-alpine` container where the host triple already is the
+  target.
 
 ## What each qualifier proves
 
@@ -116,7 +124,8 @@ to run.
    reference conversion independent of the binding.
 4. The published JavaScript package resolves the addon under
    `@omiologic/secret-scan-node` from `packages/javascript/node_modules`, the
-   way an installed consumer resolves it. See the gap below.
+   way an installed consumer resolves it. See the Node gap below; the
+   equivalent browser pass is complete and lives in the browser qualifier.
 
 ### `scripts/qualify-browser-artifact.mjs`
 
@@ -124,8 +133,11 @@ to run.
 `wasm32-unknown-unknown` cdylib and generates the `web`-target glue with a
 `wasm-bindgen` CLI whose version must match the crate's exactly. The qualifier
 serves that directory over HTTP — with `application/wasm` on the binary, which
-streaming instantiation requires — and runs `scripts/browser-harness.mjs`
-inside a real page in each engine:
+streaming instantiation requires — and loads two pages in each engine against
+that one artifact.
+
+The first, `scripts/browser-harness.mjs`, drives the artifact through its own
+exports:
 
 - a synchronous call before `initialize()` fails with `NOT_INITIALIZED`;
 - `initialize()` is idempotent and `version()` reports the product version;
@@ -141,6 +153,20 @@ The "astral character *within* a finding" case is not observable end to end,
 because no built-in detector matches a span containing one; it is asserted at
 the unit level by `bindings/wasm/src/range.rs` under the `Rust wasm32 target`
 job.
+
+The second, `scripts/browser-package-harness.mjs`, is bundled the way a
+consumer bundles it — the `browser` condition selecting `dist/runtime/
+browser.js` through the package's own `imports` map, and the artifact
+specifier aliased to the glue being served — and drives the published
+`@omiologic/secret-scan` public API on top of the same artifact: the
+`NOT_INITIALIZED` gate, `await initialize()`, `RANGE_UNIT` and `VERSION`, the
+whole canonical corpus, frozen findings with exactly the seven documented
+keys, `scanAndRedact` against `scan` then `redact`, a policy callback
+receiving a frozen finding with numeric offsets, and
+`createIncrementalSanitizer` rejecting with the fixed
+`INCREMENTAL_UNAVAILABLE` code the WebAssembly runtime documents. That is the
+layer no other check reaches: the package's own binding glue, running on a
+real artifact in a real engine.
 
 ### `scripts/qualify-cli-binary.mjs`
 
@@ -167,28 +193,25 @@ then writes `artifact-inventory.json` and a job summary carrying:
 - every artifact file with its family, target, size, and SHA-256, plus the
   file-by-file contents of the npm package and the public Rust crate.
 
-## Known gap: the JavaScript package cannot initialize on a real artifact
+## Known gap: the package cannot initialize on a real Node addon
 
-Neither built artifact carries `createIncrementalSanitizer`, which
+The N-API addon does not export `createIncrementalSanitizer`, which
 `packages/javascript/src/native.ts` makes part of the internal binding
-contract. `runtime/node.js` and `runtime/browser.ts` both refuse a binding
-missing a contract member, so `initialize()` rejects with
-`INITIALIZATION_FAILED` on a real addon and on the real browser artifact
-alike.
+contract, and `runtime/node.js` refuses a binding missing a contract member —
+so `initialize()` rejects with `INITIALIZATION_FAILED` on a real addon.
 
-That is why the qualification above is of the *artifacts* — the addon through
-its own consumer surface, the WebAssembly module through its own exports —
-rather than of the published package driven end to end on top of them.
-`scripts/qualify-node-addon.mjs` pins the gap rather than skipping it: it
+This is now a Node-only gap. The browser runtime resolved the same question
+the other way: `bindings/wasm` exports no streaming session either, but its
+adapter declares incremental sanitization unavailable on that runtime and
+rejects `createIncrementalSanitizer` with the fixed `INCREMENTAL_UNAVAILABLE`
+code, so `initialize()` succeeds and the package is qualified end to end in
+all three engines above.
+
+`scripts/qualify-node-addon.mjs` pins the Node gap rather than skipping it: it
 asserts that `createIncrementalSanitizer` is the single outstanding member and
-that `initialize()` rejects for that reason, so the check fails the moment the
-bindings gain the incremental surface and must then be replaced by the positive
-public-API pass.
-
-Issue #73 owns the browser runtime's side of that contract and issue #74 the
-package-level integration. Until they land, browser and Node support is
-qualified at the artifact boundary and unqualified through
-`@omiologic/secret-scan` itself.
+that `initialize()` rejects for exactly that reason, so the check fails the
+moment the addon gains the incremental surface and must then be replaced by
+the positive public-API pass. Issue #74 owns closing it.
 
 ## Running it locally
 

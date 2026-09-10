@@ -16,7 +16,9 @@ select or authorize a release.
   artifact. Every native artifact is smoke-tested on the architecture it
   targets, musl artifacts inside a musl container; the addon is qualified on
   Node.js 20, 22, and 24; and the browser artifact is initialized and scanned
-  in Chromium, Firefox, and WebKit. Each qualifier runs the canonical
+  in Chromium, Firefox, and WebKit, both through its own exports and through
+  the published `@omiologic/secret-scan` package bundled on top of it. Each
+  qualifier runs the canonical
   conformance corpus through the artifact under test — the addon and the
   browser module against UTF-16 offsets converted by an independent reference
   conversion, the CLI against the corpus's own UTF-8 byte offsets, which also
@@ -226,14 +228,16 @@ select or authorize a release.
 
 ### Known gaps
 
-- No built artifact carries `createIncrementalSanitizer`, which
+- The N-API addon exports no `createIncrementalSanitizer`, which
   `packages/javascript/src/native.ts` makes part of the internal binding
   contract, so `initialize()` from `@omiologic/secret-scan` does not yet
-  succeed on a real addon or a real browser artifact. Browser and Node support
-  is therefore qualified at the artifact boundary. `scripts/qualify-node-addon.mjs`
-  asserts that this is the single outstanding contract member, so the check
-  fails when the bindings gain the incremental surface. Issues #73 and #74 own
-  closing it.
+  succeed on a real addon and Node support is qualified at the artifact
+  boundary. `scripts/qualify-node-addon.mjs` asserts that this is the single
+  outstanding contract member, so the check fails when the addon gains the
+  incremental surface. Issue #74 owns closing it. The browser is not
+  affected: its runtime declares incremental sanitization unavailable and
+  rejects with `INCREMENTAL_UNAVAILABLE`, so the package is qualified end to
+  end in every supported engine.
 
 ## 0.1.0-beta.1 - 2026-08-31
 

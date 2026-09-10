@@ -32,6 +32,7 @@ on:
       - Cargo.toml
       - bindings/node/package.json
       - scripts/browser-harness.mjs
+      - scripts/browser-package-harness.mjs
       - scripts/build-browser-artifact.mjs
       - scripts/check-qualification-matrix.py
       - scripts/qualify-browser-artifact.mjs
@@ -149,16 +150,11 @@ jobs:
         with:
           key: addon-${{ matrix.addon-target }}
 
-      # The addon is a cdylib that resolves its N-API symbols at load time, so
-      # a musl build needs only a musl linker, not a musl Node.js.
-      - name: Install the musl toolchain
-        if: matrix.smoke == 'alpine'
-        run: sudo apt-get update && sudo apt-get install --yes musl-tools
-
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
       - name: Install the addon build toolchain
+        if: matrix.smoke == 'host'
         working-directory: bindings/node
         run: npm ci --ignore-scripts
 
@@ -166,16 +162,34 @@ jobs:
         run: npm run js:build
 
       - name: Build the addon
+        if: matrix.smoke == 'host'
         working-directory: bindings/node
+        shell: bash
+        run: npx napi build --platform --release --target "${{ matrix.addon-target }}"
+
+      # The addon is a cdylib, and `musl-tools` cannot link one: its gcc
+      # wrapper ships no musl `libgcc_s.so.1`, and routing rustc's
+      # self-contained objects through the glibc driver instead produces a
+      # library that links and then segfaults on load. So a musl addon is
+      # built natively, in a musl image of the same architecture, where the
+      # host triple already is the target and the system `cc` is the musl
+      # one. `napi` would otherwise look for a `<triple>-gcc` cross linker
+      # that does not exist there. The container runs as root because `apk`
+      # needs to, so the workspace is handed back afterwards.
+      - name: Build the addon on musl
+        if: matrix.smoke == 'alpine'
         shell: bash
         env:
           TARGET: ${{ matrix.addon-target }}
         run: |
-          if [[ "$TARGET" == *-musl ]]; then
-            linker=$(printf '%s' "CARGO_TARGET_${TARGET}_LINKER" | tr '[:lower:]-' '[:upper:]_')
-            export "$linker=musl-gcc"
-          fi
-          npx napi build --platform --release --target "$TARGET"
+          linker=$(printf '%s' "CARGO_TARGET_${TARGET}_LINKER" | tr '[:lower:]-' '[:upper:]_')
+          docker run --rm -v "$PWD:/io" -w /io/bindings/node \
+            -e HOME=/tmp -e "$linker=cc" rust:1-alpine sh -c '
+              apk add --no-cache nodejs npm >/dev/null &&
+              npm ci --ignore-scripts >/dev/null &&
+              npx napi build --platform --release
+            '
+          sudo chown -R "$(id -u):$(id -g)" bindings/node target
 
       # One artifact has to serve every Node.js major `engines.node` claims,
       # so each is set up in turn and qualifies the same built addon. The
@@ -273,6 +287,11 @@ jobs:
 
       - name: Build the browser artifact
         run: npm run wasm:build
+
+      # The second page drives the published package on top of that
+      # artifact, so its compiled entry point has to exist.
+      - name: Build the JavaScript package
+        run: npm run js:build
 
       - name: Install the browser engine
         run: npx playwright install --with-deps ${{ matrix.engine }}

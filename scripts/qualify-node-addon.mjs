@@ -244,12 +244,17 @@ const BINDING_CONTRACT = [
  * specifier an installed consumer resolves.
  *
  * This is where the one layer no other check reaches — the package's own
- * binding glue — meets the artifact, and today it records a gap rather than
- * a pass: no built artifact carries `createIncrementalSanitizer`, so
- * `runtime/node.js` refuses the addon and `initialize()` rejects with
- * `INITIALIZATION_FAILED`. The assertion below pins that exact state, so it
- * fails the moment the bindings gain the incremental surface (issues #73 and
- * #74) and must then be replaced by the positive public-API pass.
+ * binding glue — meets the artifact, and on Node it records a gap rather
+ * than a pass: the addon exports no `createIncrementalSanitizer`, so
+ * `runtime/node.js` refuses it and `initialize()` rejects with
+ * `INITIALIZATION_FAILED`. The browser runtime settled the same question the
+ * other way — it declares incremental sanitization unavailable and rejects
+ * with `INCREMENTAL_UNAVAILABLE` — so the equivalent browser pass is
+ * complete and lives in `scripts/browser-package-harness.mjs`.
+ *
+ * The assertion below pins that exact state, so it fails the moment the
+ * addon gains the incremental surface (issue #74) and must then be replaced
+ * by the positive public-API pass.
  */
 async function integrateWithPackage() {
   const entry = join(JS_PACKAGE_DIR, "dist", "index.js");
@@ -287,12 +292,12 @@ async function integrateWithPackage() {
     assert(
       rejected !== undefined,
       "initialize() resolved; the incremental surface has landed and this " +
-        "check must be replaced by the positive public-API pass (#73, #74)",
+        "check must be replaced by the positive public-API pass (#74)",
     );
     assertEqual(rejected.code, "INITIALIZATION_FAILED", "initialize() code");
     console.log(
-      "#   known gap: no built artifact carries createIncrementalSanitizer, " +
-        "so the package cannot initialize on it (issues #73, #74)",
+      "#   known gap: the addon exports no createIncrementalSanitizer, so " +
+        "the package cannot initialize on it (issue #74)",
     );
   } finally {
     rmSync(link, { recursive: true, force: true });

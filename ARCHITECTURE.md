@@ -393,8 +393,10 @@ cannot be added or dropped in one file alone. That check also enforces
 least-privilege workflow permissions and commit-pinned third-party actions.
 See [docs/qualification.md](./docs/qualification.md), which also records the
 one surface that matrix does not yet cover: the published JavaScript package
-driven end to end on a real artifact, because no built artifact yet carries
-the incremental session the internal binding contract requires.
+driven end to end on a real *Node* addon, because that addon exports no
+incremental session and the internal binding contract requires one. The
+browser half is covered — the package runs on the real WebAssembly artifact
+in every supported engine.
 
 Release readiness does not authorize selecting a version, tagging, publishing,
 deploying, or archiving another repository. Those actions require the separate

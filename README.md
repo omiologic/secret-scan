@@ -377,11 +377,12 @@ declares those matrices once and `npm run matrix:check` fails when any file
 that consumes them drifts. See
 [docs/qualification.md](./docs/qualification.md).
 
-Browser and Node support is currently qualified at the artifact boundary — the
-WebAssembly module through its own exports, the addon through its own consumer
-surface. Neither built artifact carries `createIncrementalSanitizer`, so
-`initialize()` from `@omiologic/secret-scan` itself does not yet succeed on a
-real artifact; issues #73 and #74 own that gap and
+In the browser the matrix goes all the way through the published package: it
+loads `@omiologic/secret-scan` on the real WebAssembly artifact in each engine
+and runs the canonical corpus through its public API. On Node it stops at the
+artifact boundary, because the addon exports no `createIncrementalSanitizer`
+and the internal binding contract requires one, so `initialize()` rejects
+there; issue #74 owns that gap and
 [docs/qualification.md](./docs/qualification.md) records how the matrix pins it.
 
 ## Security and release process

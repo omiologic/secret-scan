@@ -3,11 +3,17 @@
  *
  * The artifact is served over HTTP from a temporary directory — with
  * `application/wasm` on the binary, which streaming instantiation requires —
- * and `scripts/browser-harness.mjs` runs inside the page: initialization, the
- * lifecycle gate, the canonical conformance corpus, the UTF-16 range
+ * and two pages run in each engine against that one artifact. Nothing is
+ * stubbed; the engine fetches and instantiates the same `.wasm` a consumer
+ * would.
+ *
+ * `scripts/browser-harness.mjs` drives the artifact through its own exports:
+ * the lifecycle gate, the canonical conformance corpus, the UTF-16 range
  * conversion, redaction, and the sanitized error contract
- * (`decision-govern-cross-language-conformance`). Nothing is stubbed; the
- * engine fetches and instantiates the same `.wasm` a consumer would.
+ * (`decision-govern-cross-language-conformance`).
+ * `scripts/browser-package-harness.mjs`, bundled the way a consumer bundles
+ * it, drives the published `@omiologic/secret-scan` public API on top of the
+ * same artifact.
  *
  * Chromium, Firefox, and WebKit are the supported engines, declared in
  * `[workspace.metadata.secret-scan] browser-engines`, and
@@ -22,7 +28,14 @@
  */
 
 import { createServer } from "node:http";
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +44,7 @@ const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPTS_DIR, "..");
 const FIXTURES_DIR = join(REPO_ROOT, "conformance", "fixtures");
 const DEFAULT_ARTIFACT_DIR = join(REPO_ROOT, "bindings", "wasm", "pkg");
+const PACKAGE_ENTRY = join(REPO_ROOT, "packages", "javascript", "dist", "index.js");
 
 /** The engines this artifact is qualified in, in the order they run. */
 const ENGINES = ["chromium", "firefox", "webkit"];
@@ -50,11 +64,23 @@ const CONTENT_TYPES = {
   ".wasm": "application/wasm",
 };
 
-const PAGE = `<!doctype html>
+/**
+ * The two pages each engine loads, in order: the artifact through its own
+ * exports, then the published package on top of the same artifact. They run
+ * in separate pages because each drives a fresh module instance through the
+ * same one-time initialization gate.
+ */
+const PAGES = [
+  { name: "artifact", file: "artifact.html", module: "./browser-harness.mjs" },
+  { name: "package", file: "package.html", module: "./package-harness.js" },
+];
+
+function renderPage(module) {
+  return `<!doctype html>
 <meta charset="utf-8">
 <title>secret-scan browser qualification</title>
 <script type="module">
-  import { qualify } from "./browser-harness.mjs";
+  import { qualify } from "${module}";
   const fixtures = await (await fetch("./fixtures.json")).json();
   try {
     globalThis.__qualification = await qualify(fixtures);
@@ -67,6 +93,7 @@ const PAGE = `<!doctype html>
   }
 </script>
 `;
+}
 
 function fail(message) {
   console.error(message);
@@ -126,7 +153,41 @@ function buildFixtures(artifactDir) {
   };
 }
 
-function stageServeDirectory(artifactDir) {
+/**
+ * Bundles the package harness for the browser.
+ *
+ * The package resolves its runtime through its own `imports` map, so the
+ * `browser` condition has to be the one a bundler applies — that is what
+ * selects `dist/runtime/browser.js` over the Node adapter — and the artifact
+ * specifier is aliased to the glue being served, so the bundle loads the same
+ * `.wasm` the artifact page does. `import.meta.url` inside the generated glue
+ * survives bundling, and the output sits beside the binary, so the module's
+ * own `default()` fetches it exactly as a deployed consumer would.
+ */
+async function bundlePackageHarness(artifactDir, outFile) {
+  const { build } = await import("esbuild");
+  const result = await build({
+    entryPoints: [join(SCRIPTS_DIR, "browser-package-harness.mjs")],
+    outfile: outFile,
+    bundle: true,
+    format: "esm",
+    platform: "browser",
+    conditions: ["browser", "import"],
+    alias: {
+      "@omiologic/secret-scan": PACKAGE_ENTRY,
+      "@omiologic/secret-scan-wasm": join(artifactDir, "secret_scan_wasm.js"),
+    },
+    logLevel: "silent",
+  });
+  if (result.errors.length > 0) {
+    fail(`bundling the package harness failed: ${JSON.stringify(result.errors)}`);
+  }
+}
+
+async function stageServeDirectory(artifactDir) {
+  if (!existsSync(PACKAGE_ENTRY)) {
+    fail(`${PACKAGE_ENTRY}: missing; build the package with \`npm run js:build\``);
+  }
   const directory = mkdtempSync(join(tmpdir(), "secret-scan-browser-"));
   for (const name of ARTIFACT_FILES) {
     try {
@@ -143,7 +204,10 @@ function stageServeDirectory(artifactDir) {
     join(SCRIPTS_DIR, "browser-harness.mjs"),
     join(directory, "browser-harness.mjs"),
   );
-  writeFileSync(join(directory, "index.html"), PAGE);
+  await bundlePackageHarness(artifactDir, join(directory, "package-harness.js"));
+  for (const { file, module } of PAGES) {
+    writeFileSync(join(directory, file), renderPage(module));
+  }
   writeFileSync(
     join(directory, "fixtures.json"),
     JSON.stringify(buildFixtures(artifactDir)),
@@ -154,7 +218,7 @@ function stageServeDirectory(artifactDir) {
 async function serve(directory) {
   const server = createServer((request, response) => {
     const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
-    const name = path === "/" ? "index.html" : path.slice(1);
+    const name = path.slice(1);
     // Only the staged files are reachable: a name with a separator or a
     // parent reference never becomes a path.
     if (name.includes("/") || name.includes("\\") || name.includes("..")) {
@@ -178,28 +242,42 @@ async function serve(directory) {
     server.listen(0, "127.0.0.1", resolveListening);
   });
   const { port } = server.address();
-  return { server, url: `http://127.0.0.1:${port}/index.html` };
+  return { server, origin: `http://127.0.0.1:${port}` };
 }
 
-async function runEngine(playwright, engine, url) {
+/**
+ * Runs every page once in one engine. Each page gets its own tab, because
+ * each drives a fresh module instance through the one-time initialization
+ * gate its first check asserts.
+ */
+async function runEngine(playwright, engine, origin) {
   const browser = await playwright[engine].launch();
-  const diagnostics = [];
+  const runs = [];
   try {
-    const page = await browser.newPage();
-    page.on("pageerror", (error) => diagnostics.push(`pageerror: ${error.message}`));
-    page.on("console", (message) => {
-      if (message.type() === "error") diagnostics.push(`console: ${message.text()}`);
-    });
-    await page.goto(url, { waitUntil: "load" });
-    await page.waitForFunction(
-      () => globalThis.__qualification !== undefined,
-      undefined,
-      { timeout: 120_000 },
-    );
-    return { report: await page.evaluate(() => globalThis.__qualification), diagnostics };
+    for (const { name, file } of PAGES) {
+      const diagnostics = [];
+      const tab = await browser.newPage();
+      tab.on("pageerror", (error) => diagnostics.push(`pageerror: ${error.message}`));
+      tab.on("console", (message) => {
+        if (message.type() === "error") diagnostics.push(`console: ${message.text()}`);
+      });
+      await tab.goto(`${origin}/${file}`, { waitUntil: "load" });
+      await tab.waitForFunction(
+        () => globalThis.__qualification !== undefined,
+        undefined,
+        { timeout: 120_000 },
+      );
+      runs.push({
+        page: name,
+        report: await tab.evaluate(() => globalThis.__qualification),
+        diagnostics,
+      });
+      await tab.close();
+    }
   } finally {
     await browser.close();
   }
+  return runs;
 }
 
 async function main() {
@@ -216,32 +294,42 @@ async function main() {
     return;
   }
 
-  const directory = stageServeDirectory(options.artifactDir);
-  const { server, url } = await serve(directory);
+  const directory = await stageServeDirectory(options.artifactDir);
+  const { server, origin } = await serve(directory);
   let failed = 0;
   try {
     for (const engine of options.engines) {
       const started = Date.now();
-      let report;
-      let diagnostics = [];
+      let runs;
       try {
-        ({ report, diagnostics } = await runEngine(playwright, engine, url));
+        runs = await runEngine(playwright, engine, origin);
       } catch (error) {
         failed += 1;
         console.error(`${engine}: FAILED to run — ${error.message}`);
         continue;
       }
-      const seconds = ((Date.now() - started) / 1000).toFixed(1);
-      for (const entry of report.checks) {
-        console.log(`${entry.ok ? "ok" : "not ok"} - ${engine} · ${entry.name}`);
-        if (!entry.ok) console.error(`    ${entry.detail}`);
+      let passed = 0;
+      let engineFailed = false;
+      for (const { page: name, report, diagnostics } of runs) {
+        for (const entry of report.checks) {
+          console.log(
+            `${entry.ok ? "ok" : "not ok"} - ${engine} · ${name} · ${entry.name}`,
+          );
+          if (!entry.ok) console.error(`    ${entry.detail}`);
+        }
+        for (const line of diagnostics) console.error(`    ${engine}: ${line}`);
+        passed += report.checks.length;
+        if (!report.ok) {
+          engineFailed = true;
+          console.error(`${engine} · ${name}: ${report.failures} check(s) FAILED`);
+        }
       }
-      for (const line of diagnostics) console.error(`    ${engine}: ${line}`);
-      if (report.ok) {
-        console.log(`${engine}: ${report.checks.length} check(s) passed in ${seconds}s\n`);
-      } else {
+      const seconds = ((Date.now() - started) / 1000).toFixed(1);
+      if (engineFailed) {
         failed += 1;
-        console.error(`${engine}: ${report.failures} check(s) FAILED\n`);
+        console.error(`${engine}: FAILED\n`);
+      } else {
+        console.log(`${engine}: ${passed} check(s) passed in ${seconds}s\n`);
       }
     }
   } finally {
