@@ -282,3 +282,16 @@ how each artifact is qualified are declared in the same
 [docs/python-packaging.md](./python-packaging.md). `npm run python:check`
 enforces that contract and runs in `npm run ci`;
 `.github/workflows/python-wheels.yml` builds and qualifies the artifacts.
+
+## Cross-platform qualification
+
+The same table also declares the rest of the supported surface —
+`node-addon-targets`, `cli-release-targets` (a strict subset: the CLI ships
+no musl variant), `browser-engines`, and `node-support-majors` — documented
+separately in
+[docs/qualification.md](./qualification.md). `npm run artifacts:check` enforces
+that every manifest, qualifier script, and workflow matrix agrees with those
+lists, and that every workflow job takes least-privilege permissions and pins
+every third-party action; it runs in `npm run ci`.
+`.github/workflows/artifact-qualification.yml` builds and qualifies every artifact from
+one commit and records an inventory tied to it.

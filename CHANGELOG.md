@@ -7,6 +7,55 @@ select or authorize a release.
 
 ### Added
 
+- A cross-platform qualification matrix (#33). The new `Artifact qualification`
+  workflow builds and proves every supported artifact from one commit and
+  publishes nothing: it calls `CI` and `Python wheels` for the Rust workspace
+  and the eight-target abi3 wheel matrix, and adds the N-API addon and the CLI
+  binary — the addon for eight targets (Linux glibc and musl on x64 and
+  arm64, macOS on x64 and arm64, Windows on x64 and arm64) and the CLI for
+  the six of those it ships, since it has no musl variant — plus the browser
+  WebAssembly artifact. Every native artifact is smoke-tested on the architecture it
+  targets, musl artifacts inside a musl container; the addon is qualified on
+  Node.js 20, 22, and 24; and the browser artifact is initialized and scanned
+  in Chromium, Firefox, and WebKit, both through its own exports and through
+  the published `@omiologic/secret-scan` package bundled on top of it. Each
+  qualifier runs the canonical
+  conformance corpus through the artifact under test — the addon and the
+  browser module against UTF-16 offsets converted by an independent reference
+  conversion, the CLI against the corpus's own UTF-8 byte offsets, which also
+  gives the CLI its first corpus-backed check. `scripts/qualify-node-addon.mjs`,
+  `scripts/qualify-browser-artifact.mjs` with `scripts/browser-harness.mjs`,
+  `scripts/build-browser-artifact.mjs`, and `scripts/qualify-cli-binary.mjs`
+  are runnable outside CI, exposed as `npm run addon:qualify`,
+  `browser:qualify`, `wasm:build`, and `cli:qualify`.
+
+- A single declaration of the supported surface, in
+  `[workspace.metadata.secret-scan]`: `node-addon-targets`, `browser-engines`,
+  and `node-support-majors` alongside `cli-release-targets` and the existing
+  `python-wheel-targets`. `scripts/check-artifact-matrix.py`
+  (`npm run artifacts:check`, now part of `npm run ci`) fails when
+  `bindings/node/package.json`, any workflow matrix, any qualifier script, or
+  any manifest declaring `engines.node` disagrees with it — in both
+  directions, so a platform cannot be added or dropped in one file alone, and
+  the CLI matrix must stay a subset of the addon's. The same check enforces
+  that every workflow and every job declares its own least-privilege
+  `permissions` and that every third-party action is pinned to a commit SHA
+  — `release.yml`'s `contents: write` for tagging and `id-token: write` for
+  PyPI Trusted Publishing are the only entries on that allowlist. 25 unit
+  tests cover each failure. `engines.node` stays
+  `scripts/check-rust-workspace.py`'s rule, so the two never contradict.
+
+- `scripts/record-artifact-inventory.py` closes a qualification run by
+  requiring the whole declared matrix and recording `artifact-inventory.json`
+  against the source commit: the product version, `"published": false`, the
+  SHA-256 of every canonical fixture file, the declared matrices, every
+  artifact file's size and SHA-256, and the file-by-file contents of the npm
+  package and the public Rust crate. 12 unit tests cover it.
+
+- `docs/qualification.md` documents the declaration, the workflow, the runner
+  map, what each qualifier proves, the inventory, and how to run the whole
+  thing locally.
+
 - `decision-ship-first-release-artifact-set` (#79): the first release ships
   the full four-artifact product — the `secret-scan` crate on crates.io, the
   `secret-scan` CLI, the `omiologic-secret-scan` PyPI distribution, and the
@@ -191,6 +240,16 @@ select or authorize a release.
   `packages/javascript` is now the only tracked manifest declaring the
   package name, and it carries its own tracked `LICENSE`.
 
+- The N-API addon now declares `x86_64-unknown-linux-musl` and
+  `aarch64-unknown-linux-musl` as supported targets, matching the wheel
+  matrix; the CLI keeps its six non-musl targets.
+  `bindings/node/package-lock.json` is tracked so the addon build toolchain
+  installs reproducibly with `npm ci`.
+
+- `CI` runs the JavaScript checks on Node.js 24 as well as 20 and 22, so every
+  major `engines.node >=20` claims is exercised, and is callable as a reusable
+  workflow so one qualification run carries its evidence.
+
 ### Removed
 
 - `RB-2` (#72): removed the repository-root TypeScript detector core
@@ -199,6 +258,26 @@ select or authorize a release.
   the migration tooling that originally generated it from the retired
   TypeScript oracle (`scripts/migrate-conformance-corpus.ts`,
   `scripts/migrate-incremental-corpus.ts`) was removed with it.
+
+### Fixed
+
+- Every job in `Package Release Rehearsal` now declares its own permissions
+  rather than inheriting the workflow default.
+
+### Notes
+
+- The eight-target addon matrix outruns the six per-platform npm packages
+  `packages/javascript` declares (#79), and `runtime/node.ts` maps hosts by
+  platform and architecture with no libc dimension, so an npm install on
+  Alpine resolves the glibc package. The musl addons are qualified artifacts
+  without a publication path; #79 owns deciding between two more platform
+  packages and a glibc-only npm claim.
+
+- Neither JavaScript artifact builds a streaming session, so
+  `createIncrementalSanitizer` reports the fixed `INCREMENTAL_UNAVAILABLE`
+  code on Node and in the browser alike, while `bindings/python` offers the
+  streaming API. Both qualifiers assert that rejection, so an artifact that
+  later gains the surface fails the check until the contract is revisited.
 
 ## 0.1.0-beta.1 - 2026-08-31
 
