@@ -15,6 +15,16 @@ that graph drifts: a required reusable workflow call job is removed, its
 `REQUIRED_GATES` is the qualification set this repository enforces before any
 job in `PUBLISH_JOBS` may run.
 
+Issue #141 adds a second, npm-specific ordering requirement: the `publish`
+job (the `@omiologic/secret-scan` wrapper) must also declare
+`NPM_DEPENDENCY_GATES` in `needs:`, so the wrapper cannot become eligible
+before every runtime dependency package (`@omiologic/secret-scan-<platform>`
+x6 and `@omiologic/secret-scan-wasm`) has been packed, content-checked,
+published, and verified at its declared version. This is what makes the
+first cutover and every routine release after it the same graph rather than
+two: there is no separate "cutover mode" that could be skipped by mistake,
+because the wrapper's own `needs:` makes the dependency gate unconditional.
+
 This intentionally parses the workflow YAML with plain text and regular
 expressions rather than a YAML library, matching
 `check-python-package.py`'s wheel-matrix check: no third-party dependency is
@@ -41,6 +51,11 @@ REQUIRED_GATES = {
 # job while another one publishes unqualified would defeat the point of the
 # qualification set.
 PUBLISH_JOBS = ("publish", "publish-crates", "publish-pypi")
+
+# The npm dependency packages the wrapper (`publish`) must not be publishable
+# ahead of. crates.io and PyPI have no equivalent dependency-package gate, so
+# this applies to `publish` alone, not every job in PUBLISH_JOBS.
+NPM_DEPENDENCY_GATES = ("publish-native-dependencies", "publish-wasm-dependency")
 
 JOB_HEADER_PREFIX = "  "
 ATTRIBUTE_PREFIX = "    "
@@ -148,6 +163,20 @@ def validate(root: Path) -> list[str]:
         if missing:
             errors.append(
                 f"{RELEASE_WORKFLOW.as_posix()}: {publish_job} job does not need {', '.join(missing)}"
+            )
+
+    for dependency_job in NPM_DEPENDENCY_GATES:
+        if dependency_job not in jobs:
+            errors.append(f"{RELEASE_WORKFLOW.as_posix()}: missing required job '{dependency_job}'")
+
+    publish = jobs.get("publish")
+    if publish is not None:
+        needs = set(extract_needs(publish))
+        missing = sorted(set(NPM_DEPENDENCY_GATES) - needs)
+        if missing:
+            errors.append(
+                f"{RELEASE_WORKFLOW.as_posix()}: publish job does not need {', '.join(missing)} "
+                "-- the wrapper must not be publishable ahead of its runtime dependency packages"
             )
 
     return errors

@@ -1,29 +1,103 @@
 name: Package Release Rehearsal
 
+# A no-publication rehearsal of issue #141's npm dependency cutover: calls
+# `artifact-qualification` for this commit -- exactly the way `release.yml`
+# does, so nothing here is rebuilt -- then, over the artifacts that run
+# produced, validates `release.yml`'s dependency-cutover job graph
+# (`scripts/check-release-gate.py`), records the intended publish order and
+# package inventory (`scripts/record-dependency-cutover-plan.py`), and packs
+# and content-checks -- never publishes -- every runtime dependency package
+# that plan resolved (`scripts/publish-dependency-package.mjs --dry-run`).
+#
+# `NODE_AUTH_TOKEN` is never supplied to this workflow and no job requests
+# `registry-url` from `actions/setup-node`, so a `--dry-run` invocation that
+# somehow still attempted to publish would fail on authentication, not
+# succeed quietly.
+
 on:
   workflow_dispatch:
-    inputs:
-      outcome:
-        description: Synthetic terminal outcome; this workflow never publishes npm
-        required: true
-        type: choice
-        options: [success, failure]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
+  artifact-qualification:
+    name: Artifact qualification
+    uses: ./.github/workflows/artifact-qualification.yml
+    permissions:
+      contents: read
+
   rehearse:
+    name: Rehearse the npm dependency cutover
+    needs: artifact-qualification
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions: {}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
     steps:
-      - name: Confirm no-publication rehearsal
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate the release workflow's dependency-cutover graph
+        run: python3 -B scripts/check-release-gate.py
+
+      - name: Download every qualification artifact this run produced
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: qualification-artifacts
+
+      - name: Record the dependency cutover plan
         env:
-          OUTCOME: ${{ inputs.outcome }}
+          # On a pull request `github.sha` is the synthesized merge commit,
+          # which no clone can resolve; the head commit is the revision the
+          # artifacts were actually built from (the same reasoning
+          # `record-artifact-inventory.py` documents).
+          SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 -B scripts/record-dependency-cutover-plan.py \
+            --artifacts qualification-artifacts \
+            --out dependency-cutover-plan.json \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      # Assembles each dependency package the plan resolved from the
+      # qualified artifact it names, then packs and content-checks it
+      # (`--dry-run`: no `npm publish`, no registry mutation). The platform
+      # and target names driving this loop come from the plan JSON itself,
+      # not a second hand-maintained list, so this cannot silently rehearse
+      # a different set of packages than `record-dependency-cutover-plan.py`
+      # just resolved.
+      - name: Assemble and dry-run each dependency package
         shell: bash
         run: |
-          echo "Synthetic package release ${OUTCOME}; npm publication and Git tagging are disabled."
-          if [[ "${OUTCOME}" == "failure" ]]; then
-            exit 1
-          fi
+          set -eo pipefail
+          while IFS= read -r entry; do
+            kind=$(jq -r '.kind' <<<"$entry")
+            artifact_dir="qualification-artifacts/$(jq -r '.expectedArtifact' <<<"$entry")"
+            if [[ "$kind" == "native" ]]; then
+              platform=$(jq -r '.platform' <<<"$entry")
+              package_dir="bindings/node/npm/$platform"
+              cp "$artifact_dir/secret-scan.$platform.node" "$package_dir/"
+            else
+              package_dir="bindings/wasm/npm"
+              cp "$artifact_dir"/secret_scan_wasm* "$package_dir/"
+            fi
+            node scripts/publish-dependency-package.mjs --package-dir "$package_dir" --dry-run
+          done < <(jq -c '.dependencies[]' dependency-cutover-plan.json)
+
+      - name: Upload the dependency cutover plan
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-cutover-plan
+          path: dependency-cutover-plan.json
+          if-no-files-found: error

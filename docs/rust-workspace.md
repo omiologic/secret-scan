@@ -51,9 +51,23 @@ per `bindings/node/package.json`'s `napi.targets`
 the ones that do not match a given install), resolved at runtime by
 `process.platform`/`process.arch` in `src/runtime/node.ts`, plus an ordinary
 `dependencies` entry on `@omiologic/secret-scan-wasm`. Neither the platform
-packages nor the wasm package is published yet; publishing them for the first
-time, alongside `packages/javascript` itself, is a one-time cutover action
-gated on the release approval `AGENTS.md` mandates, not a routine release.
+packages nor the wasm package is published yet.
+
+Publishing them is not a separate one-time action gated apart from
+`packages/javascript` itself (issue #141): `.github/workflows/release.yml`'s
+`publish-native-dependencies` and `publish-wasm-dependency` jobs pack,
+content-check, publish, and verify every dependency package from the exact
+artifact `artifact-qualification` already qualified for that commit, and the
+wrapper's own `publish` job declares both in `needs:`
+(`scripts/check-release-gate.py` enforces the edge), so it cannot become
+eligible ahead of them. `scripts/publish-dependency-package.mjs` is
+idempotent by registry state rather than by a cutover-vs-routine switch: the
+first dispatch, with nothing published yet, publishes all seven packages;
+every routine dispatch after it finds them already published, verifies the
+registry's content still matches this revision's, and skips republishing
+(npm versions are immutable). One dispatch of `Release`, gated on the
+release approval `AGENTS.md` mandates, is both the first cutover and every
+release after it -- there is no separate "publish only the wrapper" path.
 
 ## Policies
 
