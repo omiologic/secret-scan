@@ -9,8 +9,10 @@ Checks, in order:
    package listed in ``forbidden-dependencies``.
 2. Unsafe-code policy: every member inherits workspace lints, the workspace
    denies ``unsafe_code``, and the core and CLI crate roots forbid it.
-3. Version lockstep: the workspace version, every member, ``package.json``,
-   and ``bindings/node/package.json`` share one product version.
+3. Version lockstep: the workspace version, every member, and every manifest
+   named in ``LOCKSTEP_MANIFESTS`` (``package.json``,
+   ``bindings/node/package.json``, ``packages/javascript/package.json``)
+   share one product version.
 4. MSRV: the declared ``rust-version`` is inherited by every member, is at
    least the highest ``rust-version`` required by any resolved dependency, and
    matches the ``MSRV`` value exercised by the CI workflow.
@@ -51,7 +53,7 @@ CI_WORKFLOW = Path(".github") / "workflows" / "ci.yml"
 CI_MSRV = re.compile(r"^\s*MSRV:\s*[\"']?(\d+\.\d+(?:\.\d+)?)[\"']?\s*$", re.M)
 FORBID_UNSAFE = re.compile(r"^\s*#!\[forbid\(unsafe_code\)\]\s*$", re.M)
 FORBID_UNSAFE_ROOTS = {"secret-scan": "src/lib.rs", "secret-scan-cli": "src/main.rs"}
-LOCKSTEP_MANIFESTS = ("package.json", "bindings/node/package.json")
+LOCKSTEP_MANIFESTS = ("package.json", "bindings/node/package.json", "packages/javascript/package.json")
 
 # `pub use path::{A, B};`, `pub use path::name;`, and the `pub const NAME`
 # items the crate root declares directly.

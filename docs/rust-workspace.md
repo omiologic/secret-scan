@@ -162,6 +162,27 @@ real FFI boundary, with a `// SAFETY:` comment that
 `clippy::undocumented_unsafe_blocks` requires, and the review must record why
 the binding macros were insufficient.
 
+### Version lockstep
+
+Every workspace member's Cargo version and every JSON manifest that carries
+the product's own version number share one value. `LOCKSTEP_MANIFESTS` in
+`scripts/check-rust-workspace.py` names the JSON manifests: the repository
+root `package.json`, `bindings/node/package.json`, and
+`packages/javascript/package.json`. `npm run rust:check` fails when any one of
+them, or any workspace Cargo member, drifts from `[workspace.package] version`
+in the root `Cargo.toml`; `scripts/tests/test_check_rust_workspace.py` drifts
+each `LOCKSTEP_MANIFESTS` entry individually and asserts the check reports it.
+`bindings/python/pyproject.toml` declares `version = "dynamic"` and takes its
+version from `bindings/python/Cargo.toml` at build time, so it needs no entry
+of its own — it is covered by the Cargo member check.
+
+`packages/javascript` first publishes under whatever version is current in
+this lockstep set at cutover; the cutover introduces no version bump of its
+own. The cutover is `RB-2` (issue #72): it repoints the published npm artifact
+and leaves exactly one manifest declaring `@omiologic/secret-scan`, which
+removes the root `package.json` from `LOCKSTEP_MANIFESTS`. Whichever of `RB-2`
+or a later change to this lockstep set lands second must reconcile the tuple.
+
 ### MSRV
 
 The supported minimum Rust version is the highest `rust-version` required by
