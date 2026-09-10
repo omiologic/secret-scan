@@ -7,7 +7,11 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
-            "private-key-positive"
+            "private-key-positive",
+            "private-key-positive-crlf-line-endings",
+            "private-key-positive-dsa-label",
+            "private-key-positive-encrypted-label",
+            "private-key-positive-openssh-multiline-body"
           ],
           "state": "supported"
         },
@@ -30,6 +34,8 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
+            "private-key-boundary-plural-label",
+            "private-key-boundary-short-dash-run",
             "private-key-boundary-truncated"
           ],
           "state": "supported"
@@ -37,6 +43,7 @@
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
+            "private-key-negative-certificate-block",
             "private-key-negative-public"
           ],
           "state": "supported"
@@ -44,6 +51,8 @@
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
+            "private-key-boundary-plural-label",
+            "private-key-boundary-short-dash-run",
             "private-key-boundary-truncated"
           ],
           "state": "supported"
@@ -1530,21 +1539,31 @@
         {
           "dimension": "boundary",
           "evidenceFixtureIds": [
-            "jwt-boundary-short-signature"
+            "jwt-boundary-base64-padding",
+            "jwt-boundary-four-segments",
+            "jwt-boundary-short-signature",
+            "jwt-boundary-standard-base64-alphabet",
+            "jwt-boundary-two-segments"
           ],
           "state": "supported"
         },
         {
           "dimension": "near-miss-negative",
           "evidenceFixtureIds": [
-            "jwt-negative-dotted-id"
+            "jwt-negative-colon-delimiter",
+            "jwt-negative-dotted-id",
+            "jwt-negative-payload-not-json-prefixed"
           ],
           "state": "supported"
         },
         {
           "dimension": "malformed",
           "evidenceFixtureIds": [
-            "jwt-boundary-short-signature"
+            "jwt-boundary-base64-padding",
+            "jwt-boundary-four-segments",
+            "jwt-boundary-short-signature",
+            "jwt-boundary-standard-base64-alphabet",
+            "jwt-boundary-two-segments"
           ],
           "state": "supported"
         },

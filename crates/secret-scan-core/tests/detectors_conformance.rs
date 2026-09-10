@@ -6,7 +6,9 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use secret_scan::{ByteRange, Confidence, DetectorRegistry, run_detector_pipeline};
+use secret_scan::{
+    Action, ByteRange, Confidence, DefaultPolicy, DetectorRegistry, run_detector_pipeline, scan,
+};
 
 fn range(start: usize, end: usize) -> ByteRange {
     ByteRange::new(start, end).unwrap()
@@ -68,4 +70,81 @@ fn disjoint_findings_from_every_built_in_detector_all_survive() {
         .collect();
     by_detector.sort_unstable();
     assert_eq!(by_detector, ["bearer-token", "generic-token"]);
+}
+
+// --- issue #107: deepened private-key and JWT grammar coverage ------------
+//
+// The corpus fixtures above prove *detection*: the right span, at the right
+// confidence and specificity. The default policy's block/redact outcome is a
+// separate decision layered on top (`src/policy.rs`), so it is asserted here
+// explicitly, through the real built-in detectors and `DefaultPolicy`
+// together, for the deepened grammar forms added alongside these tests.
+
+/// fixture: private-key-positive-crlf-line-endings,
+/// private-key-positive-openssh-multiline-body,
+/// private-key-positive-dsa-label, private-key-positive-encrypted-label
+///
+/// Every accepted label and line-ending variant still blocks under the
+/// default policy, not merely gets detected.
+#[test]
+fn every_deepened_private_key_grammar_variant_blocks_under_default_policy() {
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+    let inputs = [
+        "-----BEGIN PRIVATE KEY-----\r\nU1lOVEhFVElDX0NSTEZfVEVSTUlOQVRJT04=\r\n-----END PRIVATE KEY-----",
+        "-----BEGIN OPENSSH PRIVATE KEY-----\nU1lOVEhFVElDX09QRU5TU0hf\nTVVMVElMSU5FX0JPRFlfVEVS\nTUlOQVRJT05fRVhBTVBMRQ==\n-----END OPENSSH PRIVATE KEY-----",
+        "-----BEGIN DSA PRIVATE KEY-----\nU1lOVEhFVElDX0RTQV9SRVZPS0VE\n-----END DSA PRIVATE KEY-----",
+        "-----BEGIN ENCRYPTED PRIVATE KEY-----\nU1lOVEhFVElDX0VOQ1JZUFRFRA==\n-----END ENCRYPTED PRIVATE KEY-----",
+    ];
+
+    for input in inputs {
+        let findings = scan(input, &registry, &DefaultPolicy).unwrap();
+        assert_eq!(findings.len(), 1, "{input}");
+        assert_eq!(findings[0].type_name(), "private_key", "{input}");
+        assert_eq!(findings[0].action(), Action::Block, "{input}");
+    }
+}
+
+/// fixture: jwt-boundary-two-segments, jwt-boundary-four-segments,
+/// jwt-boundary-standard-base64-alphabet, jwt-boundary-base64-padding,
+/// jwt-negative-colon-delimiter, jwt-negative-payload-not-json-prefixed
+///
+/// Every structural near miss in segment count, alphabet, padding, and
+/// delimiter produces no finding at all through the full built-in registry,
+/// so there is no policy outcome and no overlap candidate left behind for
+/// another detector to misclassify.
+#[test]
+fn structural_jwt_near_misses_produce_no_finding_through_the_full_registry() {
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+    let inputs = [
+        "eyJTWU5USEVUSUNfSEVBREVS.eyJTWU5USEVUSUNfUEFZTE9BRA",
+        "eyJTWU5USEVUSUNfSEVBREVS.eyJTWU5USEVUSUNfUEFZTE9BRA.SYNTHETIC_REVOKED_SIGNATURE.EXTRA",
+        "eyJTWU5USEVUSUNfSEVBREVS.eyJTWU5USEVUSUNf+EFZTE9BRA.SYNTHETIC_REVOKED_SIGNATURE",
+        "eyJTWU5USEVUSUNfSEVBREVS.eyJTWU5USEVUSUNfUEFZTE9BRA==.SYNTHETIC_REVOKED_SIGNATURE",
+        "eyJTWU5USEVUSUNfSEVBREVS:eyJTWU5USEVUSUNfUEFZTE9BRA:SYNTHETIC_REVOKED_SIGNATURE",
+        "eyJTWU5USEVUSUNfSEVBREVS.QUJDREVGR0hJSktMTU5PUA.SYNTHETIC_REVOKED_SIGNATURE",
+    ];
+
+    for input in inputs {
+        let findings = scan(input, &registry, &DefaultPolicy).unwrap();
+        assert_eq!(findings, Vec::new(), "{input}");
+    }
+}
+
+/// fixture: jwt-overlap-bearer / bearer-overlap-jwt
+///
+/// Extends `structured_jwt_displaces_the_broader_bearer_candidate` (above)
+/// through the default policy: the surviving JWT candidate redacts, and the
+/// displaced Bearer candidate leaves no separate finding behind for the
+/// policy to act on.
+#[test]
+fn structured_jwt_overlap_winner_redacts_under_default_policy() {
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+    let input = "Authorization: Bearer eyJTWU5USEVUSUNfSEVBREVS.eyJTWU5USEVUSUNfUEFZTE9BRA.SYNTHETIC_REVOKED_SIGNATURE";
+
+    let findings = scan(input, &registry, &DefaultPolicy).unwrap();
+
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].type_name(), "jwt");
+    assert_eq!(findings[0].range(), range(22, 101));
+    assert_eq!(findings[0].action(), Action::Redact);
 }
