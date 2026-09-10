@@ -9,13 +9,10 @@
  * and a failing outcome records only a stable code, the terminal state, the
  * already-redacted cumulative `text`, and a finding count.
  *
- * These mirror scenarios already exercised directly against
- * `createIncrementalSanitizer` (`test/integration/incremental-semantics.test.ts`)
- * and `createStreamSanitizerRuntime` (`src/adapters/shared.ts`, driven by
- * `test/adapters/node-stream.test.ts` and `test/adapters/web-stream.test.ts`).
- * `test/conformance/canonical-incremental-oracle.test.ts` replays every
- * fixture here against those same TypeScript implementations and fails if
- * the observed outcome drifts from what is recorded here.
+ * These mirror scenarios originally exercised directly against the retired
+ * TypeScript oracle's incremental sanitizer and stream runtime. Each binding
+ * runner replays every fixture here against its own implementation and
+ * fails if the observed outcome drifts from what is recorded here.
  */
 
 import type { CanonicalLifecycleFixture } from "../schema.js";

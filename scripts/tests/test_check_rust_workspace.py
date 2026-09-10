@@ -77,7 +77,6 @@ class Workspace:
             ".github/workflows/ci.yml",
             f'name: CI\nenv:\n  MSRV: "{MSRV}"\njobs:\n  test:\n    strategy:\n      matrix:\n        node-version:\n          - 20\n          - 22\n',
         )
-        self.write("package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
         self.write("bindings/node/package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
         self.write("packages/javascript/package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
         self.add_member("secret-scan", "crates/secret-scan-core", "src/lib.rs", CORE_LIB, manifest=CORE_MANIFEST)
@@ -200,13 +199,6 @@ class RustWorkspaceCheckTests(unittest.TestCase):
         errors = self.run_check(configure)
         self.assertTrue(any("must set [lints] workspace = true" in error for error in errors), errors)
 
-    def test_root_package_json_drift_is_rejected(self) -> None:
-        def configure(workspace: Workspace) -> None:
-            workspace.write("package.json", json.dumps({"version": "0.2.0"}))
-
-        errors = self.run_check(configure)
-        self.assertTrue(any("package.json: version 0.2.0" in error for error in errors), errors)
-
     def test_node_package_json_drift_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
             workspace.write("bindings/node/package.json", json.dumps({"version": "0.2.0"}))
@@ -252,21 +244,33 @@ class RustWorkspaceCheckTests(unittest.TestCase):
 
     def test_node_engines_narrower_than_ci_matrix_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
-            workspace.write("package.json", json.dumps({"version": VERSION, "engines": {"node": "20.x"}}))
+            workspace.write(
+                "packages/javascript/package.json",
+                json.dumps({"version": VERSION, "engines": {"node": "20.x"}}),
+            )
 
         errors = self.run_check(configure)
         self.assertTrue(
-            any("package.json: engines.node '20.x' must be '20.x || 22.x'" in error for error in errors),
+            any(
+                "packages/javascript/package.json: engines.node '20.x' must be '20.x || 22.x'" in error
+                for error in errors
+            ),
             errors,
         )
 
     def test_node_engines_open_ended_range_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
-            workspace.write("package.json", json.dumps({"version": VERSION, "engines": {"node": ">=20"}}))
+            workspace.write(
+                "packages/javascript/package.json",
+                json.dumps({"version": VERSION, "engines": {"node": ">=20"}}),
+            )
 
         errors = self.run_check(configure)
         self.assertTrue(
-            any("package.json: engines.node '>=20' must be '20.x || 22.x'" in error for error in errors),
+            any(
+                "packages/javascript/package.json: engines.node '>=20' must be '20.x || 22.x'" in error
+                for error in errors
+            ),
             errors,
         )
 

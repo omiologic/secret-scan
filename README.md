@@ -14,16 +14,17 @@ reimplementing it.
 
 ## Migration and release status
 
-The repository is migrating from its TypeScript implementation to the
-[Rust-core monorepo architecture](./ARCHITECTURE.md). Progress is tracked by
-[issue #3](https://github.com/omiologic/secret-scan/issues/3) and its linked
+The repository has completed its migration from a TypeScript implementation to
+the [Rust-core monorepo architecture](./ARCHITECTURE.md). Progress was tracked
+by [issue #3](https://github.com/omiologic/secret-scan/issues/3) and its linked
 sub-issues.
 
-During the migration, the repository-root `src/` implementation remains the
-behavioral oracle and root npm package. The replacement JavaScript package
-lives in `packages/javascript` and loads the Rust core through Node N-API or
-browser WebAssembly. The TypeScript detector core will be removed only after
-cross-language parity and release qualification are complete.
+The published `@omiologic/secret-scan` npm package is `packages/javascript`,
+which loads the Rust core through Node N-API or browser WebAssembly and never
+reimplements detector, policy, or redaction behavior. The TypeScript detector
+core that previously served as the behavioral oracle has been removed; the
+canonical behavioral contract is the fixture corpus under
+[`conformance/fixtures/`](./conformance/README.md).
 
 No release is authorized by the version values currently present in development
 manifests. Installation from npm, PyPI, crates.io, or binary distribution
@@ -361,8 +362,7 @@ crates/secret-scan-cli  CLI host adapter
 bindings/node           Node N-API binding
 bindings/wasm           browser WebAssembly binding
 bindings/python         Python PyO3 binding and package
-packages/javascript     unified JavaScript package
-src/ and test/          temporary TypeScript oracle
+packages/javascript     unified JavaScript package, published as @omiologic/secret-scan
 ```
 
 Release qualification must build and test the Rust crate, npm package, Python

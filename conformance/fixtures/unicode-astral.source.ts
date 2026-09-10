@@ -6,13 +6,13 @@
  * code unit and up to 3 UTF-8 bytes, while an astral character is exactly 2
  * UTF-16 code units (a surrogate pair) and exactly 4 UTF-8 bytes.
  *
- * These fixtures are authored in the temporary UTF-16 oracle shape (offsets
- * from `String.prototype.indexOf`, matching the TypeScript package's public
+ * These fixtures are authored in the UTF-16 oracle shape (offsets from
+ * `String.prototype.indexOf`, matching `packages/javascript`'s public
  * `start`/`end` semantics) and are converted to the canonical UTF-8
  * byte-offset schema by `conformance/convert.ts`. They exist to exercise
  * that conversion, not the detector pipeline — `detector` is a synthetic,
  * non-registry identifier and these fixtures are intentionally not part of
- * `test/conformance/corpus.ts`'s executable corpus.
+ * the synchronous detector corpus.
  */
 
 import type { Utf16Fixture } from "../convert.js";

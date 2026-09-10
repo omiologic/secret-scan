@@ -141,7 +141,7 @@ function buildFixtures(artifactDir) {
 
   return {
     version: JSON.parse(
-      readFileSync(join(REPO_ROOT, "package.json"), "utf8"),
+      readFileSync(join(REPO_ROOT, "packages/javascript/package.json"), "utf8"),
     ).version,
     // "not-yet-evaluated" fixtures carry no expectation and document a
     // future gap, not a current behavioral contract.

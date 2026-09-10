@@ -234,6 +234,12 @@ select or authorize a release.
 
 ### Changed
 
+- `RB-2` (#72): repointed the published `@omiologic/secret-scan` npm artifact
+  from the repository-root TypeScript implementation to `packages/javascript`,
+  the typed Node N-API/WebAssembly wrapper over the Rust core.
+  `packages/javascript` is now the only tracked manifest declaring the
+  package name, and it carries its own tracked `LICENSE`.
+
 - The N-API addon now declares `x86_64-unknown-linux-musl` and
   `aarch64-unknown-linux-musl` as supported targets, matching the wheel
   matrix; the CLI keeps its six non-musl targets.
@@ -243,6 +249,15 @@ select or authorize a release.
 - `CI` runs the JavaScript checks on Node.js 24 as well as 20 and 22, so every
   major `engines.node >=20` claims is exercised, and is callable as a reusable
   workflow so one qualification run carries its evidence.
+
+### Removed
+
+- `RB-2` (#72): removed the repository-root TypeScript detector core
+  (`src/`) and its behavioral fixture suites (`test/`). The canonical
+  behavioral contract is the fixture corpus under `conformance/fixtures/`;
+  the migration tooling that originally generated it from the retired
+  TypeScript oracle (`scripts/migrate-conformance-corpus.ts`,
+  `scripts/migrate-incremental-corpus.ts`) was removed with it.
 
 ### Fixed
 

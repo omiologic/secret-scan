@@ -20,35 +20,29 @@ depend on `src/`.
   expectations, ranges within input bounds); a conforming validator in any
   language must check both.
 - [`convert.ts`](./convert.ts) — UTF-16 code unit <-> UTF-8 byte offset
-  conversion, and the fixture-level translation from the temporary
-  TypeScript oracle's corpus shape into the canonical schema.
+  conversion. It originally translated the retired TypeScript oracle's corpus
+  shape into the canonical schema; the conversion functions remain as
+  infrastructure a UTF-16 host runner can still reach for.
 - [`fixtures/unicode-astral.source.ts`](./fixtures/unicode-astral.source.ts) —
   fixtures with an astral (supplementary-plane) character positioned before,
   within, and after a finding, used to exercise the UTF-16/UTF-8 conversion
   at its most divergent case.
 - [`fixtures/synchronous-corpus.json`](./fixtures/synchronous-corpus.json) —
   the full synchronous detector, exclusion, overlap, and adversarial-resource
-  corpus (`test/conformance/corpus.ts`), migrated to canonical UTF-8 byte
-  offsets by `scripts/migrate-conformance-corpus.ts`. This is the canonical
-  corpus for detector behavior today; regenerate it with
-  `npm run corpus:migrate -- conformance/fixtures/synchronous-corpus.json`
-  whenever `test/conformance/corpus.ts` changes.
-  `test/conformance/canonical-oracle.test.ts` fails if the two drift, and
-  proves the current TypeScript implementation reproduces exactly this
-  file's findings, per-detector specificity, and redacted output.
+  corpus. This is the canonical corpus for detector behavior; the Rust
+  consumer is `crates/secret-scan-core/tests/canonical_corpus.rs`.
 - [`fixtures/incremental-corpus.json`](./fixtures/incremental-corpus.json) —
-  whole-input incremental references (`test/conformance/incremental-partitions.ts`),
-  migrated to canonical UTF-8 byte offsets. A bounded incremental session
-  must reproduce each fixture's `text` and `expected` findings identically at
-  every UTF-16 code-unit and streaming UTF-8 byte partition of `input`;
-  partitioning itself is generated deterministically by each binding runner,
-  not stored as data. The Rust consumer is
+  whole-input incremental references, canonical UTF-8 byte offsets. A bounded
+  incremental session must reproduce each fixture's `text` and `expected`
+  findings identically at every UTF-16 code-unit and streaming UTF-8 byte
+  partition of `input`; partitioning itself is generated deterministically by
+  each binding runner, not stored as data. The Rust consumer is
   `crates/secret-scan-core/tests/incremental_partitions.rs`; see
   [Partition invariance](#partition-invariance) below.
 - [`fixtures/unicode-conversion-corpus.json`](./fixtures/unicode-conversion-corpus.json) —
-  `fixtures/unicode-astral.source.ts`, migrated to canonical UTF-8 byte
-  offsets, persisted so every binding checks the same committed values
-  rather than only an in-memory conversion.
+  `fixtures/unicode-astral.source.ts`, canonical UTF-8 byte offsets, persisted
+  so every binding checks the same committed values rather than only an
+  in-memory conversion.
 - [`fixtures/incremental-lifecycle-corpus.json`](./fixtures/incremental-lifecycle-corpus.json) —
   lifecycle, abort, malformed-UTF-8, and buffer/token/multiline resource-limit
   scenarios (`fixtures/incremental-lifecycle.source.ts`), each an ordered,
@@ -60,19 +54,17 @@ depend on `src/`.
   every stable code the incremental sanitizer and its stream adapters can
   raise, paired with its fixed, input-free message.
 
-`scripts/migrate-conformance-corpus.ts` migrates the synchronous detector
-corpus; `scripts/migrate-incremental-corpus.ts` migrates the four files
-above (`npm run corpus:migrate:incremental`). Both read the existing
-TypeScript oracle, convert with `convert.ts`, validate with the matching
-`schema.ts` validator, and write canonical JSON. See those scripts and the
-decision record for why the TypeScript exporter is adapted rather than
-retained as a second canonical source.
-`test/conformance/canonical-incremental-oracle.test.ts` is the incremental
-counterpart of `canonical-oracle.test.ts`: it fails if any of the four files
-above drift from a fresh migration, and separately replays every lifecycle
-fixture's operations against the real `createIncrementalSanitizer` and
-`createStreamSanitizerRuntime` to prove the current TypeScript
-implementation reproduces exactly the declared outcome.
+Every JSON file under `fixtures/` is the independently authored, hand-maintained
+canonical source. It was not always: `scripts/migrate-conformance-corpus.ts`
+and `scripts/migrate-incremental-corpus.ts` originally generated these files
+from a parallel TypeScript-only corpus and the now-retired TypeScript
+detector, policy, redaction, and incremental-sanitizer implementation they
+exercised (`npm run corpus:migrate`, `npm run corpus:migrate:incremental`).
+Both the migration scripts and that TypeScript oracle were removed once the
+Rust core reached parity and qualification completed (`RB-2`, issue #72);
+`convert.ts` and `schema.ts` remain as the UTF-16/UTF-8 conversion and
+validation infrastructure a new fixture author or binding runner can still
+reach for.
 
 ## UTF-8 byte offset model
 
@@ -83,12 +75,11 @@ Unicode scalar (code point) count. A byte offset must fall on a UTF-8 code
 point boundary; an offset that would split a multi-byte encoded character is
 invalid.
 
-This differs from the temporary TypeScript oracle's fixtures
-(`test/conformance/schema.ts`), which use UTF-16 code unit offsets matching
-this package's public `start`/`end` semantics (`String.prototype.length`,
-`.slice()`, `.indexOf()`). Each binding runner is responsible for converting
-canonical UTF-8 byte offsets to its own native offset unit and verifying
-that the converted span has the same meaning
+This differs from the UTF-16 code unit offsets `packages/javascript`'s public
+`start`/`end` semantics use (`String.prototype.length`, `.slice()`,
+`.indexOf()`). Each binding runner is responsible for converting canonical
+UTF-8 byte offsets to its own native offset unit and verifying that the
+converted span has the same meaning
 (`decision-govern-cross-language-conformance`).
 
 The divergence is largest for astral (supplementary-plane) characters: a
@@ -139,9 +130,7 @@ incremental session takes no registry, because a custom detector declares no
 retention bound) and **whole-input count-dependent policies** (the
 incremental policy context carries the finalized index but no total, because
 a progressive evaluation cannot know the whole session's finding count).
-See the `incremental` module documentation in the Rust core, and
-`createIncrementalSanitizer`'s `INVALID_OPTIONS` rejection of a `detectors`
-option in the TypeScript oracle.
+See the `incremental` module documentation in the Rust core.
 
 ## Adversarial resource caps
 
@@ -151,8 +140,7 @@ carries a `resource` object declaring `maxInputBytes`, `maxFindings`, and
 and — where the language has one — on the incremental surface, including a
 fragmented partition of the same input, since fragmentation is where an
 implementation that rescans retained text degrades. The Rust consumer is
-`crates/secret-scan-core/tests/adversarial_bounds.rs`; the TypeScript oracle
-asserts the same caps in `test/conformance/conformance.test.ts`.
+`crates/secret-scan-core/tests/adversarial_bounds.rs`.
 
 `maxInputBytes` and `maxFindings` are properties of the fixture and its
 expected result, so every runner asserts them exactly. `maxRuntimeMs`
@@ -163,23 +151,42 @@ the declared cap exactly for an optimized one — but never to a value derived
 from the machine it happens to run on. The caps exist to catch superlinear
 blowup, which is orders of magnitude, not a constant factor.
 
+## Regression intake
+
+Every confirmed false positive or false negative becomes a permanent fixture
+under the governed [synthetic regression convention](../conventions/synthetic-secret-regressions.md):
+
+1. Discard the submitted credential value; retain only a safe description of
+   the grammar, boundary, and host context needed to reproduce the defect.
+2. Construct an unmistakably synthetic or revoked replacement from scratch.
+   Do not transform, encode, hash, truncate, or snapshot the submitted value.
+3. Assign one stable fixture ID, the `regression` tier, applicable host
+   contexts, safe expected metadata, and a note describing the behavior — not
+   the reported plaintext — directly in the relevant `fixtures/*.json` file.
+4. Prove the fixture fails before the repair when practical, then passes on
+   every consumer it affects (the Rust core's tests, and any binding that
+   asserts this corpus).
+5. Inspect failures and logs so they contain only fixture identity and safe
+   metadata. If safe reproduction is impossible, document the excluded shape
+   without retaining the report material.
+
 ## What this directory is not (yet)
 
-This item defines the schema, the UTF-8 range model, migration tooling, and
-the migrated synchronous, incremental, Unicode-conversion, and safe-error
-corpora. The Rust core consumes the incremental and adversarial corpora
-directly (see the two sections above); a full Rust or Python
+This item defines the schema, the UTF-8 range model, and the canonical
+synchronous, incremental, Unicode-conversion, and safe-error corpora. The
+Rust core consumes the canonical corpus directly
+(`crates/secret-scan-core/tests/canonical_corpus.rs`, plus the incremental and
+adversarial corpora — see the two sections above); a full Python
 detector-pipeline consumer for the whole synchronous corpus is a separate,
-larger change tracked elsewhere. The existing TypeScript corpus
-(`test/conformance/`) remains the executable behavioral oracle until the
-Rust core reaches parity, and every JSON file under `fixtures/` remains a
-derived artifact of it, not an independently authored source.
+larger change tracked elsewhere. Every JSON file under `fixtures/` is the
+independently authored, hand-maintained canonical source — the TypeScript
+oracle and the migration tooling that originally derived them from it have
+been retired (`RB-2`, issue #72).
 
 Unicode range conversion is asserted for all three of today's units, against
 the exact fixture values in `fixtures/unicode-conversion-corpus.json`:
 JavaScript's UTF-16 code units
-(`conformance/convert.ts`, exercised by `test/conformance/conversion.test.ts`
-and `canonical-incremental-oracle.test.ts`), Rust's native UTF-8 bytes
+(`conformance/convert.ts`), Rust's native UTF-8 bytes
 (`crates/secret-scan-core/src/types.rs`'s
 `unicode_conversion_corpus_byte_offsets_are_char_aligned` test — Rust's
 `RANGE_UNIT` is already bytes, so there is no conversion step, only a proof

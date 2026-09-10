@@ -6,12 +6,11 @@
  * its message are part of the cross-language contract; changing either here
  * is a corpus review, not a routine edit.
  *
- * This is hand-transcribed from `src/incremental.ts`
- * (`IncrementalSanitizerErrorCode`) and `src/adapters/shared.ts`
- * (`StreamSanitizerErrorCode`) rather than imported, because `conformance/`
- * does not depend on `src/`. `test/conformance/canonical-incremental-oracle.test.ts`
- * fails if this transcription drifts from those modules' actual codes and
- * messages.
+ * This was originally hand-transcribed from the retired TypeScript oracle's
+ * `IncrementalSanitizerErrorCode` and `StreamSanitizerErrorCode` modules,
+ * because `conformance/` does not depend on any single binding's source. It
+ * is now the independently maintained canonical source; a change here is a
+ * corpus review against every binding's actual codes and messages.
  */
 
 import type { CanonicalErrorCode } from "../schema.js";

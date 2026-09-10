@@ -31,10 +31,8 @@ import argparse
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
 import tomllib
 from pathlib import Path
 
@@ -151,24 +149,16 @@ def require_matrix(matrix: dict, collected: list[dict]) -> list[str]:
 
 
 def npm_package_contents() -> list[str]:
-    """Packs a staged copy, the way `packages/javascript/test/
-    package-contents.test.ts` does: `LICENSE` lives at the repository root,
-    so a pack of the source tree alone would under-report the tarball."""
-    with tempfile.TemporaryDirectory() as directory:
-        staged = Path(directory)
-        source = ROOT / NPM_PACKAGE
-        shutil.copy(source / "package.json", staged / "package.json")
-        shutil.copy(source / "README.md", staged / "README.md")
-        shutil.copy(ROOT / "LICENSE", staged / "LICENSE")
-        shutil.copytree(source / "dist", staged / "dist")
-        result = subprocess.run(
-            ["npm", "pack", "--dry-run", "--json"],
-            cwd=staged,
-            check=True,
-            capture_output=True,
-            text=True,
-            shell=os.name == "nt",
-        )
+    """Packs `packages/javascript` itself, the way `packages/javascript/test/
+    package-contents.test.ts` does: `LICENSE` is a tracked file there, so
+    nothing needs to be staged in from elsewhere."""
+    result = subprocess.run(
+        ["npm", "pack", "--dry-run", "--json", str(ROOT / NPM_PACKAGE)],
+        check=True,
+        capture_output=True,
+        text=True,
+        shell=os.name == "nt",
+    )
     return sorted(entry["path"] for entry in json.loads(result.stdout)[0]["files"])
 
 
@@ -238,7 +228,7 @@ def main() -> int:
     collected = collect(arguments.artifacts)
     errors = require_matrix(matrix, collected)
 
-    with (ROOT / "package.json").open(encoding="utf-8") as handle:
+    with (ROOT / NPM_PACKAGE / "package.json").open(encoding="utf-8") as handle:
         product_version = json.load(handle)["version"]
 
     inventory = {

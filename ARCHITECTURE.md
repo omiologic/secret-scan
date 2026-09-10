@@ -20,23 +20,21 @@ and agent/tool gateways.
 
 ## Migration state
 
-This document describes the accepted target architecture. Migration progress is
-tracked by [issue #3](https://github.com/omiologic/secret-scan/issues/3) and its
-sub-issues rather than duplicated here.
+This document describes the accepted target architecture. Migration progress
+was tracked by [issue #3](https://github.com/omiologic/secret-scan/issues/3)
+and its sub-issues rather than duplicated here.
 
-Until the cutover qualification is complete:
+The migration is complete:
 
-- the repository-root TypeScript implementation in `src/` remains the
-  behavioral oracle and the root `package.json` remains the current npm package;
 - `crates/secret-scan-core` and the top-level `conformance/` corpus are the
-  destination for canonical behavior;
-- `packages/javascript` is the replacement JavaScript package over the Node and
-  WebAssembly bindings; and
-- the TypeScript detector core is removed only after Rust parity and all
-  JavaScript lifecycle, stream, API, and package checks pass.
+  canonical source of behavior;
+- `packages/javascript` is the published JavaScript package (`@omiologic/secret-scan`)
+  over the Node and WebAssembly bindings; and
+- the repository-root TypeScript detector core that previously served as the
+  behavioral oracle has been removed (`RB-2`, issue #72).
 
-Git preserves the retired implementation's history. The repository will not
-maintain a second `ts-legacy` detector implementation after cutover.
+Git preserves the retired implementation's history. The repository does not
+maintain a second detector implementation.
 
 ## Security boundaries
 
@@ -323,9 +321,9 @@ The first stable Rust-core extension surface supports custom policy and
 placeholder formatter callbacks. These callbacks receive normalized safe
 metadata. Custom detector callbacks are intentionally excluded because they
 would expose plaintext across the FFI boundary and could restore divergent
-detector behavior. The TypeScript oracle's custom-detector and registry APIs are
-legacy migration surfaces, not part of the accepted first stable cross-language
-contract.
+detector behavior. The retired TypeScript oracle's custom-detector and
+registry APIs were legacy migration surfaces, not part of the accepted first
+stable cross-language contract.
 
 Extensions are trusted in-process code, not a sandbox. Fixed library errors can
 sanitize an exception crossing a callback boundary, but cannot prevent trusted

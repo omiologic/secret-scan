@@ -3,9 +3,10 @@
 This page records the ownership boundaries and the explicit policies of the
 Rust and binding workspace introduced by
 `decision-adopt-rust-core-monorepo` and `decision-define-runtime-bindings`.
-The TypeScript implementation in the repository root remains the behavioral
-oracle until the Rust core passes the shared conformance corpus; nothing here
-moves or removes it.
+The repository-root TypeScript implementation that formerly served as the
+behavioral oracle has been removed (`RB-2`, issue #72); the canonical
+behavioral contract is now the fixture corpus under `conformance/fixtures/`
+(`decision-govern-cross-language-conformance`).
 
 ## Layout and ownership
 
@@ -21,16 +22,15 @@ moves or removes it.
 Bindings and the CLI translate host APIs to the core. They never reimplement
 detector behavior, and they convert ranges without changing the selected span.
 
-### Two manifests named `@omiologic/secret-scan`
+### One manifest named `@omiologic/secret-scan`
 
-`packages/javascript` and the repository root both declare a package named
-`@omiologic/secret-scan`, and only the root one is released today. Until the
-Rust core passes the shared conformance corpus, the root TypeScript
-implementation (`src/`, `test/`, `package.json`) remains the released package
-and the behavioral oracle (`decision-govern-cross-language-conformance`); the
-package in `packages/javascript` is the wrapper that replaces it once the
-bindings qualify. `npm publish` at the root publishes the current package;
-publishing the wrapper is part of that cutover, not a routine release.
+`packages/javascript` is the only tracked manifest that declares the package
+name `@omiologic/secret-scan`; it is what `npm publish` publishes. The
+repository root `package.json` is private tooling for this monorepo and
+declares no package name of its own. This was not always true: until
+`RB-2` (issue #72) cut the published artifact over, the repository-root
+TypeScript implementation (`src/`, `test/`) was a second manifest under the
+same name and the released package.
 
 `packages/javascript` owns the public JavaScript API, the runtime loaders, and
 the initialization contract. It may depend on the Node and WebAssembly
@@ -44,9 +44,10 @@ per `bindings/node/package.json`'s `napi.targets`
 (`@omiologic/secret-scan-<platform>`, `os`/`cpu`/`libc`-scoped so npm skips
 the ones that do not match a given install), resolved at runtime by
 `process.platform`/`process.arch` in `src/runtime/node.ts`, plus an ordinary
-`dependencies` entry on `@omiologic/secret-scan-wasm`. Neither is published
-before `RB-2` (issue #72) cuts the published npm artifact over to this
-package.
+`dependencies` entry on `@omiologic/secret-scan-wasm`. Neither the platform
+packages nor the wasm package is published yet; publishing them for the first
+time, alongside `packages/javascript` itself, is a one-time cutover action
+gated on the release approval `AGENTS.md` mandates, not a routine release.
 
 ## Policies
 
@@ -176,22 +177,24 @@ the binding macros were insufficient.
 
 Every workspace member's Cargo version and every JSON manifest that carries
 the product's own version number share one value. `LOCKSTEP_MANIFESTS` in
-`scripts/check-rust-workspace.py` names the JSON manifests: the repository
-root `package.json`, `bindings/node/package.json`, and
-`packages/javascript/package.json`. `npm run rust:check` fails when any one of
-them, or any workspace Cargo member, drifts from `[workspace.package] version`
+`scripts/check-rust-workspace.py` names the JSON manifests: `bindings/node/package.json`
+and `packages/javascript/package.json`. `npm run rust:check` fails when either
+of them, or any workspace Cargo member, drifts from `[workspace.package] version`
 in the root `Cargo.toml`; `scripts/tests/test_check_rust_workspace.py` drifts
 each `LOCKSTEP_MANIFESTS` entry individually and asserts the check reports it.
 `bindings/python/pyproject.toml` declares `version = "dynamic"` and takes its
 version from `bindings/python/Cargo.toml` at build time, so it needs no entry
-of its own — it is covered by the Cargo member check.
+of its own — it is covered by the Cargo member check. The repository root
+`package.json` is private tooling, declares no package name, and is not
+version-locked to the product: `RB-2` (issue #72) removed it from
+`LOCKSTEP_MANIFESTS` when it cut the published npm artifact over to
+`packages/javascript`, the only manifest that still declares
+`@omiologic/secret-scan`.
 
 `packages/javascript` first publishes under whatever version is current in
-this lockstep set at cutover; the cutover introduces no version bump of its
-own. The cutover is `RB-2` (issue #72): it repoints the published npm artifact
-and leaves exactly one manifest declaring `@omiologic/secret-scan`, which
-removes the root `package.json` from `LOCKSTEP_MANIFESTS`. Whichever of `RB-2`
-or a later change to this lockstep set lands second must reconcile the tuple.
+this lockstep set; publishing it, and its platform and wasm dependencies, for
+the first time is a one-time cutover action gated on the release approval
+`AGENTS.md` mandates, not a routine release.
 
 ### MSRV
 

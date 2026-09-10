@@ -130,7 +130,9 @@ function parseArguments(argv) {
 }
 
 function productVersion() {
-  return JSON.parse(readFileSync(join(REPO_ROOT, "package.json"), "utf8")).version;
+  return JSON.parse(
+    readFileSync(join(REPO_ROOT, "packages/javascript/package.json"), "utf8"),
+  ).version;
 }
 
 function loadFixtures() {
