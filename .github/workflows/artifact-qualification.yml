@@ -1,0 +1,305 @@
+name: Artifact qualification
+
+# Qualifies the three artifact families a release ships, from one revision:
+# the six-target N-API addon, the `secret-scan` CLI binary for its declared
+# release targets, and the browser WebAssembly artifact. Each is smoke-tested
+# on the architecture it targets, and `packages/javascript`'s public API is
+# exercised against the real Node addon and the real browser artifact --
+# never a test double (issue #74).
+#
+# `scripts/check-artifact-matrix.py` keeps this workflow's `node-addon` and
+# `cli` job matrices in lockstep with `bindings/node/package.json`'s
+# `napi.targets` and `Cargo.toml`'s `cli-release-targets`; a target cannot be
+# dropped from one without a reviewed manifest change. Every target below has
+# a native GitHub-hosted runner (the same runner-to-target mapping
+# `python-wheels.yml` uses), so every artifact is smoke-tested on real
+# hardware rather than falling back to a cross-compiled-only build.
+
+on:
+  pull_request:
+    paths:
+      - bindings/node/**
+      - bindings/wasm/**
+      - crates/secret-scan-core/**
+      - crates/secret-scan-cli/**
+      - packages/javascript/**
+      - conformance/fixtures/synchronous-corpus.json
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+      - scripts/check-artifact-matrix.py
+      - scripts/qualify-node-addon.mjs
+      - scripts/qualify-browser-artifact.mjs
+      - scripts/qualify-runtime-fixture.mjs
+      - .github/workflows/artifact-qualification.yml
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  workflow_call:
+
+permissions: {}
+
+concurrency:
+  group: artifact-qualification-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  policy:
+    name: Artifact matrix policy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Check the Node addon and CLI release matrices
+        run: npm run artifacts:check
+
+  node-addon:
+    name: Node addon ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    needs: policy
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+          - target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up stable Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Install the napi-rs CLI
+        working-directory: bindings/node
+        run: npm install
+
+      - name: Build the addon for this target
+        working-directory: bindings/node
+        run: npx napi build --platform --release --target ${{ matrix.target }}
+
+      # This matrix entry's runner is native to the target it just built (see
+      # the runner mapping above), so the compiled addon can be smoke-tested
+      # right here: criterion 2's per-architecture smoke test, and criterion
+      # 3's requirement that `smoke-test.mjs` run against the real addon
+      # rather than a double.
+      - name: Smoke-test the built addon
+        working-directory: bindings/node
+        run: npm run smoke
+
+      - name: Upload the built addon
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: node-addon-${{ matrix.target }}
+          path: bindings/node/*.node
+          if-no-files-found: error
+
+  node-addon-real-package:
+    name: packages/javascript against the real Node addon
+    runs-on: ubuntu-latest
+    needs: policy
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Set up stable Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Install the napi-rs CLI
+        working-directory: bindings/node
+        run: npm install
+
+      - name: Build the addon for this host
+        working-directory: bindings/node
+        run: npx napi build --platform --release
+
+      - name: Build the JavaScript package
+        run: npm run js:build
+
+      # `packages/javascript` declares no dependency on the addon yet (its
+      # own publishing contract is out of this issue's scope), so the script
+      # links the addon it just built in itself and asserts one
+      # canonical-corpus fixture through the package's real public API --
+      # criterion 7's Node lane.
+      - name: Qualify the real Node addon against the package's public API
+        run: node scripts/qualify-node-addon.mjs
+
+  cli:
+    name: CLI ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    needs: policy
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+          - target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up stable Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Build the CLI for this target
+        run: cargo build --release -p secret-scan-cli --target ${{ matrix.target }} --locked
+
+      # As in `node-addon` above, this runner is native to the target it just
+      # built, so the binary is smoke-tested right here (criterion 2).
+      - name: Smoke-test the built binary
+        shell: bash
+        run: |
+          binary="target/${{ matrix.target }}/release/secret-scan"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            binary="${binary}.exe"
+          fi
+          expected="secret-scan $(node -p "require('./package.json').version")"
+          actual=$("$binary" --version)
+          if [[ "$actual" != "$expected" ]]; then
+            echo "expected '$expected', got '$actual'" >&2
+            exit 1
+          fi
+
+      - name: Upload the built binary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cli-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/secret-scan
+            target/${{ matrix.target }}/release/secret-scan.exe
+          if-no-files-found: ignore
+
+  browser:
+    name: Browser WebAssembly artifact
+    runs-on: ubuntu-latest
+    needs: policy
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build the JavaScript package
+        run: npm run js:build
+
+      - name: Set up stable Rust with the wasm32 target
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Build the wasm32 artifact
+        run: cargo build -p secret-scan-wasm --release --target wasm32-unknown-unknown --locked
+
+      - name: Install wasm-bindgen-cli
+        # Must match the `wasm-bindgen` version in Cargo.toml exactly, as in
+        # ci.yml's `rust-wasm` job.
+        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+
+      - name: Generate the browser build
+        run: |
+          mkdir -p dist/wasm-web
+          wasm-bindgen --target web --out-dir dist/wasm-web --out-name secret_scan_wasm \
+            target/wasm32-unknown-unknown/release/secret_scan_wasm.wasm
+
+      - name: Install Playwright's Chromium
+        # Only this job needs a browser; it is not a project dependency.
+        run: |
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      # Loads packages/javascript's real browser entry point -- bundled, not
+      # a double -- with the real wasm-bindgen artifact above, in a headless
+      # Chromium: criterion 4, and criterion 7's browser lane.
+      - name: Qualify the browser artifact in a headless engine
+        run: node scripts/qualify-browser-artifact.mjs --wasm-dir dist/wasm-web
