@@ -174,9 +174,19 @@ export async function qualify(fixtures) {
   // detector — none matches a span containing an astral character — and is
   // asserted at the unit level by `bindings/wasm/src/range.rs`.
   check("an astral character around a finding does not perturb its span", () => {
-    // "\u{1F511} " is 3 UTF-16 code units and 5 UTF-8 bytes, so a binding
+    // "\u{1F511}\n" is 3 UTF-16 code units and 5 UTF-8 bytes, so a binding
     // that leaked byte offsets would shift every span by 5 instead of 3.
-    const PREFIX = "\u{1F511} ";
+    //
+    // The trailing character must be a line terminator, not any boundary
+    // character: `generic_token.rs`'s `AUTHORIZATION_PATTERN` anchors to
+    // `is_line_start` with no other alternative (unlike its contextual-
+    // assignment sibling, which also accepts a bare whitespace/`{,;`
+    // boundary). That grammar promises invariance to whatever precedes the
+    // *line* it matches on, not to whatever precedes the *input* — so a
+    // prefix that does not preserve line-start would falsify a fixture the
+    // grammar was never claiming to be invariant under, rather than
+    // exercising the UTF-16 conversion this check exists to cover.
+    const PREFIX = "\u{1F511}\n";
     const SHIFT = PREFIX.length;
     const perturbed = [];
     for (const fixture of fixtures.synchronous) {
@@ -211,17 +221,32 @@ export async function qualify(fixtures) {
         separate,
         `fixture ${fixture.id} scanAndRedact disagreed with scan + redact`,
       );
+
+      // Reconstruct the exact expected output from the fixture's own
+      // findings, rather than searching the output for leftover matched
+      // text: some fixtures (e.g. `contextual-positive-remaining-declared-
+      // names`) legitimately repeat the same synthetic value across several
+      // findings that resolve to different actions, so a `warn`/`allow`
+      // finding can leave a byte-identical copy of a `redact`/`block`
+      // finding's value elsewhere in the output. A blanket "does the output
+      // still contain this value" search cannot tell that apart from an
+      // actual redaction failure; an exact positional reconstruction can.
+      let placeholderIndex = 0;
+      let cursor = 0;
+      const pieces = [];
       for (const finding of combined.findings) {
         if (finding.action !== "redact" && finding.action !== "block") continue;
-        const matched = fixture.input.slice(
-          finding.range.start,
-          finding.range.end,
-        );
-        assert(
-          !combined.text.includes(matched),
-          `fixture ${fixture.id} left a redacted span in the output`,
-        );
+        placeholderIndex += 1;
+        pieces.push(fixture.input.slice(cursor, finding.range.start));
+        pieces.push(`<SECRET_${placeholderIndex}>`);
+        cursor = finding.range.end;
       }
+      pieces.push(fixture.input.slice(cursor));
+      assertEqual(
+        combined.text,
+        pieces.join(""),
+        `fixture ${fixture.id} did not produce the exact expected redacted output`,
+      );
     }
   });
 

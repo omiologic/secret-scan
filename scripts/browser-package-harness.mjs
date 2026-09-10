@@ -142,13 +142,32 @@ export async function qualify(fixtures) {
         redact(fixture.input, scan(fixture.input)),
         `fixture ${fixture.id} scanAndRedact disagreed with scan + redact`,
       );
+
+      // Reconstruct the exact expected output from the fixture's own
+      // findings, rather than searching the output for leftover matched
+      // text: some fixtures (e.g. `contextual-positive-remaining-declared-
+      // names`) legitimately repeat the same synthetic value across several
+      // findings that resolve to different actions, so a `warn`/`allow`
+      // finding can leave a byte-identical copy of a `redact`/`block`
+      // finding's value elsewhere in the output. A blanket "does the output
+      // still contain this value" search cannot tell that apart from an
+      // actual redaction failure; an exact positional reconstruction can.
+      let placeholderIndex = 0;
+      let cursor = 0;
+      const pieces = [];
       for (const finding of findings) {
         if (finding.action !== "redact" && finding.action !== "block") continue;
-        assert(
-          !text.includes(fixture.input.slice(finding.start, finding.end)),
-          `fixture ${fixture.id} left a redacted span in the output`,
-        );
+        placeholderIndex += 1;
+        pieces.push(fixture.input.slice(cursor, finding.start));
+        pieces.push(`<SECRET_${placeholderIndex}>`);
+        cursor = finding.end;
       }
+      pieces.push(fixture.input.slice(cursor));
+      assertEqual(
+        text,
+        pieces.join(""),
+        `fixture ${fixture.id} did not produce the exact expected redacted output`,
+      );
     }
   });
 
