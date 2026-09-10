@@ -128,6 +128,18 @@ select or authorize a release.
   them, with the remaining gaps classified and attributed to their open work
   items. It records evidence only and authorizes no release operation.
 
+- `docs/audits/release-readiness-audit.md` (#36) independently re-verifies all
+  nine release-blocker remediation Tasks (`RB-1`-`RB-9`, #71-#79) against the
+  tree rather than their closed-issue state, confirms no duplicate TypeScript
+  or pure-Python detector implementation remains, and re-resolves the twenty
+  release-readiness criteria of Epic #3, Feature #11, Epic #60, and Feature
+  #61. Eight of the nine Tasks hold; `RB-8`'s repository-settings half
+  (`release` environment protection, `main` branch protection) does not,
+  confirmed by live read-only API reads, despite issue #78 being closed with
+  no recorded exit evidence. The verdict is `NOT YET READY FOR RELEASE
+  APPROVAL` pending that one gap. It records evidence and a verdict only,
+  applies no repository-settings change, and authorizes no release operation.
+
 - CPython packaging for the Python binding: the `omiologic-secret-scan`
   distribution (imported as `secret_scan`), built by maturin as a `cp310-abi3`
   wheel that serves every CPython from 3.10 upward with no pure-Python
