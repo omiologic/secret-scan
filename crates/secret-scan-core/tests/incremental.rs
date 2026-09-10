@@ -939,8 +939,7 @@ fn a_limit_failure_emits_the_same_safe_error_however_the_input_is_partitioned() 
 /// asserting the same construct-limit code every time, never a silent
 /// overrun of `max_buffered_bytes` and never `BufferLimitExceeded` itself.
 #[test]
-fn a_multiline_limit_failure_fires_before_the_buffered_backstop_however_the_input_is_partitioned()
- {
+fn a_multiline_limit_failure_fires_before_the_buffered_backstop_however_the_input_is_partitioned() {
     let (token, multiline) = (64, 64);
     let buffered = IncrementalLimits::minimum_buffered_bytes(token, multiline);
     assert!(
@@ -961,7 +960,11 @@ fn a_multiline_limit_failure_fires_before_the_buffered_backstop_however_the_inpu
         .filter(|&split| input.is_char_boundary(split))
         .map(|split| vec![&input[..split], &input[split..]])
         .collect();
-    partitions.push((0..input.len()).map(|index| &input[index..=index]).collect());
+    partitions.push(
+        (0..input.len())
+            .map(|index| &input[index..=index])
+            .collect(),
+    );
 
     for chunks in partitions {
         let (emitted, code, state) = run_until_failure(limits, &chunks);
