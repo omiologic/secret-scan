@@ -10,9 +10,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # These call the qualification workflows as reusable workflows rather than
+  # duplicating their jobs, so `publish` gates on the exact same commit this
+  # workflow is running for (`github.sha` is shared with the caller) instead
+  # of a separate, potentially-stale CI run on the same ref.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  python-wheels:
+    name: Python wheels
+    uses: ./.github/workflows/python-wheels.yml
+    permissions:
+      contents: read
+
+  artifact-qualification:
+    name: Artifact qualification
+    uses: ./.github/workflows/artifact-qualification.yml
+    permissions:
+      contents: read
+
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+    # `ci` covers the four ci.yml Rust jobs and the wasm32 job (rust-policy,
+    # rust-native, rust-msrv, rust-wasm) plus the Node test matrix.
+    # `artifact-qualification` is the Node addon, browser artifact, and CLI
+    # qualification workflow issue #74 (RB-4) added.
+    needs:
+      - ci
+      - python-wheels
+      - artifact-qualification
     environment:
       name: release
     permissions:
