@@ -38,6 +38,10 @@ depend on `src/`.
   the full synchronous detector, exclusion, overlap, and adversarial-resource
   corpus. This is the canonical corpus for detector behavior; the Rust
   consumer is `crates/secret-scan-core/tests/canonical_corpus.rs`.
+- [`fixtures/github-classic-mutations.ts`](./fixtures/github-classic-mutations.ts) —
+  the deterministic reproducer for the `github-classic` grammar-mutation
+  family declared in `synchronous-corpus.json`; see
+  [Mutation provenance](#mutation-provenance).
 - [`fixtures/incremental-corpus.json`](./fixtures/incremental-corpus.json) —
   whole-input incremental references, canonical UTF-8 byte offsets. A bounded
   incremental session must reproduce each fixture's `text` and `expected`
@@ -106,6 +110,36 @@ Both validators (`schema.ts`'s closed key check and `schema.json`'s
 expectation object with an extra key — the fixture format itself has no way
 to carry plaintext into a public expectation.
 
+## Mutation provenance
+
+A fixture's optional `mutation` object (`CanonicalMutationProvenance`:
+`grammar`, `seedId`, `operation`, `ordinal`) records where a boundary or
+regression case came from. It is validated for shape by `schema.ts`
+(`invalid-mutation-provenance`), but shape alone does not prove the case is
+what it claims to be, so `operation` splits into two kinds:
+
+- `"declared-boundary"` marks a manually authored, fixed boundary case. Its
+  own `seedId` is a human-assigned, per-fixture identity (for example
+  `aws-boundary-embedded`) rather than a generator input, and `ordinal` is
+  just that fixture's position — there is nothing to reproduce beyond the
+  fixture itself.
+- Any other `operation` name is a claim that a deterministic generator,
+  keyed by `(grammar, seedId, operation, ordinal)`, reproduces `input`
+  byte-for-byte. [`fixtures/github-classic-mutations.ts`](./fixtures/github-classic-mutations.ts)
+  is that generator for every `mutation.grammar === "github-classic"` fixture
+  in `synchronous-corpus.json`; `schema.test.ts` regenerates the set on every
+  run and asserts it is both self-identical (determinism) and byte-identical
+  to the committed fixtures (reproducibility). It does not generate the
+  corpus — `synchronous-corpus.json` stays hand-maintained — it only proves
+  the provenance already recorded there is real. A new generated grammar
+  needs the same pairing: a small, pure generator function plus a
+  cross-check against the fixtures that cite it.
+  `crates/secret-scan-core/tests/grammar_mutation_discovery.rs` (issue #115)
+  is the same idea one step earlier: it generates and checks its own
+  differential cases every run without persisting them, and its
+  `promotion_snippet` output is what a confirmed failure turns into once it
+  is promoted to a fixture here.
+
 ## Partition invariance
 
 A bounded incremental session must accept exactly what the whole-input
@@ -157,6 +191,21 @@ the declared cap instead — the Rust runner allows 8x for a debug binary and
 the declared cap exactly for an optimized one — but never to a value derived
 from the machine it happens to run on. The caps exist to catch superlinear
 blowup, which is orders of magnitude, not a constant factor.
+
+## Fixture safety review
+
+Any addition to the corpus — a new detector's positive case, a hand-authored
+`declared-boundary` fixture, a generated mutation, or a regression intake
+below — is reviewed against the same rule: every `input` must be
+unmistakably synthetic or revoked, never a real or real-looking credential,
+and no `expected` field may carry a matched value (`schema.ts` enforces the
+latter; see [Safe expectations](#safe-expectations)). If a submission is, or
+might be, a still-active credential, do not add it to the corpus, an issue,
+or a pull request at all — report it privately through
+[`SECURITY.md`'s vulnerability reporting process](../SECURITY.md#reporting-a-vulnerability)
+first, so it never becomes a second exposure of the same material. Only a
+freshly constructed synthetic replacement following the intake steps below
+belongs in the corpus.
 
 ## Regression intake
 
