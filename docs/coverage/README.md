@@ -131,6 +131,15 @@ resolve honestly, and that model encoded as data:
   evidence dimensions per behavior class and the bounded-rationale exception
   rule (issue [#102](https://github.com/omiologic/secret-scan/issues/102)),
   applied against every row of `detector-inventory.json` and `consumers`.
+- [`host-context-classes.md`](./host-context-classes.md) — the lexical
+  classification `evidence-requirements.md` §3 relies on to avoid a
+  detector-by-context Cartesian product (issue
+  [#110](https://github.com/omiologic/secret-scan/issues/110)): the five
+  representative classes, their justification against quoting, escaping,
+  comments, assignment separators, headers, URLs, prose, and structured-data
+  boundaries, each class's named representative context(s), and the
+  reconciliation of every declared `CanonicalHostContext` value and current
+  corpus fixture against it.
 - `coverage-declarations.json` and `conformance/schema.ts`'s coverage-
   declaration types (above) — that model, machine-validated (issue #103).
 - `coverage-report.md` and "Coverage drift is a CI failure" (above) — that

@@ -70,7 +70,11 @@ provider's prefix a value happens to carry. The model instead requires
 requirement to where context actually changes behavior:
 
 **The 22 `CanonicalHostContext` values partition into five representative
-classes:**
+classes**, each with a lexical justification, a named representative member,
+and its own gap ledger, defined in
+[`host-context-classes.md`](./host-context-classes.md) (issue #110) — this
+section only summarizes the class names so the risk-scoping rule below reads
+standalone:
 
 | Class | Contexts |
 |---|---|
@@ -185,8 +189,9 @@ Applying §4's matrix and §5's exception codes to the current baseline
   `adversarial` evidence from `generic-token`'s shared fixtures
   (`single-detector-family`). `contextual_secret` has `positive`,
   `near-miss negative`, and `boundary` evidence and resolves `supported` —
-  but its own host-context coverage (`javascript`, `plain-text`: 2 of 5
-  representative classes) is below what §3's type-level rule requires for
+  but its own host-context coverage (`plain-text` only: 1 of 5 representative
+  classes; see [`host-context-classes.md`](./host-context-classes.md) §4 for
+  the corrected count) is below what §3's type-level rule requires for
   the `contextual` class. That gap is real and this model does not invent
   the missing `structured-data-kv`, `shell-invocation`, or `wire-and-log`
   evidence to hide it; it is a `pending` cell for `contextual_secret`, newly
