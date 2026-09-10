@@ -653,9 +653,7 @@ mod tests {
 
     #[test]
     fn authorization_scheme_other_than_basic_or_token_is_ignored() {
-        assert!(
-            detect("Authorization: Digest SYNTHETIC_REVOKED_DIGEST_VALUE_1234").is_empty()
-        );
+        assert!(detect("Authorization: Digest SYNTHETIC_REVOKED_DIGEST_VALUE_1234").is_empty());
     }
 
     #[test]
