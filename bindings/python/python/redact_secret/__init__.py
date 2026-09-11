@@ -1,6 +1,6 @@
 """Deterministic secret detection and redaction, synchronously.
 
-``secret_scan`` wraps the ``secret_scan._native`` PyO3 extension built from
+``redact_secret`` wraps the ``redact_secret._native`` PyO3 extension built from
 the Rust core (``decision-define-runtime-bindings``). Every built-in
 detector runs; there is no custom detector callback surface. Ranges on
 every :class:`DetectedFinding` and :class:`Finding` are Unicode code point
@@ -9,25 +9,25 @@ slicing.
 
 Typical usage::
 
-    import secret_scan
+    import redact_secret
 
-    findings = secret_scan.scan(text)
-    redacted = secret_scan.redact(text, findings)
+    findings = redact_secret.scan(text)
+    redacted = redact_secret.redact(text, findings)
 
     # or, to guarantee the findings and the redacted text agree:
-    result = secret_scan.scan_and_redact(text)
+    result = redact_secret.scan_and_redact(text)
     result.text, result.findings
 
 For input that arrives in pieces, :class:`IncrementalSanitizer` sanitizes a
 bounded session chunk by chunk::
 
-    limits = secret_scan.IncrementalLimits(
+    limits = redact_secret.IncrementalLimits(
         max_input_bytes=1_000_000,
         max_buffered_bytes=16_512,
         max_token_bytes=8_192,
         max_multiline_bytes=16_384,
     )
-    with secret_scan.IncrementalSanitizer(limits) as session:
+    with redact_secret.IncrementalSanitizer(limits) as session:
         for chunk in chunks:
             print(session.append(chunk).text, end="")
         print(session.finalize().text, end="")
@@ -45,7 +45,7 @@ propagates its own error: it becomes one of the fixed exceptions below.
 
 from __future__ import annotations
 
-from secret_scan._native import (
+from redact_secret._native import (
     RANGE_UNIT,
     VERSION,
     BufferLimitExceededError,

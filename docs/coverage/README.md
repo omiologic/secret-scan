@@ -18,7 +18,7 @@ sufficient coverage evidence.
   in the crate's own source. Reconciled against the real registry and
   `DefaultPolicy` — through the crate's public API only — by
   `crates/secret-scan-core/tests/detector_inventory.rs`
-  (`cargo test -p secret-scan --test detector_inventory`). Edit this file
+  (`cargo test -p redact-secret --test detector_inventory`). Edit this file
   when a detector, its finding type(s), or its policy class changes; the
   Rust test fails the next `cargo test` run if this file falls out of sync.
 - [`inventory-report.json`](./inventory-report.json) — the generated join of
@@ -107,7 +107,7 @@ Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_cover
 `npm run ci` runs `npm run coverage:check`, which fails the build if:
 
 - the built-in detector registry or `DefaultPolicy` disagrees with
-  `detector-inventory.json` (`cargo test -p secret-scan --test
+  `detector-inventory.json` (`cargo test -p redact-secret --test
   detector_inventory`, part of the `rust-native` CI job);
 - `inventory-report.json` or `coverage-declarations.json` is out of date with
   the real registry and corpus (`coverage:check`'s committed-baseline-

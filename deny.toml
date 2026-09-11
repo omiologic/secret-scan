@@ -1,6 +1,6 @@
 # cargo-deny policy for the whole workspace. Run `cargo deny check`.
 # The per-crate dependency boundary for the core lives in Cargo.toml under
-# [workspace.metadata.secret-scan] and is enforced by
+# [workspace.metadata.redact-secret] and is enforced by
 # scripts/check-rust-workspace.py.
 
 [graph]

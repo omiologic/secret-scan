@@ -1,15 +1,15 @@
-# secret-scan for Python
+# Redact Secret for Python
 
 Deterministic secret detection and redaction for CPython, over the same Rust
 core that backs the JavaScript, Rust, and CLI surfaces of
-[secret-scan](https://github.com/omiologic/secret-scan). Every built-in
+[Redact Secret](https://github.com/omiologic/secret-scan). Every built-in
 detector runs in Rust; there is no pure-Python fallback implementation to drift
 from it.
 
-The distribution is `omiologic-secret-scan` and the import name is
-`secret_scan`. The product name is `secret-scan` everywhere, but that name on
-PyPI belongs to an unrelated project, so this distribution uses the registry
-fallback recorded in
+The distribution is `redact-secret` and the import name is
+`redact_secret`. The product name is `Redact Secret` everywhere; per PEP 503,
+`redact-secret` and `redact_secret` normalize to the same PyPI project
+identity, so no registry fallback name is needed — see
 [docs/rust-workspace.md](https://github.com/omiologic/secret-scan/blob/main/docs/rust-workspace.md#registry-names).
 
 > No release is authorized by the version currently in the development
@@ -24,7 +24,7 @@ redirect to here; that prepared redirect text lives in
 ## Install
 
 ```sh
-pip install omiologic-secret-scan
+pip install redact-secret
 ```
 
 Wheels are CPython 3.10+ `abi3`: one wheel per platform serves every supported
@@ -36,18 +36,18 @@ the source distribution, which does need Rust — see
 ## Use
 
 ```python
-import secret_scan
+import redact_secret
 
-findings = secret_scan.scan(text)
-redacted = secret_scan.redact(text, findings)
+findings = redact_secret.scan(text)
+redacted = redact_secret.redact(text, findings)
 
 # or, to guarantee the findings and the redacted text agree:
-result = secret_scan.scan_and_redact(text)
+result = redact_secret.scan_and_redact(text)
 result.text, result.findings
 ```
 
 Ranges on every `DetectedFinding` and `Finding` are Unicode code point offsets
-(`secret_scan.RANGE_UNIT == "unicode-code-points"`), so they index a `str` the
+(`redact_secret.RANGE_UNIT == "unicode-code-points"`), so they index a `str` the
 way Python itself does.
 
 For input that arrives in pieces, `IncrementalSanitizer` sanitizes a bounded
@@ -56,14 +56,14 @@ credential may cross any chunk boundary; a session carries the boundary state
 that makes it safe. Limits are mandatory and are counted in UTF-8 bytes:
 
 ```python
-limits = secret_scan.IncrementalLimits(
+limits = redact_secret.IncrementalLimits(
     max_input_bytes=1_000_000,
     max_buffered_bytes=32_896,
     max_token_bytes=8_192,
     max_multiline_bytes=32_768,
 )
 
-with secret_scan.IncrementalSanitizer(limits) as session:
+with redact_secret.IncrementalSanitizer(limits) as session:
     first = session.append("api_key=SYNTHETIC_REVOKED_")
     second = session.append("INCREMENTAL_VALUE\nordinary text")
     final = session.finalize()
@@ -110,7 +110,7 @@ and continues. To refuse that instead and fail immediately with
 `Cargo metadata failed. Do you have cargo in your PATH?`, set:
 
 ```sh
-MATURIN_NO_INSTALL_RUST=1 pip install --no-binary omiologic-secret-scan omiologic-secret-scan
+MATURIN_NO_INSTALL_RUST=1 pip install --no-binary redact-secret redact-secret
 ```
 
 Set it in any environment that must not fetch a toolchain over the network.
@@ -118,8 +118,8 @@ Set it in any environment that must not fetch a toolchain over the network.
 ## Development
 
 This directory is a mixed Rust/Python maturin project. The crate is
-`secret-scan-python`, the native module is `secret_scan._native`, and the pure
-Python package lives under `python/secret_scan/`.
+`redact-secret-python`, the native module is `redact_secret._native`, and the pure
+Python package lives under `python/redact_secret/`.
 
 - `src/lib.rs` owns CPython conversions, Unicode code point range conversion,
   and the synchronous `scan`/`redact`/`scan_and_redact` API: immutable finding
@@ -132,8 +132,8 @@ Python package lives under `python/secret_scan/`.
   session reports, by recording only where the input's UTF-8 continuation bytes
   fall - never the characters themselves - within a window bounded by the
   session's own `max_buffered_bytes`.
-- `python/secret_scan/__init__.py` re-exports the native module's public
-  surface; `python/secret_scan/_native.pyi` and `py.typed` mark the package as
+- `python/redact_secret/__init__.py` re-exports the native module's public
+  surface; `python/redact_secret/_native.pyi` and `py.typed` mark the package as
   typed.
 - `tests/` runs against a built extension and exercises the shared
   `conformance/` corpus, Unicode code point conversion, callback failure
@@ -158,7 +158,7 @@ Rebuild with `maturin develop` after any change under `src/`; `pytest` imports
 the installed extension, not the Rust sources.
 
 Packaging identity, the abi3 contract, and the wheel matrix are declared in
-`[workspace.metadata.secret-scan]` in the root `Cargo.toml` and enforced by
+`[workspace.metadata.redact-secret]` in the root `Cargo.toml` and enforced by
 `scripts/check-python-package.py`. Build and qualify artifacts with
 `scripts/qualify-python-wheel.py`; see
 [docs/python-packaging.md](https://github.com/omiologic/secret-scan/blob/main/docs/python-packaging.md).

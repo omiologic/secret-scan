@@ -40,13 +40,13 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "conformance" / "fixtures"
 
 NPM_PACKAGE = Path("packages") / "javascript"
-CRATE = "secret-scan"
+CRATE = "redact-secret"
 
 
 def declared_matrix() -> dict:
     with (ROOT / "Cargo.toml").open("rb") as handle:
         manifest = tomllib.load(handle)
-    return manifest["workspace"]["metadata"]["secret-scan"]
+    return manifest["workspace"]["metadata"]["redact-secret"]
 
 
 def digest(path: Path) -> str:
@@ -134,7 +134,7 @@ def require_matrix(matrix: dict, collected: list[dict]) -> list[str]:
     # artifact; the same for a CLI directory with no executable.
     for family, predicate, description in (
         ("node-addon", lambda f: f.endswith(".node"), "compiled .node library"),
-        ("cli", lambda f: f in ("secret-scan", "secret-scan.exe"), "executable"),
+        ("cli", lambda f: f in ("redact-secret", "redact-secret.exe"), "executable"),
     ):
         for target in sorted(families[family]):
             files = [
@@ -248,7 +248,7 @@ def main() -> int:
             "nodeSupportMajors": matrix["node-support-majors"],
         },
         "packageContents": {
-            "@omiologic/secret-scan": npm_package_contents(),
+            "@redact-secret/core": npm_package_contents(),
             f"{CRATE} (crate)": crate_contents(),
         },
         "artifacts": collected,

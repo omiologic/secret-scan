@@ -1,9 +1,9 @@
-# secret-scan
+# Redact Secret
 
 Deterministic secret detection and redaction for JavaScript, Python, Rust, and
 command-line applications.
 
-`secret-scan` inspects untrusted text before it is logged, persisted, indexed,
+Redact Secret inspects untrusted text before it is logged, persisted, indexed,
 sent to a tool, or added to model context. One side-effect-free Rust core owns
 built-in detection, overlap resolution, policy, redaction, and bounded
 incremental sanitization. Runtime bindings adapt that behavior without
@@ -19,7 +19,7 @@ the [Rust-core monorepo architecture](./ARCHITECTURE.md). Progress was tracked
 by [issue #3](https://github.com/omiologic/secret-scan/issues/3) and its linked
 sub-issues.
 
-The published `@omiologic/secret-scan` npm package is `packages/javascript`,
+The published `@redact-secret/core` npm package is `packages/javascript`,
 which loads the Rust core through Node N-API or browser WebAssembly and never
 reimplements detector, policy, or redaction behavior. The TypeScript detector
 core that previously served as the behavioral oracle has been removed; the
@@ -79,7 +79,7 @@ The replacement JavaScript package presents one typed API across Node.js and
 modern browsers. Its explicit initialization contract makes native or
 WebAssembly loading failures observable without making every scan asynchronous.
 
-On Node.js, `@omiologic/secret-scan` installs a prebuilt N-API addon for
+On Node.js, `@redact-secret/core` installs a prebuilt N-API addon for
 glibc Linux, macOS, and Windows (x64 and arm64 each: six platform packages,
 `engines.node` `20.x || 22.x || 24.x`) as an optional dependency, since npm
 ships glibc addons only — musl Linux (e.g. Alpine) has no published
@@ -89,7 +89,7 @@ host, the same failure an unsupported platform/architecture gets. See
 and how CI keeps it from drifting.
 
 ```ts
-import { initialize, scanAndRedact } from "@omiologic/secret-scan";
+import { initialize, scanAndRedact } from "@redact-secret/core";
 
 await initialize();
 
@@ -163,7 +163,7 @@ declared limit fails.
 import {
   createIncrementalSanitizer,
   initialize,
-} from "@omiologic/secret-scan";
+} from "@redact-secret/core";
 
 await initialize();
 
@@ -188,16 +188,16 @@ The same session is available to Python, where limits are UTF-8 byte counts and
 findings carry absolute Unicode code point offsets into the joined input:
 
 ```python
-import secret_scan
+import redact_secret
 
-limits = secret_scan.IncrementalLimits(
+limits = redact_secret.IncrementalLimits(
     max_input_bytes=1_000_000,
     max_buffered_bytes=32_896,
     max_token_bytes=8_192,
     max_multiline_bytes=32_768,
 )
 
-with secret_scan.IncrementalSanitizer(limits) as session:
+with redact_secret.IncrementalSanitizer(limits) as session:
     first = session.append("api_key=SYNTHETIC_REVOKED_")
     second = session.append("INCREMENTAL_VALUE\nordinary text")
     final = session.finalize()
@@ -242,7 +242,7 @@ is deliberately ignored.
 Strict prefixes, supported URI schemes, minimum lengths, bounded values, and
 placeholder exclusions favor precision. The tradeoff is that truncated, short,
 new, or unsupported credential formats can be missed. The core never performs
-runtime provider lookups, and `secret-scan` is not a complete DLP system.
+runtime provider lookups, and Redact Secret is not a complete DLP system.
 
 Whole-input operations have no implicit input-size or finding-count limit.
 Authoritative servers must bound transport bytes, decoded input, accepted
@@ -281,14 +281,14 @@ Never log raw request or tool bodies before authoritative scanning.
 
 ## CLI quick start
 
-The `secret-scan` binary is a host adapter over the same core, for CI,
+The `redact-secret` binary is a host adapter over the same core, for CI,
 pre-commit hooks, and safe redaction pipelines.
 
 ```bash
-secret-scan src/config.ts src/client.ts   # check files; exit 1 on a finding
-git diff --cached | secret-scan           # check a staged diff
-secret-scan --json .env.example           # machine-consumable safe report
-secret-scan --redact log.txt > safe.txt   # sanitize; the input is untouched
+redact-secret src/config.ts src/client.ts   # check files; exit 1 on a finding
+git diff --cached | redact-secret           # check a staged diff
+redact-secret --json .env.example           # machine-consumable safe report
+redact-secret --redact log.txt > safe.txt   # sanitize; the input is untouched
 ```
 
 Check output carries safe file identity and finding metadata only — a range
@@ -302,7 +302,7 @@ Standard input is streamed through the incremental core under explicit limits,
 because a credential may straddle any chunk boundary; a path is read whole under
 the same total-input bound. See
 [`crates/secret-scan-cli/README.md`](./crates/secret-scan-cli/README.md) for
-the full surface and `secret-scan --help` for the limits in force.
+the full surface and `redact-secret --help` for the limits in force.
 
 ## Conformance
 
@@ -336,7 +336,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
-cargo package -p secret-scan --locked
+cargo package -p redact-secret --locked
 ```
 
 Build and qualify the CPython artifacts (see
@@ -358,8 +358,8 @@ npm run artifacts:check
 npm --prefix bindings/node ci && npm --prefix bindings/node run build
 npm run js:build && npm run addon:qualify -- --target <triple>
 npm run wasm:build && npm run browser:qualify
-cargo build --release --locked -p secret-scan-cli
-npm run cli:qualify -- --binary target/release/secret-scan
+cargo build --release --locked -p redact-secret-cli
+npm run cli:qualify -- --binary target/release/redact-secret
 ```
 
 The repository layout is:
@@ -371,7 +371,7 @@ crates/secret-scan-cli  CLI host adapter
 bindings/node           Node N-API binding
 bindings/wasm           browser WebAssembly binding
 bindings/python         Python PyO3 binding and package
-packages/javascript     unified JavaScript package, published as @omiologic/secret-scan
+packages/javascript     unified JavaScript package, published as @redact-secret/core
 ```
 
 Release qualification must build and test the Rust crate, npm package, Python
@@ -381,13 +381,13 @@ Matrix` workflow is that run: it builds the N-API addon, the CPython abi3
 wheels, the browser WebAssembly artifact, and the CLI binary for every
 declared target, smoke-tests each on the architecture it targets, exercises
 the browser artifact in Chromium, Firefox, and WebKit, and records an artifact
-inventory tied to the source commit. `[workspace.metadata.secret-scan]`
+inventory tied to the source commit. `[workspace.metadata.redact-secret]`
 declares those matrices once and `npm run artifacts:check` fails when any file
 that consumes them drifts. See
 [docs/qualification.md](./docs/qualification.md).
 
 On both JavaScript runtimes the matrix goes all the way through the published
-package: it loads `@omiologic/secret-scan` on the real artifact — the N-API
+package: it loads `@redact-secret/core` on the real artifact — the N-API
 addon on every target's own runner, the WebAssembly build in each browser
 engine — and runs the canonical corpus through its public API. Neither
 artifact builds a streaming session, so `createIncrementalSanitizer` rejects

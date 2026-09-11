@@ -2,14 +2,14 @@
 //! (`decision-govern-cross-language-conformance`).
 //!
 //! The core reports every range as a UTF-8 byte [`ByteRange`]
-//! (`secret_scan::RANGE_UNIT`). JavaScript strings index by UTF-16 code unit,
+//! (`redact_secret::RANGE_UNIT`). JavaScript strings index by UTF-16 code unit,
 //! so every range this binding hands to JavaScript is converted here without
 //! changing the selected span: a Basic Multilingual Plane character advances
 //! the JavaScript offset by one code unit, and an astral (supplementary-plane)
 //! character advances it by two, unlike the core's four UTF-8 bytes or
 //! Python's one code point.
 
-use secret_scan::ByteRange;
+use redact_secret::ByteRange;
 
 use crate::util::saturating_u32;
 
@@ -35,8 +35,8 @@ fn byte_offset_to_utf16_offset(input: &str, byte_offset: usize) -> Option<usize>
 /// this falls back to `input`'s full UTF-16 length for the affected bound
 /// rather than panicking.
 ///
-/// [`Finding`]: secret_scan::Finding
-/// [`DetectedFinding`]: secret_scan::DetectedFinding
+/// [`Finding`]: redact_secret::Finding
+/// [`DetectedFinding`]: redact_secret::DetectedFinding
 pub(crate) fn to_utf16_range(input: &str, range: ByteRange) -> (u32, u32) {
     let full_length = || input.encode_utf16().count();
     let start = byte_offset_to_utf16_offset(input, range.start()).unwrap_or_else(full_length);

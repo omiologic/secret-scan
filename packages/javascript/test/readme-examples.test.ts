@@ -33,7 +33,7 @@ function typeScriptExamples(): readonly string[] {
 function importedNames(example: string, subpath = ""): readonly string[] {
   const names: string[] = [];
   const pattern = new RegExp(
-    `import(?:\\s+type)?\\s+\\{([^}]*)\\}\\s+from\\s+"@omiologic/secret-scan${subpath}"`,
+    `import(?:\\s+type)?\\s+\\{([^}]*)\\}\\s+from\\s+"@redact-secret/core${subpath}"`,
     "g",
   );
   for (const [, clause] of example.matchAll(pattern)) {
@@ -78,7 +78,7 @@ describe("README examples", () => {
         examples.flatMap((example) => importedNames(example, subpath)),
       );
 
-      expect(imported, `@omiologic/secret-scan${subpath}`).toContain(name);
+      expect(imported, `@redact-secret/core${subpath}`).toContain(name);
     }
   });
 
@@ -88,7 +88,7 @@ describe("README examples", () => {
       ["/node-stream", "adapters/node-stream.d.ts"],
       ["/web-stream", "adapters/web-stream.d.ts"],
     ]) {
-      const module = `@omiologic/secret-scan${subpath}`;
+      const module = `@redact-secret/core${subpath}`;
       const publicApi = (await import(module)) as Record<string, unknown>;
       const declared = readFileSync(
         join(PACKAGE_ROOT, "dist", declarations ?? ""),
@@ -108,7 +108,7 @@ describe("README examples", () => {
 
   it("type-checks every example against the published declarations", () => {
     // The examples must compile inside the package so that
-    // `@omiologic/secret-scan` resolves through the same `exports` map a
+    // `@redact-secret/core` resolves through the same `exports` map a
     // consumer uses, rather than through a relative path into `src/`.
     const scratch = mkdtempSync(join(PACKAGE_ROOT, ".readme-examples-"));
     try {

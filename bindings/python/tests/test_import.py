@@ -5,36 +5,36 @@ from __future__ import annotations
 
 import inspect
 
-import secret_scan
+import redact_secret
 
 
 def test_module_imports_and_declares_all() -> None:
-    assert secret_scan.__all__
-    for name in secret_scan.__all__:
-        assert hasattr(secret_scan, name), name
+    assert redact_secret.__all__
+    for name in redact_secret.__all__:
+        assert hasattr(redact_secret, name), name
 
 
 def test_version_and_range_unit_are_documented_strings() -> None:
-    assert isinstance(secret_scan.VERSION, str) and secret_scan.VERSION
-    assert secret_scan.RANGE_UNIT == "unicode-code-points"
-    assert secret_scan.__version__ == secret_scan.VERSION
+    assert isinstance(redact_secret.VERSION, str) and redact_secret.VERSION
+    assert redact_secret.RANGE_UNIT == "unicode-code-points"
+    assert redact_secret.__version__ == redact_secret.VERSION
 
 
 def test_exception_hierarchy_is_importable_and_rooted() -> None:
     subclasses = [
-        secret_scan.InvalidInputError,
-        secret_scan.InvalidOptionsError,
-        secret_scan.InvalidDetectorError,
-        secret_scan.DetectorFailureError,
-        secret_scan.InvalidCandidateError,
-        secret_scan.PolicyFailureError,
-        secret_scan.InvalidPolicyActionError,
-        secret_scan.InvalidFindingsError,
-        secret_scan.PlaceholderFailureError,
-        secret_scan.InvalidPlaceholderError,
+        redact_secret.InvalidInputError,
+        redact_secret.InvalidOptionsError,
+        redact_secret.InvalidDetectorError,
+        redact_secret.DetectorFailureError,
+        redact_secret.InvalidCandidateError,
+        redact_secret.PolicyFailureError,
+        redact_secret.InvalidPolicyActionError,
+        redact_secret.InvalidFindingsError,
+        redact_secret.PlaceholderFailureError,
+        redact_secret.InvalidPlaceholderError,
     ]
     for exc_type in subclasses:
-        assert issubclass(exc_type, secret_scan.SecretScanError)
+        assert issubclass(exc_type, redact_secret.SecretScanError)
         assert issubclass(exc_type, Exception)
 
 
@@ -42,9 +42,9 @@ def test_no_custom_detector_callback_surface() -> None:
     """`decision-define-runtime-bindings`: the first stable API excludes a
     custom detector callback surface. `scan` only accepts `text` and
     `policy`; nothing named after a detector or registry is exported."""
-    scan_params = set(inspect.signature(secret_scan.scan).parameters)
+    scan_params = set(inspect.signature(redact_secret.scan).parameters)
     assert scan_params <= {"text", "policy"}
-    for name in secret_scan.__all__:
+    for name in redact_secret.__all__:
         assert "detector" not in name.lower() or name in {
             "DetectorFailureError",
             "InvalidDetectorError",

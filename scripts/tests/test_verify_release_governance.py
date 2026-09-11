@@ -107,51 +107,51 @@ class GitHubBranchTests(unittest.TestCase):
 
 class NpmTests(unittest.TestCase):
     def test_missing_package(self) -> None:
-        reader = FakeReader({"https://registry.npmjs.org/@omiologic/secret-scan": None})
-        result = VERIFY.check_npm_package(reader, "@omiologic/secret-scan")
-        self.assertEqual(result, {"check": "npm", "package": "@omiologic/secret-scan", "exists": False})
+        reader = FakeReader({"https://registry.npmjs.org/@redact-secret/core": None})
+        result = VERIFY.check_npm_package(reader, "@redact-secret/core")
+        self.assertEqual(result, {"check": "npm", "package": "@redact-secret/core", "exists": False})
 
     def test_existing_package_reports_maintainers(self) -> None:
         reader = FakeReader(
             {
-                "https://registry.npmjs.org/@omiologic/secret-scan": {
+                "https://registry.npmjs.org/@redact-secret/core": {
                     "maintainers": [{"name": "release-bot"}, {"name": "octocat"}]
                 }
             }
         )
-        result = VERIFY.check_npm_package(reader, "@omiologic/secret-scan")
+        result = VERIFY.check_npm_package(reader, "@redact-secret/core")
         self.assertEqual(result["maintainer_identities"], ["octocat", "release-bot"])
 
 
 class CrateTests(unittest.TestCase):
     def test_nonexistent_crate(self) -> None:
-        reader = FakeReader({"https://crates.io/api/v1/crates/secret-scan": None})
-        result = VERIFY.check_crate(reader, "secret-scan")
-        self.assertEqual(result, {"check": "crate", "crate": "secret-scan", "exists": False})
+        reader = FakeReader({"https://crates.io/api/v1/crates/redact-secret": None})
+        result = VERIFY.check_crate(reader, "redact-secret")
+        self.assertEqual(result, {"check": "crate", "crate": "redact-secret", "exists": False})
 
     def test_existing_crate_reports_owners(self) -> None:
         reader = FakeReader(
             {
-                "https://crates.io/api/v1/crates/secret-scan": {"crate": {"name": "secret-scan"}},
-                "https://crates.io/api/v1/crates/secret-scan/owners": {
+                "https://crates.io/api/v1/crates/redact-secret": {"crate": {"name": "redact-secret"}},
+                "https://crates.io/api/v1/crates/redact-secret/owners": {
                     "users": [{"login": "octocat"}, {"login": "release-bot"}]
                 },
             }
         )
-        result = VERIFY.check_crate(reader, "secret-scan")
+        result = VERIFY.check_crate(reader, "redact-secret")
         self.assertEqual(result["owner_identities"], ["octocat", "release-bot"])
 
 
 class PypiTests(unittest.TestCase):
     def test_reports_existence_and_defers_trusted_publisher_check(self) -> None:
-        reader = FakeReader({"https://pypi.org/pypi/omiologic-secret-scan/json": {"info": {}}})
-        result = VERIFY.check_pypi_project(reader, "omiologic-secret-scan")
+        reader = FakeReader({"https://pypi.org/pypi/redact-secret/json": {"info": {}}})
+        result = VERIFY.check_pypi_project(reader, "redact-secret")
         self.assertTrue(result["exists"])
         self.assertIn("Manage -> Publishing", result["trusted_publisher_configured"])
 
     def test_nonexistent_project(self) -> None:
-        reader = FakeReader({"https://pypi.org/pypi/omiologic-secret-scan/json": None})
-        result = VERIFY.check_pypi_project(reader, "omiologic-secret-scan")
+        reader = FakeReader({"https://pypi.org/pypi/redact-secret/json": None})
+        result = VERIFY.check_pypi_project(reader, "redact-secret")
         self.assertFalse(result["exists"])
 
 
@@ -185,9 +185,9 @@ class BuildEvidenceTests(unittest.TestCase):
         )
         http_reader = FakeReader(
             {
-                "https://registry.npmjs.org/@omiologic/secret-scan": {"maintainers": []},
-                "https://crates.io/api/v1/crates/secret-scan": None,
-                "https://pypi.org/pypi/omiologic-secret-scan/json": None,
+                "https://registry.npmjs.org/@redact-secret/core": {"maintainers": []},
+                "https://crates.io/api/v1/crates/redact-secret": None,
+                "https://pypi.org/pypi/redact-secret/json": None,
             }
         )
         evidence = VERIFY.build_evidence(
@@ -196,9 +196,9 @@ class BuildEvidenceTests(unittest.TestCase):
             repo="o/r",
             environment="release",
             branch="main",
-            npm_packages=["@omiologic/secret-scan"],
-            crates=["secret-scan"],
-            pypi_project="omiologic-secret-scan",
+            npm_packages=["@redact-secret/core"],
+            crates=["redact-secret"],
+            pypi_project="redact-secret",
         )
         blob = str(evidence).lower()
         for forbidden in ("token", "secret_value", "password", "npm_token", "cargo_registry_token"):

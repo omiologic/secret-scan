@@ -12,12 +12,12 @@ behavioral contract is now the fixture corpus under `conformance/fixtures/`
 
 | Path | Cargo package | Role | May depend on | Publishes as |
 | --- | --- | --- | --- | --- |
-| `crates/secret-scan-core` | `secret-scan` (lib `secret_scan`) | Canonical detection, overlap resolution, policy, redaction, incremental sanitization. UTF-8 byte offsets. | `std` and the allowlist in `[workspace.metadata.secret-scan]` (currently empty) | crates.io `secret-scan` |
-| `crates/secret-scan-cli` | `secret-scan-cli` (bin `secret-scan`) | Host adapter for process arguments, standard streams, exit codes, and files. | core, host crates | CLI artifact of the same version |
-| `bindings/node` | `secret-scan-node` (cdylib) | N-API addon; UTF-16 code unit ranges. | core, `napi`, `napi-derive`, `napi-build` | Consumed by `packages/javascript`; never on its own |
-| `bindings/wasm` | `secret-scan-wasm` (cdylib) | `wasm-bindgen` browser build; UTF-16 code unit ranges. | core, `wasm-bindgen` | Consumed by `packages/javascript`; never on its own |
-| `bindings/python` | `secret-scan-python` (cdylib, module `secret_scan._native`) | PyO3 extension built by maturin; Unicode code point ranges. | core, `pyo3` | PyPI `omiologic-secret-scan` (imported as `secret_scan`) |
-| `packages/javascript` | none | The `@omiologic/secret-scan` npm package: one typed API whose `exports` map selects the Node addon or the wasm build, with the shared `await initialize()` contract. | Node and wasm bindings | npm `@omiologic/secret-scan` |
+| `crates/secret-scan-core` | `redact-secret` (lib `redact_secret`) | Canonical detection, overlap resolution, policy, redaction, incremental sanitization. UTF-8 byte offsets. | `std` and the allowlist in `[workspace.metadata.redact-secret]` (currently empty) | crates.io `redact-secret` |
+| `crates/secret-scan-cli` | `redact-secret-cli` (bin `redact-secret`) | Host adapter for process arguments, standard streams, exit codes, and files. | core, host crates | CLI artifact of the same version |
+| `bindings/node` | `redact-secret-node` (cdylib) | N-API addon; UTF-16 code unit ranges. | core, `napi`, `napi-derive`, `napi-build` | Consumed by `packages/javascript`; never on its own |
+| `bindings/wasm` | `redact-secret-wasm` (cdylib) | `wasm-bindgen` browser build; UTF-16 code unit ranges. | core, `wasm-bindgen` | Consumed by `packages/javascript`; never on its own |
+| `bindings/python` | `redact-secret-python` (cdylib, module `redact_secret._native`) | PyO3 extension built by maturin; Unicode code point ranges. | core, `pyo3` | PyPI `redact-secret` (imported as `redact_secret`) |
+| `packages/javascript` | none | The `@redact-secret/core` npm package: one typed API whose `exports` map selects the Node addon or the wasm build, with the shared `await initialize()` contract. | Node and wasm bindings | npm `@redact-secret/core` |
 
 Bindings and the CLI translate host APIs to the core. They never reimplement
 detector behavior, and they convert ranges without changing the selected span.
@@ -28,10 +28,10 @@ requires before the separately created `secret-scan-python` GitHub repository
 yet applied, in
 [`docs/python-repository-redirect.md`](./python-repository-redirect.md).
 
-### One manifest named `@omiologic/secret-scan`
+### One manifest named `@redact-secret/core`
 
 `packages/javascript` is the only tracked manifest that declares the package
-name `@omiologic/secret-scan`; it is what `npm publish` publishes. The
+name `@redact-secret/core`; it is what `npm publish` publishes. The
 repository root `package.json` is private tooling for this monorepo and
 declares no package name of its own. This was not always true: until
 `RB-2` (issue #72) cut the published artifact over, the repository-root
@@ -47,10 +47,10 @@ bindings, and it must not reimplement detector behavior. Build it with
 It depends on those bindings the N-API way
 (`decision-ship-first-release-artifact-set`): an `optionalDependencies` entry
 per `bindings/node/package.json`'s `napi.targets`
-(`@omiologic/secret-scan-<platform>`, `os`/`cpu`/`libc`-scoped so npm skips
+(`@redact-secret/node-<platform>`, `os`/`cpu`/`libc`-scoped so npm skips
 the ones that do not match a given install), resolved at runtime by
 `process.platform`/`process.arch` in `src/runtime/node.ts`, plus an ordinary
-`dependencies` entry on `@omiologic/secret-scan-wasm`. Neither the platform
+`dependencies` entry on `@redact-secret/wasm`. Neither the platform
 packages nor the wasm package is published yet.
 
 Publishing them is not a separate one-time action gated apart from
@@ -100,7 +100,7 @@ Two layers apply:
 - `deny.toml` (`cargo deny check`) allows only crates.io as a source,
   restricts licenses to the listed permissive set, denies yanked crates and
   known advisories, and denies wildcard requirements.
-- `[workspace.metadata.secret-scan]` in the root `Cargo.toml` declares the
+- `[workspace.metadata.redact-secret]` in the root `Cargo.toml` declares the
   core boundary. `npm run rust:check` walks the core's transitive normal and
   build dependency graph from `cargo metadata` and fails when a package is
   missing from `allowed-dependencies` or present in
@@ -122,14 +122,14 @@ places that must agree:
   crate root is private; the crate root re-exports the names that are public,
   and its documentation opens with a "Public surface" table that names them
   all.
-- `[workspace.metadata.secret-scan] core-public-api` in the root `Cargo.toml`
+- `[workspace.metadata.redact-secret] core-public-api` in the root `Cargo.toml`
   lists those names. `npm run rust:check` fails when the crate root exports a
   name the list does not carry, when the list names an export that is gone,
   and when the documented table and the list disagree in either direction —
   so a change to the published surface is always a reviewed manifest change,
   and the documentation cannot quietly fall behind it.
 - `crates/secret-scan-core/tests/public_api.rs` uses every one of them
-  through a `secret_scan::` path, the way a dependent crate does, and pins
+  through a `redact_secret::` path, the way a dependent crate does, and pins
   the range contract, the `scan_and_redact` ≡ `scan` + `redact` equivalence
   over the canonical corpus, and the sanitized-error shape.
 
@@ -209,7 +209,7 @@ of its own — it is covered by the Cargo member check. The repository root
 version-locked to the product: `RB-2` (issue #72) removed it from
 `LOCKSTEP_MANIFESTS` when it cut the published npm artifact over to
 `packages/javascript`, the only manifest that still declares
-`@omiologic/secret-scan`.
+`@redact-secret/core`.
 
 `packages/javascript` first publishes under whatever version is current in
 this lockstep set; publishing it, and its platform and wasm dependencies, for
@@ -242,24 +242,24 @@ table together, and note the change in the changelog.
 
 ## Registry names
 
-The product name is `secret-scan` for every artifact. Registry names may
-differ (`decision-release-bindings-in-lockstep`).
+The product name is `Redact Secret` for every artifact
+(`decision-adopt-redact-secret-naming-contract`). Registry names may differ
+from the product name in principle (`decision-release-bindings-in-lockstep`),
+but this identity clears every registry directly, so no fallback name is
+needed anywhere.
 
-- crates.io: the preferred crate name `secret-scan` was rechecked on
-  2026-09-09, before the crate manifests were finalized, and is available; so
-  is `secret_scan`, which crates.io treats as the same name. `secret-scan-cli`
-  and the fallback `omiologic-secret-scan` are also available. If
-  `secret-scan` is taken before the first publication, the registry fallback is
-  `omiologic-secret-scan` for the core and `omiologic-secret-scan-cli` for the
-  CLI; the product name, binary name, and library path `secret_scan` do not
-  change. Recheck before publication with
+- crates.io: `redact-secret` and `redact-secret-cli` were rechecked on
+  2026-09-10 and are both available; so is `redact_secret`, which crates.io
+  treats as the same name as `redact-secret`. Recheck before publication with
   `python3 scripts/check-rust-workspace.py --recheck-crate-name`.
-- npm: `@omiologic/secret-scan` is the existing package name.
-- PyPI: `secret-scan` belongs to an unrelated project, verified 2026-09-09 and
-  rechecked when the packaging contract was written, so the distribution takes
-  the fallback `omiologic-secret-scan`, which is available. The import name
-  stays `secret_scan`. The name is declared in
-  `[workspace.metadata.secret-scan] python-distribution` and enforced by
+- npm: `@redact-secret/core` is the package name; the `@redact-secret`
+  organization is owned by the project operator (`decision-adopt-redact-secret-naming-contract`).
+- PyPI: `redact-secret` was rechecked on 2026-09-10 and is available; unlike
+  the previous identity, it does not collide with an unrelated project, so no
+  registry fallback is needed. Per PEP 503, `redact-secret` and the import
+  name `redact_secret` normalize to the same PyPI project identity. The
+  distribution name is declared in
+  `[workspace.metadata.redact-secret] python-distribution` and enforced by
   `npm run python:check`. Recheck before publication with
   `python3 scripts/check-python-package.py --recheck-pypi-name`; see
   [docs/python-packaging.md](./python-packaging.md).
@@ -271,9 +271,9 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
-cargo package -p secret-scan --locked
-cargo run --quiet --locked -p secret-scan-cli -- --version
-cargo check -p secret-scan -p secret-scan-wasm --target wasm32-unknown-unknown --locked
+cargo package -p redact-secret --locked
+cargo run --quiet --locked -p redact-secret-cli -- --version
+cargo check -p redact-secret -p redact-secret-wasm --target wasm32-unknown-unknown --locked
 cargo +1.88 check --workspace --all-targets --locked
 cargo deny check
 npm run rust:check
@@ -298,7 +298,7 @@ python3 scripts/check-python-package.py --recheck-pypi-name
 
 The CPython distribution's identity, its abi3 contract, its wheel matrix, and
 how each artifact is qualified are declared in the same
-`[workspace.metadata.secret-scan]` table and documented separately in
+`[workspace.metadata.redact-secret]` table and documented separately in
 [docs/python-packaging.md](./python-packaging.md). `npm run python:check`
 enforces that contract and runs in `npm run ci`;
 `.github/workflows/python-wheels.yml` builds and qualifies the artifacts.

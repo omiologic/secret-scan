@@ -81,7 +81,7 @@ type NoDetectorFactory = Expect<IsAbsent<"createDetectorRegistry">>;
 type NoBuiltInDetectors = Expect<IsAbsent<"builtInDetectors">>;
 type NoEntropyHelper = Expect<IsAbsent<"calculateShannonEntropy">>;
 type NoNativeHandle = Expect<IsAbsent<"NATIVE_HANDLE">>;
-type NoRuntimeFactory = Expect<IsAbsent<"createSecretScanRuntime">>;
+type NoRuntimeFactory = Expect<IsAbsent<"createRedactSecretRuntime">>;
 type NoImplementationLookaround = Expect<
   IsAbsent<"INCREMENTAL_LOOKAROUND_CODE_UNITS">
 >;

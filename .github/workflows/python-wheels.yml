@@ -1,7 +1,7 @@
 name: Python wheels
 
 # Builds and qualifies the CPython artifacts declared by
-# `[workspace.metadata.secret-scan]` in the root Cargo.toml: one abi3 wheel per
+# `[workspace.metadata.redact-secret]` in the root Cargo.toml: one abi3 wheel per
 # supported target plus a source distribution.
 #
 # Every wheel is smoke-tested on the architecture it was built for, on the abi3

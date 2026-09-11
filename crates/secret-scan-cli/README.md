@@ -1,17 +1,17 @@
-# secret-scan-cli
+# redact-secret-cli
 
-Binary name: `secret-scan`. Path: `crates/secret-scan-cli`.
+Binary name: `redact-secret`. Path: `crates/secret-scan-cli`.
 
-The CLI is a host adapter over the `secret-scan` core crate. It may use the
+The CLI is a host adapter over the `redact-secret` core crate. It may use the
 process environment, standard streams, and the filesystem; the core may not.
 Every detection, policy, and redaction decision comes from the core, so a given
 input produces the same findings here, in the library, and in every binding.
 
 ```text
-usage: secret-scan [--json] [--] [<path>...]
-       secret-scan --redact [--] [<path>]
-       secret-scan --version | -V
-       secret-scan --help | -h
+usage: redact-secret [--json] [--] [<path>...]
+       redact-secret --redact [--] [<path>]
+       redact-secret --version | -V
+       redact-secret --help | -h
 ```
 
 ## Check mode
@@ -20,9 +20,9 @@ The default. Reads standard input when no path is given, and otherwise reads
 every path in the order it was given.
 
 ```bash
-secret-scan src/config.ts src/client.ts   # scan files
-git diff --cached | secret-scan           # scan a staged diff
-secret-scan --json .env.example           # machine-consumable report
+redact-secret src/config.ts src/client.ts   # scan files
+git diff --cached | redact-secret           # scan a staged diff
+redact-secret --json .env.example           # machine-consumable report
 ```
 
 Output carries safe file identity and finding metadata only. A range names a
@@ -36,7 +36,7 @@ has the input available to resolve one.
 `--json` writes one object with `version`, `rangeUnit`, `findingCount`, a
 `sources` array of `{source, findings}`, and a `failures` array of
 `{source, code, message}`. Ranges are UTF-8 byte offsets into the original
-input, the unit `secret_scan::RANGE_UNIT` names. `id` is unique across the
+input, the unit `redact_secret::RANGE_UNIT` names. `id` is unique across the
 whole report: the core numbers each scan from `finding-1` and a multi-file
 check runs one scan per file, so the report renumbers run-wide rather than
 handing a consumer colliding keys.
@@ -48,8 +48,8 @@ text to standard output. The input is never modified in place, and no path is
 ever opened for writing.
 
 ```bash
-secret-scan --redact log.txt > log.redacted.txt
-kubectl logs pod | secret-scan --redact
+redact-secret --redact log.txt > log.redacted.txt
+kubectl logs pod | redact-secret --redact
 ```
 
 Standard input is sanitized as it streams, so a failure part way through leaves

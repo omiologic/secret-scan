@@ -14,7 +14,7 @@
 
 mod support;
 
-use secret_scan::ByteRange;
+use redact_secret::ByteRange;
 
 #[test]
 fn every_fixture_range_is_char_aligned_and_selects_its_declared_span() {

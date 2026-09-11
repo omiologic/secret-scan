@@ -1,11 +1,11 @@
-# secret-scan (Rust core)
+# redact-secret (Rust core)
 
 Deterministic secret detection and redaction. This crate is the canonical
-implementation of the `secret-scan` product; every language binding
+implementation of the Redact Secret product; every language binding
 translates to it rather than reimplementing detector behavior.
 
-Path: `crates/secret-scan-core`. Registry name: `secret-scan` (library
-`secret_scan`); see
+Path: `crates/secret-scan-core`. Registry name: `redact-secret` (library
+`redact_secret`); see
 [docs/rust-workspace.md](../../docs/rust-workspace.md#registry-names).
 
 ## Boundary
@@ -17,7 +17,7 @@ Path: `crates/secret-scan-core`. Registry name: `secret-scan` (library
   target-specific dependencies. A dependent gets one shape of this crate.
 - `#![forbid(unsafe_code)]`.
 - Public ranges are UTF-8 byte offsets into the original input
-  (`secret_scan::RANGE_UNIT`). Bindings convert to their host unit without
+  (`redact_secret::RANGE_UNIT`). Bindings convert to their host unit without
   changing the selected span.
 - Errors are sanitized: a fixed code and message, never an input fragment, a
   matched value, or a placeholder.
@@ -29,7 +29,7 @@ boundary declared in the root `Cargo.toml`.
 ## Public API
 
 ```rust
-use secret_scan::{
+use redact_secret::{
     DefaultPolicy, DetectorRegistry, default_placeholder_formatter, scan_and_redact,
 };
 
@@ -44,7 +44,7 @@ let range = result.findings()[0].range();
 assert_eq!(&input[range.start()..range.end()], "ghp_SYNTHETICREVOKED00000000000000000000");
 ```
 
-(The same example runs as a doctest on `secret_scan`'s crate-level
+(The same example runs as a doctest on `redact_secret`'s crate-level
 documentation, inside a function that returns `Result`.)
 
 | Concern | API |
@@ -69,10 +69,10 @@ retention tuning is derived through
 `IncrementalLimits::minimum_buffered_bytes` rather than exposed as a
 constant, so both can change without breaking a caller.
 
-`[workspace.metadata.secret-scan] core-public-api` in the root `Cargo.toml`
+`[workspace.metadata.redact-secret] core-public-api` in the root `Cargo.toml`
 repeats that surface name by name, and
 `crates/secret-scan-core/tests/public_api.rs` exercises each one through a
-`secret_scan::` path — so a name cannot join or leave the API without a
+`redact_secret::` path — so a name cannot join or leave the API without a
 reviewed manifest change.
 
 ## Behavior

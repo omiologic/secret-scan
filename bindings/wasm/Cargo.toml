@@ -1,6 +1,6 @@
 [package]
-name = "secret-scan-wasm"
-description = "wasm-bindgen WebAssembly build exposing the secret-scan core to browsers."
+name = "redact-secret-wasm"
+description = "wasm-bindgen WebAssembly build exposing the redact-secret core to browsers."
 readme = "README.md"
 version.workspace = true
 edition.workspace = true
@@ -15,7 +15,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-secret-scan.workspace = true
+redact-secret.workspace = true
 wasm-bindgen.workspace = true
 js-sys = "0.3"
 

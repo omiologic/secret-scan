@@ -12,11 +12,11 @@
  * conversion, redaction, and the sanitized error contract
  * (`decision-govern-cross-language-conformance`).
  * `scripts/browser-package-harness.mjs`, bundled the way a consumer bundles
- * it, drives the published `@omiologic/secret-scan` public API on top of the
+ * it, drives the published `@redact-secret/core` public API on top of the
  * same artifact.
  *
  * Chromium, Firefox, and WebKit are the supported engines, declared in
- * `[workspace.metadata.secret-scan] browser-engines`, and
+ * `[workspace.metadata.redact-secret] browser-engines`, and
  * `scripts/check-artifact-matrix.py` keeps this list and the workflow
  * matrix in agreement. Usage:
  *
@@ -53,7 +53,7 @@ const PACKAGE_ENTRY = join(REPO_ROOT, "packages", "javascript", "dist", "index.j
 const ENGINES = ["chromium", "firefox", "webkit"];
 
 /** The artifact files the page loads, copied next to the harness. */
-const ARTIFACT_FILES = ["secret_scan_wasm.js", "secret_scan_wasm_bg.wasm"];
+const ARTIFACT_FILES = ["redact_secret_wasm.js", "redact_secret_wasm_bg.wasm"];
 
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -77,7 +77,7 @@ const PAGES = [
 function renderPage(module) {
   return `<!doctype html>
 <meta charset="utf-8">
-<title>secret-scan browser qualification</title>
+<title>redact-secret browser qualification</title>
 <script type="module">
   import { qualify } from "${module}";
   const fixtures = await (await fetch("./fixtures.json")).json();
@@ -172,8 +172,8 @@ async function bundlePackageHarness(artifactDir, outFile) {
     platform: "browser",
     conditions: ["browser", "import"],
     alias: {
-      "@omiologic/secret-scan": PACKAGE_ENTRY,
-      "@omiologic/secret-scan-wasm": join(artifactDir, "secret_scan_wasm.js"),
+      "@redact-secret/core": PACKAGE_ENTRY,
+      "@redact-secret/wasm": join(artifactDir, "redact_secret_wasm.js"),
     },
     logLevel: "silent",
   });
@@ -186,7 +186,7 @@ async function stageServeDirectory(artifactDir) {
   if (!existsSync(PACKAGE_ENTRY)) {
     fail(`${PACKAGE_ENTRY}: missing; build the package with \`npm run js:build\``);
   }
-  const directory = mkdtempSync(join(tmpdir(), "secret-scan-browser-"));
+  const directory = mkdtempSync(join(tmpdir(), "redact-secret-browser-"));
   for (const name of ARTIFACT_FILES) {
     try {
       copyFileSync(join(artifactDir, name), join(directory, name));

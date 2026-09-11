@@ -1,4 +1,4 @@
-"""Shared fixtures for the secret_scan test suite.
+"""Shared fixtures for the redact_secret test suite.
 
 Loads canonical fixtures from the top-level, language-neutral `conformance/`
 corpus (`decision-govern-cross-language-conformance`) rather than
@@ -53,17 +53,17 @@ GENEROUS_LIMITS = {
 
 def generous_limits() -> Any:
     """A fresh `IncrementalLimits` no corpus fixture can reach."""
-    import secret_scan
+    import redact_secret
 
-    return secret_scan.IncrementalLimits(**GENEROUS_LIMITS)
+    return redact_secret.IncrementalLimits(**GENEROUS_LIMITS)
 
 
 def run_session(chunks: Sequence[str], limits: Any | None = None) -> tuple[str, list[Any]]:
     """Runs `chunks` through one session - one `append` each, then one
     `finalize` - and returns the concatenated text and findings."""
-    import secret_scan
+    import redact_secret
 
-    session = secret_scan.IncrementalSanitizer(limits or generous_limits())
+    session = redact_secret.IncrementalSanitizer(limits or generous_limits())
     text = ""
     findings: list[Any] = []
     for chunk in chunks:

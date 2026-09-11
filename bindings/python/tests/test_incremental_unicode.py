@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-import secret_scan
+import redact_secret
 
 from .conftest import (
     code_point_partitions,
@@ -53,7 +53,7 @@ def test_every_case_carries_an_astral_character_and_a_finding(text: str) -> None
     """A case with no astral character, or no finding, would make the
     assertions below pass without exercising anything."""
     assert ASTRAL in text
-    assert secret_scan.scan(text)
+    assert redact_secret.scan(text)
 
 
 def test_the_cases_include_offsets_that_diverge_from_utf8_bytes() -> None:
@@ -63,7 +63,7 @@ def test_the_cases_include_offsets_that_diverge_from_utf8_bytes() -> None:
     diverging = [
         text
         for text in CASES.values()
-        for finding in secret_scan.scan(text)
+        for finding in redact_secret.scan(text)
         if finding.start != _utf8_length(text, finding.start)
         or finding.end != _utf8_length(text, finding.end)
     ]
@@ -72,7 +72,7 @@ def test_the_cases_include_offsets_that_diverge_from_utf8_bytes() -> None:
 
 @pytest.mark.parametrize("text", CASES.values(), ids=list(CASES))
 def test_every_partition_reproduces_the_whole_input_result(text: str) -> None:
-    reference = secret_scan.scan_and_redact(text)
+    reference = redact_secret.scan_and_redact(text)
     expected = [(f.id, f.type, f.action, f.start, f.end) for f in reference.findings]
 
     for chunks in code_point_partitions(text) + [single_code_point_partition(text)]:
@@ -92,7 +92,7 @@ def test_reported_offsets_index_the_joined_chunks(text: str) -> None:
     _, findings = run_session(chunks)
     joined = "".join(chunks)
 
-    reference = {(f.start, f.end) for f in secret_scan.scan(text)}
+    reference = {(f.start, f.end) for f in redact_secret.scan(text)}
     assert {(f.start, f.end) for f in findings} == reference
     for finding in findings:
         assert 0 <= finding.start < finding.end <= len(joined)

@@ -22,7 +22,7 @@
 # - each missing npm dependency package is reconciled with
 #   `scripts/publish-dependency-package.mjs`, from the exact qualified
 #   artifact the original run built, never rebuilt here;
-# - `secret-scan-cli` is only published after `secret-scan` (core) is
+# - `redact-secret-cli` is only published after `redact-secret` (core) is
 #   verified, by content checksum, to belong to this source revision --
 #   `scripts/reconcile-artifact-plan.py` enforces that ordering so a
 #   conflicting or unverifiable core publication can never let a CLI crate
@@ -88,7 +88,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-          scope: '@omiologic'
+          scope: '@redact-secret'
 
       - name: Set up stable Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
@@ -205,8 +205,8 @@ jobs:
           gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
             --field ref="refs/tags/$tag_name" --field sha="$tag_object"
 
-      # Reconciles each of the six native `@omiologic/secret-scan-<platform>`
-      # packages and `@omiologic/secret-scan-wasm` independently
+      # Reconciles each of the six native `@redact-secret/node-<platform>`
+      # packages and `@redact-secret/wasm` independently
       # (`scripts/reconcile-artifact-plan.py`'s `plan_independent` shape):
       # already-published packages are left alone,
       # `scripts/publish-dependency-package.mjs` republishes nothing whose
@@ -261,12 +261,12 @@ jobs:
 
           for platform in "${!PLATFORM_TARGETS[@]}"; do
             target=${PLATFORM_TARGETS[$platform]}
-            reconcile_dependency "bindings/node/npm/$platform" "node-addon-$target" "secret-scan.$platform.node"
+            reconcile_dependency "bindings/node/npm/$platform" "node-addon-$target" "redact-secret.$platform.node"
           done
 
-          reconcile_dependency "bindings/wasm/npm" "wasm-web" "secret_scan_wasm*"
+          reconcile_dependency "bindings/wasm/npm" "wasm-web" "redact_secret_wasm*"
 
-      # `secret-scan-cli`'s Cargo.toml depends on `secret-scan`'s registry
+      # `redact-secret-cli`'s Cargo.toml depends on `redact-secret`'s registry
       # release, so publishing it after only checking crates.io's raw
       # "is a version there" status would let a CLI ship against a core
       # publication nobody verified belongs to this source revision.
@@ -316,13 +316,13 @@ jobs:
             fi
           }
 
-          jq -s 'add' <(observe secret-scan) <(observe secret-scan-cli) > crate-observations.json
+          jq -s 'add' <(observe redact-secret) <(observe redact-secret-cli) > crate-observations.json
           cat crate-observations.json
 
           set +e
           plan=$(python3 -B scripts/reconcile-artifact-plan.py \
             --observations crate-observations.json \
-            --crate-pair secret-scan secret-scan-cli)
+            --crate-pair redact-secret redact-secret-cli)
           plan_status=$?
           set -e
           echo "$plan"
@@ -332,8 +332,8 @@ jobs:
             exit 1
           fi
 
-          core_action=$(jq -r '."secret-scan".action' <<<"$plan")
-          cli_action=$(jq -r '."secret-scan-cli".action' <<<"$plan")
+          core_action=$(jq -r '."redact-secret".action' <<<"$plan")
+          cli_action=$(jq -r '."redact-secret-cli".action' <<<"$plan")
 
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             echo "dry run: core=$core_action cli=$cli_action; publishing nothing."
@@ -341,15 +341,15 @@ jobs:
           fi
 
           if [[ "$core_action" == "publish" ]]; then
-            cargo publish -p secret-scan --manifest-path "$manifest_path" --locked
+            cargo publish -p redact-secret --manifest-path "$manifest_path" --locked
             for attempt in 1 2 3 4 5 6; do
-              status=$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/secret-scan/$version")
+              status=$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/redact-secret/$version")
               [[ "$status" == "200" ]] && break
               sleep 10
             done
           fi
           if [[ "$cli_action" == "publish" ]]; then
-            cargo publish -p secret-scan-cli --manifest-path "$manifest_path" --locked
+            cargo publish -p redact-secret-cli --manifest-path "$manifest_path" --locked
           fi
 
       # The PyPI distribution's build (wheels + source distribution) is never

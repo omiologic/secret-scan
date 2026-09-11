@@ -84,16 +84,16 @@ const PLATFORM_PACKAGES: Readonly<
   Partial<Record<string, Readonly<Partial<Record<string, string>>>>>
 > = {
   darwin: {
-    arm64: "@omiologic/secret-scan-darwin-arm64",
-    x64: "@omiologic/secret-scan-darwin-x64",
+    arm64: "@redact-secret/node-darwin-arm64",
+    x64: "@redact-secret/node-darwin-x64",
   },
   linux: {
-    arm64: "@omiologic/secret-scan-linux-arm64-gnu",
-    x64: "@omiologic/secret-scan-linux-x64-gnu",
+    arm64: "@redact-secret/node-linux-arm64-gnu",
+    x64: "@redact-secret/node-linux-x64-gnu",
   },
   win32: {
-    arm64: "@omiologic/secret-scan-win32-arm64-msvc",
-    x64: "@omiologic/secret-scan-win32-x64-msvc",
+    arm64: "@redact-secret/node-win32-arm64-msvc",
+    x64: "@redact-secret/node-win32-x64-msvc",
   },
 };
 

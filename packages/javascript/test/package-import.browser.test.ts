@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 /** The artifacts a browser build resolves lazily, at `initialize()` time. */
-const EXTERNAL_ARTIFACTS = ["@omiologic/secret-scan-wasm"];
+const EXTERNAL_ARTIFACTS = ["@redact-secret/wasm"];
 
 async function bundleForBrowser(contents: string): Promise<string> {
   const result = await build({
@@ -33,7 +33,7 @@ describe("browser package import", () => {
   it("bundles and evaluates the package entry point", async () => {
     const output = await bundleForBrowser(
       [
-        'import * as api from "@omiologic/secret-scan";',
+        'import * as api from "@redact-secret/core";',
         "globalThis.secretScanExports = Object.keys(api).sort();",
         "globalThis.secretScanRangeUnit = api.RANGE_UNIT;",
       ].join("\n"),
@@ -65,7 +65,7 @@ describe("browser package import", () => {
   it("bundles the Web adapter without resolving a Node-only module", async () => {
     const output = await bundleForBrowser(
       [
-        'import { createWebStreamSanitizer, WebStreamSanitizer } from "@omiologic/secret-scan/web-stream";',
+        'import { createWebStreamSanitizer, WebStreamSanitizer } from "@redact-secret/core/web-stream";',
         "globalThis.secretScanWebStream = [",
         "  typeof createWebStreamSanitizer,",
         "  WebStreamSanitizer.prototype instanceof TransformStream,",
@@ -88,7 +88,7 @@ describe("browser package import", () => {
   it("refuses synchronous operations before initialize succeeds", async () => {
     const output = await bundleForBrowser(
       [
-        'import { scan, SecretScanError } from "@omiologic/secret-scan";',
+        'import { scan, SecretScanError } from "@redact-secret/core";',
         "try { scan('API_KEY=SYNTHETIC_REVOKED_VALUE'); }",
         "catch (error) {",
         "  globalThis.secretScanBrowserError = {",
@@ -111,7 +111,7 @@ describe("browser package import", () => {
       isSecretScanError: true,
       code: "NOT_INITIALIZED",
       message:
-        "secret-scan is not initialized; await initialize() before this call.",
+        "redact-secret is not initialized; await initialize() before this call.",
     });
   });
 });

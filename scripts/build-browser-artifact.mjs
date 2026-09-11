@@ -5,11 +5,11 @@
  * `cargo build` produces the `wasm32-unknown-unknown` cdylib and
  * `wasm-bindgen` generates the ES module glue for the `web` target, so the
  * emitted directory is loadable by a browser directly from a static server:
- * the generated `default()` init resolves `secret_scan_wasm_bg.wasm` relative
+ * the generated `default()` init resolves `redact_secret_wasm_bg.wasm` relative
  * to its own `import.meta.url`.
  *
  * Only the four generated files are emitted. The published manifest for
- * `@omiologic/secret-scan-wasm` lives at `bindings/wasm/npm/package.json`
+ * `@redact-secret/wasm` lives at `bindings/wasm/npm/package.json`
  * (issue #79), and `scripts/qualify-package-consumer.mjs` copies this
  * directory over it, so a manifest emitted here would overwrite it.
  *
@@ -28,9 +28,9 @@ import { fileURLToPath } from "node:url";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** The crate whose cdylib becomes the browser artifact. */
-const CRATE = "secret-scan-wasm";
+const CRATE = "redact-secret-wasm";
 /** The `--out-name` given to `wasm-bindgen`; every emitted file uses it. */
-const OUT_NAME = "secret_scan_wasm";
+const OUT_NAME = "redact_secret_wasm";
 const DEFAULT_OUT_DIR = join("bindings", "wasm", "pkg");
 
 function fail(message) {

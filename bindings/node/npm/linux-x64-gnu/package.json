@@ -1,12 +1,12 @@
 {
-  "name": "@omiologic/secret-scan-linux-x64-gnu",
-  "description": "N-API native addon for @omiologic/secret-scan (linux-x64-gnu). Not intended for direct use; installed as an optional dependency of @omiologic/secret-scan.",
+  "name": "@redact-secret/node-linux-x64-gnu",
+  "description": "N-API native addon for @redact-secret/core (linux-x64-gnu). Not intended for direct use; installed as an optional dependency of @redact-secret/core.",
   "version": "0.1.0-beta.1",
   "os": ["linux"],
   "cpu": ["x64"],
   "libc": ["glibc"],
-  "main": "secret-scan.linux-x64-gnu.node",
-  "files": ["secret-scan.linux-x64-gnu.node"],
+  "main": "redact-secret.linux-x64-gnu.node",
+  "files": ["redact-secret.linux-x64-gnu.node"],
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -1,5 +1,5 @@
 /**
- * Drives the public `@omiologic/secret-scan` API against a real install in
+ * Drives the public `@redact-secret/core` API against a real install in
  * a clean directory outside this repository, on both JavaScript runtimes.
  * Shared between `scripts/qualify-package-consumer.mjs` (installs packed
  * local tarballs, standing in for a registry `npm install` before the
@@ -18,7 +18,7 @@ import { extname, join } from "node:path";
 
 import { assertMatchesFixture } from "./qualify-runtime-fixture.mjs";
 
-export const WASM_SPECIFIER = "@omiologic/secret-scan-wasm";
+export const WASM_SPECIFIER = "@redact-secret/wasm";
 
 const MIME_TYPES = {
   ".html": "text/html",
@@ -28,7 +28,7 @@ const MIME_TYPES = {
 
 export function qualifyNode(consumerRoot, fixture, expectedVersion) {
   const source = [
-    "const { initialize, scan, VERSION } = await import('@omiologic/secret-scan');",
+    "const { initialize, scan, VERSION } = await import('@redact-secret/core');",
     "await initialize();",
     `const findings = scan(${JSON.stringify(fixture.input)});`,
     "console.log(JSON.stringify({ version: VERSION, findings }));",
@@ -60,7 +60,7 @@ async function bundleForBrowser(consumerRoot) {
     external: [WASM_SPECIFIER],
     stdin: {
       contents: [
-        `import { initialize, scan, VERSION } from "@omiologic/secret-scan";`,
+        `import { initialize, scan, VERSION } from "@redact-secret/core";`,
         "window.__secretScan = { initialize, scan, VERSION };",
       ].join("\n"),
       loader: "js",
@@ -78,7 +78,7 @@ async function bundleForBrowser(consumerRoot) {
 async function writeHarness(root, bundleText, installedWasmDir, fixture) {
   await writeFile(join(root, "bundle.js"), bundleText);
   await cp(installedWasmDir, join(root, "wasm"), { recursive: true });
-  const importMap = { imports: { [WASM_SPECIFIER]: "/wasm/secret_scan_wasm.js" } };
+  const importMap = { imports: { [WASM_SPECIFIER]: "/wasm/redact_secret_wasm.js" } };
   const html = `<!doctype html>
 <script type="importmap">${JSON.stringify(importMap)}</script>
 <script type="module">
@@ -113,7 +113,7 @@ function serveDirectory(root) {
 
 export async function qualifyBrowser(consumerRoot, fixture, expectedVersion) {
   const bundleText = await bundleForBrowser(consumerRoot);
-  const harnessRoot = await mkdtemp(join(tmpdir(), "secret-scan-consumer-browser-"));
+  const harnessRoot = await mkdtemp(join(tmpdir(), "redact-secret-consumer-browser-"));
   const { chromium } = await import("playwright");
 
   let server;

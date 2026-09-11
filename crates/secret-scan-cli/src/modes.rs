@@ -15,7 +15,7 @@
 use std::io::{ErrorKind, Read, Write};
 use std::path::Path;
 
-use secret_scan::{
+use redact_secret::{
     DefaultPolicy, DetectorRegistry, Finding, IncrementalSanitizer, ScanResult,
     default_placeholder_formatter, scan, scan_and_redact,
 };
@@ -183,7 +183,7 @@ fn write_text(out: &mut dyn Write, text: &str) -> Result<(), Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use secret_scan::{SecretScanErrorCode, SessionState};
+    use redact_secret::{SecretScanErrorCode, SessionState};
 
     /// A synthetic, revoked-shaped token. It matches the built-in GitHub
     /// detector's format and authenticates nothing.

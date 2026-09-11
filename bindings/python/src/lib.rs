@@ -1,7 +1,7 @@
-//! `CPython` binding for the `secret-scan` core built with `PyO3` and maturin
+//! `CPython` binding for the `redact-secret` core built with `PyO3` and maturin
 //! (`decision-define-runtime-bindings`).
 //!
-//! Exposes an idiomatic synchronous `secret_scan` module: immutable finding
+//! Exposes an idiomatic synchronous `redact_secret` module: immutable finding
 //! and result types, sanitized exceptions, `scan`, `redact`,
 //! `scan_and_redact`, the default policy and formatter helpers, and the
 //! bounded incremental session in the private `incremental` module. Every
@@ -24,7 +24,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyString;
 use pyo3::{create_exception, wrap_pyfunction};
 
-use secret_scan::{
+use redact_secret::{
     Action, ByteRange, Confidence, DefaultPolicy, DetectedFinding, DetectorRegistry,
     Finding as CoreFinding, PlaceholderContext, PlaceholderFormatter, Policy, PolicyContext,
     SecretScanError as CoreError, SecretScanErrorCode,
@@ -45,67 +45,67 @@ const RANGE_UNIT: &str = "unicode-code-points";
 // ---------------------------------------------------------------------
 
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     SecretScanError,
     pyo3::exceptions::PyException,
-    "Base class for every sanitized secret-scan error.\n\nEach subclass carries a fixed, input-free `code` class attribute matching\nthe core's `SecretScanErrorCode` wire name."
+    "Base class for every sanitized redact-secret error.\n\nEach subclass carries a fixed, input-free `code` class attribute matching\nthe core's `SecretScanErrorCode` wire name."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InvalidInputError,
     SecretScanError,
     "`text` was not a Python string."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InvalidOptionsError,
     SecretScanError,
     "Scan options could not be interpreted."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InvalidDetectorError,
     SecretScanError,
     "A detector registration was rejected."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     DetectorFailureError,
     SecretScanError,
     "A built-in detector failed while scanning."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InvalidCandidateError,
     SecretScanError,
     "A detector returned a candidate that violates the candidate contract."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     PolicyFailureError,
     SecretScanError,
     "The policy callback raised an exception."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InvalidPolicyActionError,
     SecretScanError,
     "The policy callback returned something other than \"redact\", \"block\", \"warn\", or \"allow\"."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InvalidFindingsError,
     SecretScanError,
     "The findings passed to `redact` are out of range, misordered, or overlap."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     PlaceholderFailureError,
     SecretScanError,
     "The placeholder formatter callback raised an exception or returned a non-string value."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InvalidPlaceholderError,
     SecretScanError,
     "The placeholder formatter returned an empty, oversized, or matched-value-reproducing placeholder."
@@ -115,37 +115,37 @@ create_exception!(
 // `scan`/`redact`/`scan_and_redact` never trigger them; a session created
 // by `incremental::PyIncrementalSanitizer` does.
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InvalidLimitsError,
     SecretScanError,
     "An incremental session's limits were missing, non-positive, or did not satisfy the documented relationship between them."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InputLimitExceededError,
     SecretScanError,
     "An incremental session's total accepted input would exceed its input limit."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     BufferLimitExceededError,
     SecretScanError,
     "An incremental session's retained, unresolved plaintext would exceed its buffer limit."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     TokenLimitExceededError,
     SecretScanError,
     "An incremental session's open single-line construct would exceed its token limit without closing."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     MultilineLimitExceededError,
     SecretScanError,
     "An incremental session's open PEM-style private-key block would exceed its multiline limit without closing."
 );
 create_exception!(
-    secret_scan._native,
+    redact_secret._native,
     InvalidStateError,
     SecretScanError,
     "An incremental session received an operation after it left the accepting state."
@@ -316,7 +316,7 @@ fn char_range(text: &str, range: ByteRange) -> PyResult<(usize, usize)> {
 }
 
 /// Converts a UTF-8 byte offset into `text` (the core's native range unit,
-/// [`secret_scan::RANGE_UNIT`]) to the Unicode code point offset Python's
+/// [`redact_secret::RANGE_UNIT`]) to the Unicode code point offset Python's
 /// `str` indexing sees at the same logical position
 /// (`decision-govern-cross-language-conformance`). Every code point counts
 /// as one unit regardless of plane, so an astral (supplementary-plane)
@@ -358,7 +358,7 @@ pub(crate) fn extract_text(value: &Bound<'_, PyAny>) -> PyResult<String> {
 ///
 /// Never constructed from Python; only produced by `scan` and
 /// `scan_and_redact` for their policy callback.
-#[pyclass(module = "secret_scan._native", name = "DetectedFinding")]
+#[pyclass(module = "redact_secret._native", name = "DetectedFinding")]
 pub(crate) struct PyDetectedFinding {
     /// Deterministic finding id (`finding-1`, `finding-2`, ...).
     #[pyo3(get)]
@@ -424,7 +424,7 @@ impl PyDetectedFinding {
 ///
 /// Never constructed from Python; only produced by `scan` and
 /// `scan_and_redact` for their policy callback.
-#[pyclass(module = "secret_scan._native", name = "PolicyContext")]
+#[pyclass(module = "redact_secret._native", name = "PolicyContext")]
 struct PyPolicyContext {
     /// Zero-based position in the finalized detection list.
     #[pyo3(get)]
@@ -450,7 +450,7 @@ impl PyPolicyContext {
 ///
 /// Never constructed from Python; only produced by `scan` and
 /// `scan_and_redact`.
-#[pyclass(module = "secret_scan._native", name = "Finding", skip_from_py_object)]
+#[pyclass(module = "redact_secret._native", name = "Finding", skip_from_py_object)]
 #[derive(Clone)]
 pub(crate) struct PyFinding {
     /// Deterministic finding id (`finding-1`, `finding-2`, ...).
@@ -513,7 +513,7 @@ impl PyFinding {
 ///
 /// Never constructed from Python; only produced by `redact` and
 /// `scan_and_redact` for their formatter callback.
-#[pyclass(module = "secret_scan._native", name = "PlaceholderContext")]
+#[pyclass(module = "redact_secret._native", name = "PlaceholderContext")]
 pub(crate) struct PyPlaceholderContext {
     /// One-based position among findings that are actually replaced.
     #[pyo3(get)]
@@ -534,7 +534,7 @@ impl PyPlaceholderContext {
 /// to produce it, in one immutable object.
 ///
 /// Never constructed from Python; only produced by `scan_and_redact`.
-#[pyclass(module = "secret_scan._native", name = "ScanResult")]
+#[pyclass(module = "redact_secret._native", name = "ScanResult")]
 struct PyScanResult {
     /// `text` with every `redact`/`block` finding replaced by a placeholder.
     #[pyo3(get)]
@@ -654,7 +654,7 @@ fn findings_to_py(text: &str, findings: Vec<CoreFinding>) -> PyResult<Vec<PyFind
 /// Adapts a Python formatter callback to [`PlaceholderFormatter`].
 ///
 /// A raised exception or a non-string return value becomes an opaque
-/// `FormatterFailure`, which `secret_scan::redact` reports as
+/// `FormatterFailure`, which `redact_secret::redact` reports as
 /// `PlaceholderFailureError`; the callback's own error is discarded.
 struct PyFormatterAdapter<'py, 'a> {
     callable: &'a Bound<'py, PyAny>,
@@ -666,33 +666,33 @@ impl PlaceholderFormatter for PyFormatterAdapter<'_, '_> {
         &self,
         finding: &CoreFinding,
         context: &PlaceholderContext,
-    ) -> Result<String, secret_scan::FormatterFailure> {
+    ) -> Result<String, redact_secret::FormatterFailure> {
         let (start, end) =
-            char_range(self.text, finding.range()).map_err(|_| secret_scan::FormatterFailure)?;
+            char_range(self.text, finding.range()).map_err(|_| redact_secret::FormatterFailure)?;
         let py_finding = Bound::new(
             self.callable.py(),
             PyFinding::from_core(finding.clone(), start, end),
         )
-        .map_err(|_| secret_scan::FormatterFailure)?;
+        .map_err(|_| redact_secret::FormatterFailure)?;
         let py_context = Bound::new(
             self.callable.py(),
             PyPlaceholderContext {
                 placeholder_index: context.placeholder_index(),
             },
         )
-        .map_err(|_| secret_scan::FormatterFailure)?;
+        .map_err(|_| redact_secret::FormatterFailure)?;
 
         let value = self
             .callable
             .call1((py_finding, py_context))
-            .map_err(|_| secret_scan::FormatterFailure)?;
+            .map_err(|_| redact_secret::FormatterFailure)?;
         value
             .extract::<String>()
-            .map_err(|_| secret_scan::FormatterFailure)
+            .map_err(|_| redact_secret::FormatterFailure)
     }
 }
 
-/// Runs `secret_scan::redact` with `formatter` (or the default formatter
+/// Runs `redact_secret::redact` with `formatter` (or the default formatter
 /// when `None`).
 fn redact_core(
     text: &str,
@@ -859,13 +859,13 @@ fn typed_placeholder_formatter(
 /// Returns the shared product version.
 #[pyfunction]
 fn version() -> &'static str {
-    secret_scan::VERSION
+    redact_secret::VERSION
 }
 
 /// The native extension module.
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add("VERSION", secret_scan::VERSION)?;
+    module.add("VERSION", redact_secret::VERSION)?;
     module.add("RANGE_UNIT", RANGE_UNIT)?;
 
     module.add_function(wrap_pyfunction!(version, module)?)?;

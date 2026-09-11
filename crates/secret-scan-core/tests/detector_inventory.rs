@@ -8,7 +8,7 @@
 //! with the declared `reconciliationTrigger`, and asserts the resulting
 //! candidate carries the declared type. Policy classification is derived
 //! only by calling [`DefaultPolicy::evaluate`] at `high` and `medium`
-//! confidence, never by reading `secret-scan-core`'s private
+//! confidence, never by reading `redact-secret`'s private
 //! `ALWAYS_REDACT_TYPES`, so this test exercises exactly the contract an
 //! external caller observes.
 //!
@@ -20,7 +20,7 @@
 
 use std::collections::BTreeSet;
 
-use secret_scan::{
+use redact_secret::{
     Action, ByteRange, Confidence, DefaultPolicy, DetectedFinding, DetectorContext,
     DetectorRegistry, Policy, PolicyContext,
 };

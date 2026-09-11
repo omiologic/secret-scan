@@ -54,30 +54,30 @@ class PlanIndependentTests(unittest.TestCase):
 
     def test_a_fully_clean_manifest_publishes_nothing(self) -> None:
         plan = PLAN.plan_independent(
-            {"npm:@omiologic/secret-scan-wasm": PUBLISHED_MATCHING, "pypi:omiologic-secret-scan": PUBLISHED_MATCHING}
+            {"npm:@redact-secret/wasm": PUBLISHED_MATCHING, "pypi:redact-secret": PUBLISHED_MATCHING}
         )
         self.assertEqual({name: decision.action for name, decision in plan.items()}, {
-            "npm:@omiologic/secret-scan-wasm": "skip",
-            "pypi:omiologic-secret-scan": "skip",
+            "npm:@redact-secret/wasm": "skip",
+            "pypi:redact-secret": "skip",
         })
 
     def test_partial_success_publishes_only_the_missing_artifact(self) -> None:
         plan = PLAN.plan_independent(
             {
-                "npm:@omiologic/secret-scan-darwin-arm64": PUBLISHED_MATCHING,
-                "npm:@omiologic/secret-scan-wasm": UNPUBLISHED_AVAILABLE,
+                "npm:@redact-secret/node-darwin-arm64": PUBLISHED_MATCHING,
+                "npm:@redact-secret/wasm": UNPUBLISHED_AVAILABLE,
             }
         )
-        self.assertEqual(plan["npm:@omiologic/secret-scan-darwin-arm64"].action, "skip")
-        self.assertEqual(plan["npm:@omiologic/secret-scan-wasm"].action, "publish")
+        self.assertEqual(plan["npm:@redact-secret/node-darwin-arm64"].action, "skip")
+        self.assertEqual(plan["npm:@redact-secret/wasm"].action, "publish")
 
     def test_pypi_partial_success_publishes_the_missing_distribution(self) -> None:
-        plan = PLAN.plan_independent({"pypi:omiologic-secret-scan": UNPUBLISHED_AVAILABLE})
-        self.assertEqual(plan["pypi:omiologic-secret-scan"].action, "publish")
+        plan = PLAN.plan_independent({"pypi:redact-secret": UNPUBLISHED_AVAILABLE})
+        self.assertEqual(plan["pypi:redact-secret"].action, "publish")
 
     def test_pypi_expired_artifact_is_blocked(self) -> None:
-        plan = PLAN.plan_independent({"pypi:omiologic-secret-scan": UNPUBLISHED_EXPIRED})
-        self.assertEqual(plan["pypi:omiologic-secret-scan"].action, "block")
+        plan = PLAN.plan_independent({"pypi:redact-secret": UNPUBLISHED_EXPIRED})
+        self.assertEqual(plan["pypi:redact-secret"].action, "block")
 
 
 class PlanCratePairTests(unittest.TestCase):
@@ -124,17 +124,17 @@ class CliTests(unittest.TestCase):
         return path
 
     def test_cli_reports_ok_and_exits_zero_when_clean(self) -> None:
-        path = self._write({"pypi:omiologic-secret-scan": {"live_published": True, "content_matches": True}})
+        path = self._write({"pypi:redact-secret": {"live_published": True, "content_matches": True}})
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer):
             status = PLAN.main(["--observations", str(path)])
         self.assertEqual(status, 0)
         payload = json.loads(buffer.getvalue())
-        self.assertEqual(payload["pypi:omiologic-secret-scan"]["action"], "skip")
+        self.assertEqual(payload["pypi:redact-secret"]["action"], "skip")
 
     def test_cli_exits_nonzero_when_any_artifact_is_blocked(self) -> None:
         path = self._write(
-            {"pypi:omiologic-secret-scan": {"live_published": True, "content_matches": False}}
+            {"pypi:redact-secret": {"live_published": True, "content_matches": False}}
         )
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer):
@@ -144,18 +144,18 @@ class CliTests(unittest.TestCase):
     def test_cli_applies_the_crate_pair_rule(self) -> None:
         path = self._write(
             {
-                "crate:secret-scan": {"live_published": True, "content_matches": False},
-                "crate:secret-scan-cli": {"live_published": False, "artifact_available": True},
+                "crate:redact-secret": {"live_published": True, "content_matches": False},
+                "crate:redact-secret-cli": {"live_published": False, "artifact_available": True},
             }
         )
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer):
             status = PLAN.main(
-                ["--observations", str(path), "--crate-pair", "crate:secret-scan", "crate:secret-scan-cli"]
+                ["--observations", str(path), "--crate-pair", "crate:redact-secret", "crate:redact-secret-cli"]
             )
         self.assertEqual(status, 1)
         payload = json.loads(buffer.getvalue())
-        self.assertEqual(payload["crate:secret-scan-cli"]["action"], "block")
+        self.assertEqual(payload["crate:redact-secret-cli"]["action"], "block")
 
 
 if __name__ == "__main__":

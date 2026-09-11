@@ -6,7 +6,7 @@
 // `clippy.toml` does not apply; these helpers may unwrap and panic on purpose.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use secret_scan::{
+use redact_secret::{
     Action, ByteRange, Candidate, Confidence, DefaultPolicy, DetectedFinding, Detector,
     DetectorContext, DetectorRegistry, Finding, PlaceholderContext, Policy, SecretScanErrorCode,
     Specificity, default_placeholder_formatter, redact, scan,
@@ -26,7 +26,7 @@ impl Detector for Fixed {
         &self,
         _input: &str,
         _context: &DetectorContext,
-    ) -> Result<Vec<Candidate>, secret_scan::DetectorFailure> {
+    ) -> Result<Vec<Candidate>, redact_secret::DetectorFailure> {
         Ok(self
             .candidates
             .iter()
@@ -184,7 +184,7 @@ fn detected_finding_from_a_caller_supplied_id_participates_in_default_policy() {
     )
     .unwrap();
     let action = DefaultPolicy
-        .evaluate(&detected, &secret_scan::PolicyContext::new(0, 1))
+        .evaluate(&detected, &redact_secret::PolicyContext::new(0, 1))
         .unwrap();
     assert_eq!(action, Action::Redact);
 }
@@ -229,7 +229,7 @@ impl Detector for Literal {
         &self,
         input: &str,
         _context: &DetectorContext,
-    ) -> Result<Vec<Candidate>, secret_scan::DetectorFailure> {
+    ) -> Result<Vec<Candidate>, redact_secret::DetectorFailure> {
         Ok(input
             .match_indices(self.needle.as_str())
             .map(|(start, matched)| {
@@ -414,8 +414,8 @@ fn build_zone_fixture() -> (String, DetectorRegistry, ZoneMarkers) {
 #[allow(clippy::unnecessary_wraps)]
 fn zone_policy(
     finding: &DetectedFinding,
-    _context: &secret_scan::PolicyContext,
-) -> Result<Action, secret_scan::PolicyFailure> {
+    _context: &redact_secret::PolicyContext,
+) -> Result<Action, redact_secret::PolicyFailure> {
     Ok(match finding.type_name() {
         "provider_secret" => Action::Block,
         "inner_secret" => Action::Warn,
@@ -483,13 +483,13 @@ fn redact_after_overlap_resolution_hides_replaced_findings_and_resists_rescan() 
         literal("l6", markers.z6.to_string()),
     ]);
     assert_eq!(
-        secret_scan::run_detector_pipeline(&input, &hidden_literals)
+        redact_secret::run_detector_pipeline(&input, &hidden_literals)
             .unwrap()
             .len(),
         5
     );
     assert!(
-        secret_scan::run_detector_pipeline(&output, &hidden_literals)
+        redact_secret::run_detector_pipeline(&output, &hidden_literals)
             .unwrap()
             .is_empty()
     );

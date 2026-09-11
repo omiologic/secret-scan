@@ -27,7 +27,7 @@ credential or tool it needs is unavailable locally:
   (`registry.npmjs.org/{package}`), which includes its maintainer list
   without requiring authentication. This can show who already maintains a
   package; it cannot show whether a not-yet-authenticated CI identity has
-  scope-level rights to publish a *new* package under `@omiologic` -- an
+  scope-level rights to publish a *new* package under `@redact-secret` -- an
   admin must confirm that with `npm access ls-collaborators` (or the npm
   website) as that identity.
 - `crate NAME...` -- crates.io's public API: whether the name exists, and if

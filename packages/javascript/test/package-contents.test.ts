@@ -38,7 +38,7 @@ describe("package contents", () => {
     const result = pack();
     const paths = result.files.map(({ path }) => path);
 
-    expect(result.name).toBe("@omiologic/secret-scan");
+    expect(result.name).toBe("@redact-secret/core");
     expect(paths).toContain("package.json");
     expect(paths).toContain("README.md");
     expect(paths).toContain("LICENSE");
@@ -128,7 +128,7 @@ describe("package contents", () => {
       "#native",
       "NATIVE_HANDLE",
       "NativeBinding",
-      "createSecretScanRuntime",
+      "createRedactSecretRuntime",
       "INCREMENTAL_LOOKAROUND",
       "SecretDetector",
       "DetectorRegistry",

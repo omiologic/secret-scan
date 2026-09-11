@@ -11,14 +11,14 @@ distribution's long description. This page is the contract behind it.
 
 ## One declaration, three places that must agree
 
-`[workspace.metadata.secret-scan]` in the root `Cargo.toml` declares the
+`[workspace.metadata.redact-secret]` in the root `Cargo.toml` declares the
 packaging contract once:
 
 | Key | Value | What it fixes |
 | --- | --- | --- |
-| `python-distribution` | `omiologic-secret-scan` | The PyPI name |
-| `python-import-name` | `secret_scan` | The import name, which is the product name |
-| `python-native-module` | `secret_scan._native` | The extension maturin builds |
+| `python-distribution` | `redact-secret` | The PyPI name |
+| `python-import-name` | `redact_secret` | The import name, which is the product name |
+| `python-native-module` | `redact_secret._native` | The extension maturin builds |
 | `python-abi3-feature` | `abi3-py310` | The PyO3 feature that pins the abi3 floor |
 | `python-requires` | `>=3.10` | The `Requires-Python` floor |
 | `python-wheel-tag` | `cp310-abi3` | The interpreter and ABI tag every wheel carries |
@@ -36,22 +36,20 @@ support it does not have is worse than no wheel.
 
 ## Names
 
-The product name is `secret-scan` everywhere. On PyPI that name belongs to an
-unrelated project — verified 2026-09-09 and again when this contract was
-written — so the distribution takes the registry fallback that
-`decision-release-bindings-in-lockstep` allows. The import name does not move
-with it: consumers still write `import secret_scan`.
+The product name is `Redact Secret` everywhere
+(`decision-adopt-redact-secret-naming-contract`). The distribution name
+`redact-secret` was rechecked on 2026-09-10 and does not belong to an
+unrelated project, so no registry fallback is needed. Per PEP 503,
+`redact-secret` and the import name `redact_secret` normalize to the same
+PyPI project identity: consumers write `import redact_secret`.
 
-Recheck both before a publication:
+Recheck before a publication:
 
 ```bash
 python3 scripts/check-python-package.py --recheck-pypi-name
 ```
 
-It fails if the selected name has been taken since, and it also fails if the
-product name has become free — because that would mean the recorded reason for
-the fallback no longer holds, and the name deserves a decision rather than a
-default.
+It fails if the selected name has been taken since.
 
 ## abi3, and no pure-Python fallback
 
@@ -60,8 +58,8 @@ the matrix has one wheel per target rather than one per interpreter, and a new
 CPython release needs no rebuild.
 
 The importable package is a re-export of the extension and nothing else. The
-check parses `bindings/python/python/secret_scan/__init__.py` and fails if it
-imports anything but `secret_scan._native`, if it defines a function or class,
+check parses `bindings/python/python/redact_secret/__init__.py` and fails if it
+imports anything but `redact_secret._native`, if it defines a function or class,
 or if a second `.py` file appears beside it. A pure-Python fallback would be a
 second detector implementation, which is exactly what
 `decision-define-runtime-bindings` rejects.
@@ -116,7 +114,7 @@ checked rather than assumed:
   tag stands alone.
 - **Repair vendors shared libraries.** Making a wheel self-contained copies
   each non-system library the extension links against into
-  `omiologic_secret_scan.libs/` and rewrites the RPATH. On musl that is
+  `redact_secret.libs/` and rewrites the RPATH. On musl that is
   `libgcc_s`; the manylinux policy treats it as a system library, so the
   manylinux wheels carry none. The contents check allows that directory on a
   Linux wheel and requires it to hold only shared objects — it is a repair
@@ -177,7 +175,7 @@ raises the sanitized `SecretScanError` hierarchy.
 `--conformance` then runs `bindings/python/tests` against that installed wheel.
 Those tests read the shared `conformance/` corpus, so this is the artifact
 meeting the same cross-language contract as every other binding; they import
-`secret_scan` like any consumer, so they exercise the wheel and not the
+`redact_secret` like any consumer, so they exercise the wheel and not the
 sources.
 
 ## The source distribution
@@ -194,7 +192,7 @@ convenient and it is also a network fetch of a compiler, so the opt-out is part
 of the contract:
 
 ```sh
-MATURIN_NO_INSTALL_RUST=1 pip install --no-binary omiologic-secret-scan omiologic-secret-scan
+MATURIN_NO_INSTALL_RUST=1 pip install --no-binary redact-secret redact-secret
 ```
 
 With that set and no `cargo` on `PATH`, the build fails with
@@ -222,7 +220,7 @@ same smoke test, which is what proves the vendoring is complete.
 from the Cargo workspace and the Python distribution cannot drift from the
 other artifacts (`decision-release-bindings-in-lockstep`). PyPI normalizes it:
 the workspace's `0.1.0-beta.1` is the wheel's `0.1.0b1`, while
-`secret_scan.VERSION` reports the Cargo spelling. Qualification checks both,
+`redact_secret.VERSION` reports the Cargo spelling. Qualification checks both,
 in both directions.
 
 ## Verification

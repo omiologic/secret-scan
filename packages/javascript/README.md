@@ -1,4 +1,4 @@
-# @omiologic/secret-scan
+# @redact-secret/core
 
 Deterministic secret detection and redaction for browser and server
 JavaScript/TypeScript applications.
@@ -11,7 +11,7 @@ core, so both runtimes see the same findings for the same input.
 ## Install
 
 ```bash
-npm install @omiologic/secret-scan
+npm install @redact-secret/core
 ```
 
 Node.js 20 or newer, or a browser that can run ES2022 output. The package is
@@ -26,7 +26,7 @@ runtime. It is idempotent, so any number of call sites may await it; a failed
 attempt is not cached and may be retried.
 
 ```ts
-import { initialize, scanAndRedact } from "@omiologic/secret-scan";
+import { initialize, scanAndRedact } from "@redact-secret/core";
 
 await initialize();
 
@@ -45,7 +45,7 @@ Calling a synchronous operation first throws `SecretScanError` with code
 ## Scan, redact, or both
 
 ```ts
-import { initialize, redact, scan } from "@omiologic/secret-scan";
+import { initialize, redact, scan } from "@redact-secret/core";
 
 await initialize();
 
@@ -68,7 +68,7 @@ confidence, action, and a range. It never carries the matched value.
 by each binding without changing the selected span.
 
 ```ts
-import { initialize, RANGE_UNIT, scan } from "@omiologic/secret-scan";
+import { initialize, RANGE_UNIT, scan } from "@redact-secret/core";
 
 await initialize();
 
@@ -91,8 +91,8 @@ import {
   initialize,
   scanAndRedact,
   typedPlaceholderFormatter,
-} from "@omiologic/secret-scan";
-import type { SecretPolicy } from "@omiologic/secret-scan";
+} from "@redact-secret/core";
+import type { SecretPolicy } from "@redact-secret/core";
 
 await initialize();
 
@@ -120,12 +120,12 @@ the logical whole-session input.
 
 Incremental sanitization is not available in the browser: `bindings/wasm`
 does not build a streaming session, so `createIncrementalSanitizer` (and
-`@omiologic/secret-scan/web-stream`, below) rejects with the fixed
+`@redact-secret/core/web-stream`, below) rejects with the fixed
 `INCREMENTAL_UNAVAILABLE` code there. `await initialize()` and the
 synchronous `scan`/`redact`/`scanAndRedact` operations are unaffected.
 
 ```ts
-import { createIncrementalSanitizer, initialize } from "@omiologic/secret-scan";
+import { createIncrementalSanitizer, initialize } from "@redact-secret/core";
 
 await initialize();
 
@@ -156,15 +156,15 @@ Both emit only text whose detection window is closed and expose the findings
 that have been finalized so far, frozen and with absolute offsets into the
 whole stream. Both require `await initialize()` first.
 
-`@omiologic/secret-scan/node-stream` is a `Transform`. Backpressure, error
+`@redact-secret/core/node-stream` is a `Transform`. Backpressure, error
 propagation, and teardown are Node's own; a `destroy()`, a failed `pipeline`,
 or a downstream error aborts the session, so the plaintext it was still
 deciding about is discarded instead of flushed.
 
 ```ts
 import { pipeline } from "node:stream/promises";
-import { initialize } from "@omiologic/secret-scan";
-import { createNodeStreamSanitizer } from "@omiologic/secret-scan/node-stream";
+import { initialize } from "@redact-secret/core";
+import { createNodeStreamSanitizer } from "@redact-secret/core/node-stream";
 
 await initialize();
 
@@ -182,7 +182,7 @@ await pipeline(process.stdin, sanitizer, process.stdout);
 console.log(sanitizer.findings.length);
 ```
 
-`@omiologic/secret-scan/web-stream` is a `TransformStream<Uint8Array, string>`
+`@redact-secret/core/web-stream` is a `TransformStream<Uint8Array, string>`
 and resolves no `node:` module, so a browser bundle that uses it pulls in none
 of the Node adapter. Cancelling the readable side, aborting the writable side,
 and its own `abort()` all discard retained plaintext. On the WebAssembly
@@ -191,8 +191,8 @@ runtime this subpath's `createWebStreamSanitizer` rejects with the same fixed
 sanitization is not available there (see above).
 
 ```ts
-import { initialize } from "@omiologic/secret-scan";
-import { createWebStreamSanitizer } from "@omiologic/secret-scan/web-stream";
+import { initialize } from "@redact-secret/core";
+import { createWebStreamSanitizer } from "@redact-secret/core/web-stream";
 
 await initialize();
 
@@ -224,8 +224,8 @@ its fixed message — never the input, a matched value, a placeholder, or a
 failing callback's own message.
 
 ```ts
-import { initialize, scan, SecretScanError } from "@omiologic/secret-scan";
-import type { SecretScanErrorCode } from "@omiologic/secret-scan";
+import { initialize, scan, SecretScanError } from "@redact-secret/core";
+import type { SecretScanErrorCode } from "@redact-secret/core";
 
 try {
   await initialize();
@@ -263,9 +263,9 @@ Types: `DetectedSecretFinding`, `SecretFinding`, `SecretAction`,
 `IncrementalLimits`, `IncrementalSecretPolicy`, `IncrementalPolicyContext`,
 `RangeUnit`, `SecretScanErrorCode`.
 
-Stream subpaths: `@omiologic/secret-scan/node-stream` exports
+Stream subpaths: `@redact-secret/core/node-stream` exports
 `createNodeStreamSanitizer`, `NodeStreamSanitizer`, and `SecretScanError`;
-`@omiologic/secret-scan/web-stream` exports `createWebStreamSanitizer`,
+`@redact-secret/core/web-stream` exports `createWebStreamSanitizer`,
 `WebStreamSanitizer`, and `SecretScanError`.
 
 The root export and those two subpaths are the whole public API. There are no

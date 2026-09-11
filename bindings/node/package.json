@@ -1,8 +1,8 @@
 {
-  "name": "@omiologic/secret-scan-node",
+  "name": "@redact-secret/node",
   "version": "0.1.0-beta.1",
   "private": true,
-  "description": "N-API native addon for @omiologic/secret-scan. Built with @napi-rs/cli; not published on its own.",
+  "description": "N-API native addon for @redact-secret/core. Built with @napi-rs/cli; not published on its own.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -10,7 +10,7 @@
     "directory": "bindings/node"
   },
   "napi": {
-    "binaryName": "secret-scan",
+    "binaryName": "redact-secret",
     "targets": [
       "aarch64-apple-darwin",
       "aarch64-pc-windows-msvc",

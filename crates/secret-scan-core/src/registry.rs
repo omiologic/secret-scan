@@ -65,7 +65,7 @@ impl DetectorRegistry {
     /// # Examples
     ///
     /// ```
-    /// use secret_scan::{DefaultPolicy, DetectorRegistry, scan};
+    /// use redact_secret::{DefaultPolicy, DetectorRegistry, scan};
     ///
     /// let registry = DetectorRegistry::with_built_in([])?;
     /// assert!(registry.contains("github-token"));
@@ -75,7 +75,7 @@ impl DetectorRegistry {
     ///
     /// // An empty registry detects nothing; it is not the built-in set.
     /// assert_eq!(scan(input, &DetectorRegistry::new(), &DefaultPolicy)?.len(), 0);
-    /// # Ok::<(), secret_scan::SecretScanError>(())
+    /// # Ok::<(), redact_secret::SecretScanError>(())
     /// ```
     ///
     /// # Errors

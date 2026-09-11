@@ -1,4 +1,4 @@
-//! Node.js N-API binding for the `secret-scan` core
+//! Node.js N-API binding for the `redact-secret` core
 //! (`decision-define-runtime-bindings`).
 //!
 //! Ranges exposed here use UTF-16 code units; conversion from the core's
@@ -15,7 +15,7 @@ use std::cell::OnceCell;
 
 use napi::bindgen_prelude::{FnArgs, Function};
 use napi_derive::napi;
-use secret_scan::{
+use redact_secret::{
     Action, ByteRange, Confidence, DefaultPolicy, DetectedFinding, DetectorRegistry, Finding,
     FormatterFailure, PlaceholderContext, PlaceholderFormatter, Policy, PolicyContext,
     SecretScanError, SecretScanErrorCode, default_placeholder_formatter, redact as core_redact,
@@ -29,7 +29,7 @@ use crate::offsets::{byte_to_utf16, utf16_to_byte};
 #[napi]
 #[must_use]
 pub fn version() -> String {
-    secret_scan::VERSION.to_owned()
+    redact_secret::VERSION.to_owned()
 }
 
 /// A finding before policy evaluation, passed to a policy callback.

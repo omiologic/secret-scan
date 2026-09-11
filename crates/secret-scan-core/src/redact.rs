@@ -142,7 +142,7 @@ fn ordered_and_disjoint<'a>(
 /// # Examples
 ///
 /// ```
-/// use secret_scan::{
+/// use redact_secret::{
 ///     DefaultPolicy, DetectorRegistry, default_placeholder_formatter, redact, scan,
 ///     typed_placeholder_formatter,
 /// };
@@ -155,11 +155,11 @@ fn ordered_and_disjoint<'a>(
 /// assert_eq!(redact(input, &findings, &typed_placeholder_formatter)?, "API_KEY=<GITHUB_TOKEN_1>");
 ///
 /// // A formatter is any `Fn(&Finding, &PlaceholderContext) -> Result<String, _>`.
-/// let by_type = |finding: &secret_scan::Finding, _: &secret_scan::PlaceholderContext| {
+/// let by_type = |finding: &redact_secret::Finding, _: &redact_secret::PlaceholderContext| {
 ///     Ok(format!("[{}]", finding.type_name()))
 /// };
 /// assert_eq!(redact(input, &findings, &by_type)?, "API_KEY=[github_token]");
-/// # Ok::<(), secret_scan::SecretScanError>(())
+/// # Ok::<(), redact_secret::SecretScanError>(())
 /// ```
 ///
 /// # Errors

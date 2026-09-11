@@ -8,7 +8,7 @@
 //! formatter callback cannot see either.
 
 use js_sys::{Object, Reflect};
-use secret_scan::{DetectedFinding, Finding, PlaceholderContext, PolicyContext};
+use redact_secret::{DetectedFinding, Finding, PlaceholderContext, PolicyContext};
 use wasm_bindgen::JsValue;
 
 use crate::range;

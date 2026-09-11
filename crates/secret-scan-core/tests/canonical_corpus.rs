@@ -11,7 +11,7 @@
 
 mod support;
 
-use secret_scan::{Confidence, DefaultPolicy, DetectorRegistry, scan};
+use redact_secret::{Confidence, DefaultPolicy, DetectorRegistry, scan};
 use support::CanonicalFixture;
 
 fn registry() -> DetectorRegistry {

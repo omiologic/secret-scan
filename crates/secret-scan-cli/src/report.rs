@@ -6,7 +6,7 @@
 
 use std::io::{self, Write};
 
-use secret_scan::{Finding, RANGE_UNIT, VERSION};
+use redact_secret::{Finding, RANGE_UNIT, VERSION};
 
 use crate::failure::Failure;
 
@@ -142,7 +142,7 @@ impl Report {
         let findings = self.finding_count();
         writeln!(
             diagnostics,
-            "secret-scan: {findings} finding(s) in {} source(s); ranges are {RANGE_UNIT}",
+            "redact-secret: {findings} finding(s) in {} source(s); ranges are {RANGE_UNIT}",
             self.sources.len(),
         )
     }
@@ -248,7 +248,7 @@ impl Report {
         for failure in &self.failures {
             writeln!(
                 diagnostics,
-                "secret-scan: {}: {}: {}",
+                "redact-secret: {}: {}: {}",
                 failure.identity,
                 failure.failure.code(),
                 failure.failure.message(),
@@ -286,7 +286,7 @@ fn write_json_string(out: &mut dyn Write, value: &str) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use secret_scan::SecretScanErrorCode;
+    use redact_secret::SecretScanErrorCode;
 
     fn finding(id: &str, start: usize, end: usize) -> SafeFinding {
         SafeFinding {
@@ -381,7 +381,7 @@ mod tests {
         let lines: Vec<&str> = rendered.lines().collect();
         assert!(lines[0].starts_with("a.txt:8-48"), "got {lines:?}");
         assert!(
-            lines[1].starts_with("secret-scan: 1 finding(s)"),
+            lines[1].starts_with("redact-secret: 1 finding(s)"),
             "got {lines:?}"
         );
     }
@@ -429,7 +429,7 @@ mod tests {
         report.write_diagnostics(&mut diagnostics).unwrap();
         assert_eq!(
             String::from_utf8(diagnostics).unwrap(),
-            "secret-scan: b.bin: INPUT_LIMIT_EXCEEDED: Incremental sanitizer input limit exceeded.\n"
+            "redact-secret: b.bin: INPUT_LIMIT_EXCEEDED: Incremental sanitizer input limit exceeded.\n"
         );
     }
 }

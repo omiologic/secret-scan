@@ -1,7 +1,7 @@
 # The CPython distribution built from `bindings/python`.
 #
 # Identity, the abi3 contract, and the wheel matrix are declared once in
-# `[workspace.metadata.secret-scan]` in the root `Cargo.toml` and enforced by
+# `[workspace.metadata.redact-secret]` in the root `Cargo.toml` and enforced by
 # `scripts/check-python-package.py`; the values here must agree with it.
 # See docs/python-packaging.md.
 
@@ -12,13 +12,13 @@ requires = ["maturin>=1.10,<2"]
 build-backend = "maturin"
 
 [project]
-# The product name is `secret-scan` everywhere. On PyPI that name belongs to an
-# unrelated project (verified 2026-09-09), so this distribution takes the
-# registry fallback recorded in docs/rust-workspace.md#registry-names. The
-# import name stays `secret_scan`. Recheck before publication with
-# `python3 scripts/check-python-package.py --recheck-pypi-name`.
-name = "omiologic-secret-scan"
-description = "Deterministic secret detection and redaction (CPython binding for the secret-scan core)."
+# The product name is `Redact Secret` everywhere
+# (`decision-adopt-redact-secret-naming-contract`). `redact-secret` and the
+# import name `redact_secret` are the same PEP 503 normalized PyPI identity,
+# so no registry-fallback name is needed. Recheck availability before
+# publication with `python3 scripts/check-python-package.py --recheck-pypi-name`.
+name = "redact-secret"
+description = "Deterministic secret detection and redaction (CPython binding for the redact-secret core)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -63,7 +63,7 @@ Changelog = "https://github.com/omiologic/secret-scan/blob/main/CHANGELOG.md"
 
 [tool.maturin]
 features = ["extension-module"]
-module-name = "secret_scan._native"
+module-name = "redact_secret._native"
 python-source = "python"
 # The tests import the canonical `conformance/` corpus from the repository, two
 # levels above this package, so they cannot run from a source distribution.

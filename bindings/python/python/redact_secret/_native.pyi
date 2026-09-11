@@ -1,6 +1,6 @@
-"""Type stubs for the compiled ``secret_scan._native`` extension module.
+"""Type stubs for the compiled ``redact_secret._native`` extension module.
 
-Import from :mod:`secret_scan`, not this module directly; the names here
+Import from :mod:`redact_secret`, not this module directly; the names here
 are re-exported there.
 """
 
@@ -25,7 +25,7 @@ RANGE_UNIT: str
 # ---------------------------------------------------------------------
 
 class SecretScanError(Exception):
-    """Base class for every sanitized secret-scan error."""
+    """Base class for every sanitized redact-secret error."""
 
 class InvalidInputError(SecretScanError):
     code: str

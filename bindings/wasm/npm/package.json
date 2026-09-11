@@ -1,16 +1,16 @@
 {
-  "name": "@omiologic/secret-scan-wasm",
-  "description": "wasm-bindgen browser build for @omiologic/secret-scan. Not intended for direct use; installed as an ordinary dependency of @omiologic/secret-scan.",
+  "name": "@redact-secret/wasm",
+  "description": "wasm-bindgen browser build for @redact-secret/core. Not intended for direct use; installed as an ordinary dependency of @redact-secret/core.",
   "version": "0.1.0-beta.1",
   "type": "module",
   "sideEffects": false,
-  "main": "secret_scan_wasm.js",
-  "types": "secret_scan_wasm.d.ts",
+  "main": "redact_secret_wasm.js",
+  "types": "redact_secret_wasm.d.ts",
   "files": [
-    "secret_scan_wasm.js",
-    "secret_scan_wasm.d.ts",
-    "secret_scan_wasm_bg.wasm",
-    "secret_scan_wasm_bg.wasm.d.ts"
+    "redact_secret_wasm.js",
+    "redact_secret_wasm.d.ts",
+    "redact_secret_wasm_bg.wasm",
+    "redact_secret_wasm_bg.wasm.d.ts"
   ],
   "license": "MIT",
   "repository": {

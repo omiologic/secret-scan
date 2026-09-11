@@ -3,7 +3,7 @@
  *
  * Every test here runs against `createBindingFromAddon` — the same
  * normalization `runtime/node.ts` applies to the real per-platform addon
- * (`@omiologic/secret-scan-<platform>`), exercised here against a plain
+ * (`@redact-secret/node-<platform>`), exercised here against a plain
  * object double instead of the compiled addon, which is not present in a
  * source checkout.
  */

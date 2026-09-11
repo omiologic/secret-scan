@@ -21,8 +21,8 @@ __pycache__/
 .pytest_cache/
 
 # maturin builds the native extension in place for `maturin develop`
-/bindings/python/python/secret_scan/_native*.so
-/bindings/python/python/secret_scan/_native*.pyd
+/bindings/python/python/redact_secret/_native*.so
+/bindings/python/python/redact_secret/_native*.pyd
 
 # Generated N-API build output (regenerate with `npm ci && npm run build`
 # in bindings/node); the compiled addon is platform-specific and the

@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 const ROOT_CONSUMER =
-  'import { initialize, scanAndRedact } from "@omiologic/secret-scan"; globalThis.secretScanEntry = [initialize, scanAndRedact];';
+  'import { initialize, scanAndRedact } from "@redact-secret/core"; globalThis.secretScanEntry = [initialize, scanAndRedact];';
 
 const WEB_STREAM_CONSUMER =
-  'import { createWebStreamSanitizer } from "@omiologic/secret-scan/web-stream"; globalThis.secretScanEntry = [createWebStreamSanitizer];';
+  'import { createWebStreamSanitizer } from "@redact-secret/core/web-stream"; globalThis.secretScanEntry = [createWebStreamSanitizer];';
 
 /**
  * The Node addon is one of six `optionalDependencies`, selected at runtime
@@ -25,7 +25,7 @@ async function bundle(
     format: "esm",
     metafile: true,
     platform,
-    external: ["@omiologic/secret-scan-wasm"],
+    external: ["@redact-secret/wasm"],
     stdin: {
       contents,
       loader: "js",
@@ -90,7 +90,7 @@ describe("bundler conditions", () => {
   it("bundles the Node adapter for Node, and only there", async () => {
     const { inputs } = await bundle(
       "node",
-      'import { createNodeStreamSanitizer } from "@omiologic/secret-scan/node-stream"; globalThis.secretScanEntry = [createNodeStreamSanitizer];',
+      'import { createNodeStreamSanitizer } from "@redact-secret/core/node-stream"; globalThis.secretScanEntry = [createNodeStreamSanitizer];',
     );
 
     expect(
@@ -106,6 +106,6 @@ describe("bundler conditions", () => {
 
     // The WebAssembly artifact is reached through a dynamic import, so a
     // bundle that never calls initialize() never loads it.
-    expect(output).toContain('import("@omiologic/secret-scan-wasm")');
+    expect(output).toContain('import("@redact-secret/wasm")');
   });
 });

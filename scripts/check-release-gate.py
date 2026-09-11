@@ -16,10 +16,10 @@ that graph drifts: a required reusable workflow call job is removed, its
 job in `PUBLISH_JOBS` may run.
 
 Issue #141 adds a second, npm-specific ordering requirement: the `publish`
-job (the `@omiologic/secret-scan` wrapper) must also declare
+job (the `@redact-secret/core` wrapper) must also declare
 `NPM_DEPENDENCY_GATES` in `needs:`, so the wrapper cannot become eligible
-before every runtime dependency package (`@omiologic/secret-scan-<platform>`
-x6 and `@omiologic/secret-scan-wasm`) has been packed, content-checked,
+before every runtime dependency package (`@redact-secret/node-<platform>`
+x6 and `@redact-secret/wasm`) has been packed, content-checked,
 published, and verified at its declared version. This is what makes the
 first cutover and every routine release after it the same graph rather than
 two: there is no separate "cutover mode" that could be skipped by mistake,

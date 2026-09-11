@@ -52,7 +52,7 @@
 //! | Detector building blocks | [`shannon_entropy`] |
 //!
 //! That table is the whole surface — it lists every name this crate root
-//! exports, and `[workspace.metadata.secret-scan] core-public-api` in the
+//! exports, and `[workspace.metadata.redact-secret] core-public-api` in the
 //! workspace manifest repeats it so a name cannot join or leave without a
 //! reviewed manifest change. Everything else is private. In particular, the
 //! built-in detector set is reached only through
@@ -64,7 +64,7 @@
 //! # Examples
 //!
 //! ```
-//! use secret_scan::{
+//! use redact_secret::{
 //!     DefaultPolicy, DetectorRegistry, default_placeholder_formatter, scan_and_redact,
 //! };
 //!
@@ -77,7 +77,7 @@
 //! // Ranges index the original input, in UTF-8 bytes.
 //! let range = result.findings()[0].range();
 //! assert_eq!(&input[range.start()..range.end()], "ghp_SYNTHETICREVOKED00000000000000000000");
-//! # Ok::<(), secret_scan::SecretScanError>(())
+//! # Ok::<(), redact_secret::SecretScanError>(())
 //! ```
 //!
 //! # Incremental sanitization contract

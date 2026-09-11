@@ -11,7 +11,7 @@ name: Artifact qualification
 # binary for every triple in `cli-release-targets`; and finally one inventory
 # job that records what was produced, tied to the source commit.
 #
-# `[workspace.metadata.secret-scan]` in the root Cargo.toml is the single
+# `[workspace.metadata.redact-secret]` in the root Cargo.toml is the single
 # declaration of those matrices, and `scripts/check-artifact-matrix.py`
 # (the `policy` job below, which everything else waits on) fails when this
 # file, `bindings/node/package.json`, or any manifest declaring
@@ -364,7 +364,7 @@ jobs:
           key: cli-${{ matrix.target }}
 
       - name: Build the CLI
-        run: cargo build --release --locked -p secret-scan-cli --target ${{ matrix.target }}
+        run: cargo build --release --locked -p redact-secret-cli --target ${{ matrix.target }}
 
       - name: Qualify the CLI
         run: node scripts/qualify-cli-binary.mjs --target ${{ matrix.target }}
@@ -374,8 +374,8 @@ jobs:
         with:
           name: cli-${{ matrix.target }}
           path: |
-            target/${{ matrix.target }}/release/secret-scan
-            target/${{ matrix.target }}/release/secret-scan.exe
+            target/${{ matrix.target }}/release/redact-secret
+            target/${{ matrix.target }}/release/redact-secret.exe
           if-no-files-found: error
 
   package-consumer:

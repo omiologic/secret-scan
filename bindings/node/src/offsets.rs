@@ -2,11 +2,11 @@
 //! (`decision-define-runtime-bindings`).
 //!
 //! JavaScript strings index by UTF-16 code units; the core reports ranges as
-//! UTF-8 byte offsets ([`secret_scan::RANGE_UNIT`]). These functions convert
+//! UTF-8 byte offsets ([`redact_secret::RANGE_UNIT`]). These functions convert
 //! between the two without changing the selected span
 //! (`decision-govern-cross-language-conformance`).
 
-use secret_scan::{SecretScanError, SecretScanErrorCode};
+use redact_secret::{SecretScanError, SecretScanErrorCode};
 
 /// Converts a UTF-8 byte offset into `text` to the UTF-16 code-unit offset at
 /// the same logical position.

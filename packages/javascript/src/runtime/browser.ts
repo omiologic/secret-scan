@@ -176,7 +176,7 @@ function toWasmFormatterCallback(
  */
 async function loadWasmModule(): Promise<WasmModule> {
   const module = (await import(
-    "@omiologic/secret-scan-wasm"
+    "@redact-secret/wasm"
   )) as unknown as Partial<WasmModule>;
   for (const name of [
     "default",

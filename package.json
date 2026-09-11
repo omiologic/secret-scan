@@ -1,5 +1,5 @@
 {
-  "name": "secret-scan-workspace",
+  "name": "redact-secret-workspace",
   "private": true,
   "license": "MIT",
   "repository": {

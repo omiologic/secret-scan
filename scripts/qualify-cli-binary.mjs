@@ -26,7 +26,7 @@
  * matrix, including Windows on Arm. Usage:
  *
  *     node scripts/qualify-cli-binary.mjs --target aarch64-apple-darwin
- *     node scripts/qualify-cli-binary.mjs --binary target/release/secret-scan
+ *     node scripts/qualify-cli-binary.mjs --binary target/release/redact-secret
  */
 
 import { spawnSync } from "node:child_process";
@@ -63,8 +63,8 @@ const TARGET_SUFFIXES = {
   "x86_64-unknown-linux-gnu": "",
 };
 
-const BINARY_NAME = "secret-scan";
-const USAGE_PREFIX = "usage: secret-scan";
+const BINARY_NAME = "redact-secret";
+const USAGE_PREFIX = "usage: redact-secret";
 /** Actions the default policy resolves to a placeholder in the output. */
 const REDACTED_ACTIONS = new Set(["redact", "block"]);
 
@@ -321,7 +321,7 @@ function main() {
     exitCodes(options.binary, positive.input),
   );
 
-  const directory = mkdtempSync(join(tmpdir(), "secret-scan-cli-"));
+  const directory = mkdtempSync(join(tmpdir(), "redact-secret-cli-"));
   try {
     const paths = writeSources(directory, fixtures);
     let reported;

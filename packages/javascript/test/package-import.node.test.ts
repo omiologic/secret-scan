@@ -17,7 +17,7 @@ describe("Node package import", () => {
   it("resolves the package entry point through its exports map", () => {
     const output = runInNode(
       [
-        "const api = await import('@omiologic/secret-scan');",
+        "const api = await import('@redact-secret/core');",
         "console.log(JSON.stringify(Object.keys(api).sort()));",
       ].join(" "),
     );
@@ -58,8 +58,8 @@ describe("Node package import", () => {
   it("resolves both stream adapter subpaths through the exports map", () => {
     const output = runInNode(
       [
-        "const node = await import('@omiologic/secret-scan/node-stream');",
-        "const web = await import('@omiologic/secret-scan/web-stream');",
+        "const node = await import('@redact-secret/core/node-stream');",
+        "const web = await import('@redact-secret/core/web-stream');",
         "console.log(JSON.stringify({",
         "  node: Object.keys(node).sort(),",
         "  web: Object.keys(web).sort(),",
@@ -84,8 +84,8 @@ describe("Node package import", () => {
   it("shares one initialization state across the root and the adapters", () => {
     const output = runInNode(
       [
-        "const { createNodeStreamSanitizer } = await import('@omiologic/secret-scan/node-stream');",
-        "const { createWebStreamSanitizer } = await import('@omiologic/secret-scan/web-stream');",
+        "const { createNodeStreamSanitizer } = await import('@redact-secret/core/node-stream');",
+        "const { createWebStreamSanitizer } = await import('@redact-secret/core/web-stream');",
         "const limits = { maxInputCodeUnits: 1024, maxBufferedCodeUnits: 384, maxTokenCodeUnits: 128, maxMultilineCodeUnits: 256 };",
         "const codes = [];",
         "for (const open of [createNodeStreamSanitizer, createWebStreamSanitizer]) {",
@@ -104,7 +104,7 @@ describe("Node package import", () => {
   it("refuses synchronous operations before initialize succeeds", () => {
     const output = runInNode(
       [
-        "const { scan, SecretScanError } = await import('@omiologic/secret-scan');",
+        "const { scan, SecretScanError } = await import('@redact-secret/core');",
         "try { scan('API_KEY=SYNTHETIC_REVOKED_VALUE'); }",
         "catch (error) {",
         "  if (!(error instanceof SecretScanError)) throw new Error('wrong error type');",
@@ -117,14 +117,14 @@ describe("Node package import", () => {
       code: "NOT_INITIALIZED",
       name: "SecretScanError",
       message:
-        "secret-scan is not initialized; await initialize() before this call.",
+        "redact-secret is not initialized; await initialize() before this call.",
     });
   });
 
   it("reports a fixed error when the platform artifact is absent", () => {
     const output = runInNode(
       [
-        "const { initialize } = await import('@omiologic/secret-scan');",
+        "const { initialize } = await import('@redact-secret/core');",
         "try { await initialize(); console.log('resolved'); }",
         "catch (error) { console.log(JSON.stringify({ code: error.code, message: error.message })); }",
       ].join(" "),
@@ -135,15 +135,15 @@ describe("Node package import", () => {
     // it could not find.
     expect(JSON.parse(output)).toEqual({
       code: "INITIALIZATION_FAILED",
-      message: "secret-scan failed to initialize.",
+      message: "redact-secret failed to initialize.",
     });
   });
 
   it("keeps every internal module unreachable from outside the package", () => {
     for (const subpath of [
-      "@omiologic/secret-scan/native",
-      "@omiologic/secret-scan/runtime",
-      "@omiologic/secret-scan/dist/index.js",
+      "@redact-secret/core/native",
+      "@redact-secret/core/runtime",
+      "@redact-secret/core/dist/index.js",
     ]) {
       const output = runInNode(
         [
