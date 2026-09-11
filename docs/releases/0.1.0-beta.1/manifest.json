@@ -16,21 +16,21 @@
     "pypi:redact-secret"
   ],
   "registry_state": {
-    "npm:@redact-secret/core": "unpublished",
-    "npm:@redact-secret/wasm": "unpublished",
-    "npm:@redact-secret/node-darwin-arm64": "unpublished",
-    "npm:@redact-secret/node-darwin-x64": "unpublished",
-    "npm:@redact-secret/node-linux-arm64-gnu": "unpublished",
-    "npm:@redact-secret/node-linux-x64-gnu": "unpublished",
-    "npm:@redact-secret/node-win32-arm64-msvc": "unpublished",
-    "npm:@redact-secret/node-win32-x64-msvc": "unpublished",
+    "npm:@redact-secret/core": "published",
+    "npm:@redact-secret/wasm": "published",
+    "npm:@redact-secret/node-darwin-arm64": "published",
+    "npm:@redact-secret/node-darwin-x64": "published",
+    "npm:@redact-secret/node-linux-arm64-gnu": "published",
+    "npm:@redact-secret/node-linux-x64-gnu": "published",
+    "npm:@redact-secret/node-win32-arm64-msvc": "published",
+    "npm:@redact-secret/node-win32-x64-msvc": "published",
     "crate:redact-secret": "published",
-    "crate:redact-secret-cli": "unpublished",
+    "crate:redact-secret-cli": "published",
     "pypi:redact-secret": "published"
   },
   "recovery_evidence": {
     "original_run": 34628543780,
-    "observed_at": "2026-09-11T17:55:15.205013+00:00",
+    "observed_at": "2026-09-11T18:08:28.095949+00:00",
     "manifest_reconstructed": true,
     "reason": "Original run output serialization failed; state reconstructed from registry reads and original artifact inventory.",
     "registries": {
@@ -76,7 +76,78 @@
             "sha256": "ea375ac4000e70928ab5150f3a1ddef82bdc6f164071a9c862932826bf9c674b"
           }
         ]
+      },
+      "crate:redact-secret-cli": {
+        "checksum": "4e89e8e982c10306293d61b71ce1b4fb1f730e6fa24285db742fbbc740b74a1f"
+      },
+      "npm:@redact-secret/core": {
+        "shasum": "4d2f8ab1176d5d315d8cc1e41c7768aa10c9172d",
+        "integrity": "sha512-78Ed03WlYr/0wu5dFxNALaxZ/ngtwjUnt5QhyFgT2z3zr+oFv4g3JeJME4oGqpn68nCfvYOWddWkwBsbu6VXYw=="
+      },
+      "npm:@redact-secret/node-darwin-arm64": {
+        "shasum": "6a366f0c2878cb3ba35b285ffd5ed689720254a0",
+        "integrity": "sha512-lDJAH4ijDMTGBwrLsIJbig1yrRbwbSf+5sHRbnS6FYYHQcWuNOJBl6vhJGcS2H4r3CowHUgHaPhYeZmlLtlX/Q=="
+      },
+      "npm:@redact-secret/node-darwin-x64": {
+        "shasum": "44aa9e053ec6615586a7a52b447c90d949f55d25",
+        "integrity": "sha512-gdSoKg+OEQS0fRmDkQyevts2pZUN4LR++JvuH5jPJKhB1PgOprFUG0AmjAN6Hql9KGY5nulLglhhbmN1Zgadog=="
+      },
+      "npm:@redact-secret/node-linux-arm64-gnu": {
+        "shasum": "f1c4ab6a814d5956132b1bddfd6cbff36a28b9e8",
+        "integrity": "sha512-I321/FSr5WalnYSmQlw9KGkoIfL3qn0nt/XiMoh+EaCBNgCFO+q0QUeMW9A4I0z7DDeiKJBqgp4hcOkE8nsndw=="
+      },
+      "npm:@redact-secret/node-linux-x64-gnu": {
+        "shasum": "b333a10afbfac12a6a06282e10c4e6d6c4b25f2a",
+        "integrity": "sha512-J/s12ocA39AqLkerncUz5ncW99roO1QVuDwrS2G/uYSC5RoeZe/sc1CDA5XrDASR+GFwLJUje85rTQ2+z0mJlA=="
+      },
+      "npm:@redact-secret/node-win32-arm64-msvc": {
+        "shasum": "1c792aa38fe4d2e1c06fa31806b19eb980d4b6ff",
+        "integrity": "sha512-K46sBagEXvNIS2C0pE6CGDbSqSDQ1QcdmeWD6oApNC46M+F0c5jcycppGbXNRWkLrp4LlxOsTnDxIR1pyE9tJQ=="
+      },
+      "npm:@redact-secret/node-win32-x64-msvc": {
+        "shasum": "c256450fb5cb6635ad79fd8aa24afc36568255ce",
+        "integrity": "sha512-bvyQnbIlWPsiN/yPY20xebx0PL7CHBvCxMz3Fsw5SOaY4eahqAuQnzietrB0jYQRsBau50QQm3ucSPu42qDfYg=="
+      },
+      "npm:@redact-secret/wasm": {
+        "shasum": "442218f33d337614fc5073e855c8d37678bed0ec",
+        "integrity": "sha512-rLX3AKtNX8mwL/FKLh6ZYWui2OLCqQXNmrAAFuUrzG27Ecvcf55rwpAl8qM/t9GxQ3qjElDq4GhlRcvzSU+VGA=="
       }
+    },
+    "recovery_runs": [
+      {
+        "id": 34630571596,
+        "result": "dry-run passed"
+      },
+      {
+        "id": 34630772391,
+        "result": "first npm dependency uploaded; aggregate metadata verification delayed"
+      },
+      {
+        "id": 34631336326,
+        "result": "all registries published; four install lanes failed due to npm metadata propagation and Windows npm.cmd invocation"
+      },
+      {
+        "id": 34631854605,
+        "result": "all registries checksum-verified; six Node platforms and browser clean-install verification passed"
+      }
+    ],
+    "verification": {
+      "node": [
+        "aarch64-apple-darwin",
+        "x86_64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-gnu",
+        "aarch64-pc-windows-msvc",
+        "x86_64-pc-windows-msvc"
+      ],
+      "browser": "chromium",
+      "run": 34631854605
+    },
+    "tag": {
+      "name": "v0.1.0-beta.1",
+      "object": "7b3ba1d18bb0b01013079fde8d332f2961ae3acf",
+      "target": "7bbd345be0604b8c3d50335985e0bfbbbe3703c9",
+      "created_by": "authorized operator via Git; workflow token received HTTP 403 creating the reference"
     }
   }
 }
