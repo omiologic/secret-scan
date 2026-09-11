@@ -2,16 +2,16 @@ name: Release
 
 # One dispatch publishes the whole product in lockstep
 # (decision-release-bindings-in-lockstep, decision-ship-first-release-artifact-set):
-# the npm package, the `secret-scan` and `secret-scan-cli` crates, and the
-# `omiologic-secret-scan` PyPI distribution. `ci`, `python-wheels`, and
+# the npm package, the `redact-secret` and `redact-secret-cli` crates, and the
+# `redact-secret` PyPI distribution. `ci`, `python-wheels`, and
 # `artifact-qualification` call the qualification workflows as reusable
 # workflows (issue #77, RB-7) so every publish job below -- `publish`,
 # `publish-crates`, and `publish-pypi` -- gates on the exact same commit this
 # workflow is running for, and `publish-pypi` downloads the wheels
 # `python-wheels` already qualified rather than rebuilding them.
 #
-# `packages/javascript` depends on six native `@omiologic/secret-scan-<platform>`
-# packages and `@omiologic/secret-scan-wasm` (issue #79); `publish-native-dependencies`
+# `packages/javascript` depends on six native `@redact-secret/node-<platform>`
+# packages and `@redact-secret/wasm` (issue #79); `publish-native-dependencies`
 # and `publish-wasm-dependency` (issue #141) publish those from the exact
 # `node-addon-<target>`/`wasm-web` artifacts `artifact-qualification` already
 # qualified for this commit -- packed, content-checked against the manifest
@@ -118,7 +118,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-          scope: '@omiologic'
+          scope: '@redact-secret'
 
       - name: Determine the npm dist-tag
         id: tag
@@ -127,7 +127,7 @@ jobs:
           version=$(node -p "require('./bindings/node/npm/${{ matrix.platform }}/package.json').version")
           if [[ "$version" == *-* ]]; then echo "tag=beta" >> "$GITHUB_OUTPUT"; else echo "tag=latest" >> "$GITHUB_OUTPUT"; fi
 
-      # `artifact-qualification.yml` uploads exactly `secret-scan.<platform>.node`
+      # `artifact-qualification.yml` uploads exactly `redact-secret.<platform>.node`
       # plus napi's generated loader; only the compiled library belongs in
       # the platform package (`bindings/node/npm/<platform>/package.json`'s
       # own `files`), so only it is copied in.
@@ -138,7 +138,7 @@ jobs:
           path: bindings/node
 
       - name: Assemble the platform package
-        run: cp "bindings/node/secret-scan.${{ matrix.platform }}.node" "bindings/node/npm/${{ matrix.platform }}/"
+        run: cp "bindings/node/redact-secret.${{ matrix.platform }}.node" "bindings/node/npm/${{ matrix.platform }}/"
 
       - name: Pack, content-check, publish, and verify
         run: node scripts/publish-dependency-package.mjs --package-dir "bindings/node/npm/${{ matrix.platform }}" --tag "${{ steps.tag.outputs.tag }}"
@@ -169,7 +169,7 @@ jobs:
           path: registry-state.json
           if-no-files-found: error
 
-  # Publishes `@omiologic/secret-scan-wasm` from the `wasm-web` artifact
+  # Publishes `@redact-secret/wasm` from the `wasm-web` artifact
   # `artifact-qualification` already qualified for this commit -- never
   # rebuilt here, the same "already-qualified artifacts" requirement
   # `publish-native-dependencies` follows.
@@ -201,7 +201,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-          scope: '@omiologic'
+          scope: '@redact-secret'
 
       - name: Determine the npm dist-tag
         id: tag
@@ -277,7 +277,7 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
-          scope: '@omiologic'
+          scope: '@redact-secret'
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
@@ -428,8 +428,8 @@ jobs:
         shell: bash
         run: |
           version=$(cargo metadata --no-deps --format-version 1 --locked \
-            | jq -r '.packages[] | select(.name == "secret-scan") | .version')
-          for crate in secret-scan secret-scan-cli; do
+            | jq -r '.packages[] | select(.name == "redact-secret") | .version')
+          for crate in redact-secret redact-secret-cli; do
             status=$(curl -s -o /dev/null -w '%{http_code}' \
               "https://crates.io/api/v1/crates/$crate/$version")
             if [[ "$status" == "200" ]]; then
@@ -439,31 +439,31 @@ jobs:
           done
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      # Core first: secret-scan-cli's manifest depends on the registry
-      # release of secret-scan, not the path in this checkout
-      # (`cargo package -p secret-scan-cli` proves this locally by failing
+      # Core first: redact-secret-cli's manifest depends on the registry
+      # release of redact-secret, not the path in this checkout
+      # (`cargo package -p redact-secret-cli` proves this locally by failing
       # until the core is actually on crates.io).
-      - name: Publish secret-scan
-        run: cargo publish -p secret-scan --locked
+      - name: Publish redact-secret
+        run: cargo publish -p redact-secret --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-      - name: Wait for secret-scan on crates.io
+      - name: Wait for redact-secret on crates.io
         shell: bash
         run: |
           for attempt in 1 2 3 4 5 6; do
             status=$(curl -s -o /dev/null -w '%{http_code}' \
-              "https://crates.io/api/v1/crates/secret-scan/${{ steps.identity.outputs.version }}")
+              "https://crates.io/api/v1/crates/redact-secret/${{ steps.identity.outputs.version }}")
             if [[ "$status" == "200" ]]; then
               exit 0
             fi
             sleep 10
           done
-          echo "secret-scan could not be verified on crates.io." >&2
+          echo "redact-secret could not be verified on crates.io." >&2
           exit 1
 
-      - name: Publish secret-scan-cli
-        run: cargo publish -p secret-scan-cli --locked
+      - name: Publish redact-secret-cli
+        run: cargo publish -p redact-secret-cli --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -476,17 +476,17 @@ jobs:
           core_state=unknown
           cli_state=unknown
           if [[ -n "$version" ]]; then
-            for crate in secret-scan secret-scan-cli; do
+            for crate in redact-secret redact-secret-cli; do
               status=$(curl -s -o /dev/null -w '%{http_code}' \
                 "https://crates.io/api/v1/crates/$crate/$version")
               state=unpublished
               [[ "$status" == "200" ]] && state=published
-              if [[ "$crate" == "secret-scan" ]]; then core_state=$state; else cli_state=$state; fi
+              if [[ "$crate" == "redact-secret" ]]; then core_state=$state; else cli_state=$state; fi
             done
           fi
           json=$(jq -n \
-            --arg core "crate:secret-scan" --arg core_state "$core_state" \
-            --arg cli "crate:secret-scan-cli" --arg cli_state "$cli_state" \
+            --arg core "crate:redact-secret" --arg core_state "$core_state" \
+            --arg cli "crate:redact-secret-cli" --arg cli_state "$cli_state" \
             '{($core): $core_state, ($cli): $cli_state}')
           echo "registry_state_json=$json" >> "$GITHUB_OUTPUT"
 
@@ -565,7 +565,7 @@ jobs:
           echo "registry_state_json=$json" >> "$GITHUB_OUTPUT"
 
   # Issue #141's "registry-backed clean install" criterion: installs the
-  # real, published `@omiologic/secret-scan` -- no local tarball, no
+  # real, published `@redact-secret/core` -- no local tarball, no
   # `overrides` -- on a native runner for each supported Node platform
   # class, and awaits `initialize()` and a correct `scan()`.
   # `scripts/qualify-package-consumer.mjs` (in `artifact-qualification.yml`)

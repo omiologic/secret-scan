@@ -4,7 +4,7 @@
 //! message. No failure carries argument text, input, a matched value, or an
 //! operating-system message that might quote either.
 
-use secret_scan::{SecretScanError, SecretScanErrorCode};
+use redact_secret::{SecretScanError, SecretScanErrorCode};
 
 /// The command line named an option the binary does not accept.
 pub const UNKNOWN_OPTION: &str = "unrecognized option";

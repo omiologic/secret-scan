@@ -1,5 +1,5 @@
 /**
- * The documented public type contract of `@omiologic/secret-scan`.
+ * The documented public type contract of `@redact-secret/core`.
  *
  * Every range in this file is a `[start, end)` pair of **UTF-16 code-unit**
  * offsets into the JavaScript string that produced it, so `input.slice(start,

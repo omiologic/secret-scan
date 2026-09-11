@@ -1,4 +1,4 @@
-# secret-scan agent instructions
+# Redact Secret agent instructions
 
 ## Required context
 

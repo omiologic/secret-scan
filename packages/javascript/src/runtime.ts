@@ -2,7 +2,7 @@
  * The runtime-neutral half of the package: the initialization contract and
  * the operations it gates.
  *
- * {@link createSecretScanRuntime} takes the loader for one runtime and returns
+ * {@link createRedactSecretRuntime} takes the loader for one runtime and returns
  * the public operations bound to it. `index.ts` supplies the loader the
  * package's `imports` map selected; tests supply their own. Nothing here
  * inspects the host, imports a `node:` module, or touches a global.
@@ -176,7 +176,7 @@ function toNativeIncrementalOptions(
   };
 }
 
-export interface SecretScanRuntime {
+export interface RedactSecretRuntime {
   initialize(): Promise<void>;
   scan(input: string, options?: ScanOptions): readonly SecretFinding[];
   redact(
@@ -200,9 +200,9 @@ export interface SecretScanRuntime {
  * below fails with `NOT_INITIALIZED` until exactly one call has succeeded. A
  * failed attempt is not cached: a caller may retry.
  */
-export function createSecretScanRuntime(
+export function createRedactSecretRuntime(
   loadNativeBinding: NativeBindingLoader,
-): SecretScanRuntime {
+): RedactSecretRuntime {
   let binding: NativeBinding | undefined;
   let pending: Promise<void> | undefined;
 

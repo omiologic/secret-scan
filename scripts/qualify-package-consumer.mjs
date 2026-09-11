@@ -2,14 +2,14 @@
 /**
  * Qualifies `packages/javascript` as an actual npm consumer would install
  * it: packs it and its native/WebAssembly dependencies into tarballs, installs
- * the packed `@omiologic/secret-scan` tarball into a clean directory outside
+ * the packed `@redact-secret/core` tarball into a clean directory outside
  * the repository (nothing under it resolves back into this checkout), and
  * awaits `initialize()` successfully on both the Node runtime and a real
  * browser runtime (issue #79, "Under either branch" criterion 1).
  *
  * `optionalDependencies`/`dependencies` in `packages/javascript/package.json`
- * name registry versions of `@omiologic/secret-scan-<platform>` and
- * `@omiologic/secret-scan-wasm` (issue #79) that are not published yet
+ * name registry versions of `@redact-secret/node-<platform>` and
+ * `@redact-secret/wasm` (issue #79) that are not published yet
  * (RB-2, issue #72, is what starts publishing `packages/javascript` at
  * all). This script substitutes local tarballs for exactly those two
  * dependency kinds via npm's `overrides`, which is the standard way to
@@ -22,7 +22,7 @@
  * `qualify-browser-artifact.mjs` require):
  * - `napi build --platform --release` has produced this host's addon in
  *   `bindings/node`.
- * - `wasm-bindgen --target web --out-name secret_scan_wasm` has produced the
+ * - `wasm-bindgen --target web --out-name redact_secret_wasm` has produced the
  *   browser build in some directory (`--wasm-dir`).
  * - `npm run js:build` has produced `packages/javascript/dist`.
  * - `playwright`'s `chromium` browser is installed for the browser lane.
@@ -78,7 +78,7 @@ async function assembleNodePlatformPackage() {
       `no platform package is mapped for ${process.platform}/${process.arch}`,
     );
   }
-  const suffix = specifier.split("/")[1].replace("secret-scan-", "");
+  const suffix = specifier.split("/")[1].replace("node-", "");
   const dir = join(NODE_PLATFORM_ROOT, "npm", suffix);
   const manifest = JSON.parse(await readFile(join(dir, "package.json"), "utf8"));
   await cp(
@@ -100,13 +100,13 @@ async function assembleWasmPackage(wasmDir) {
  * and never again.
  */
 async function buildConsumerProject(tarballs) {
-  const root = await mkdtemp(join(tmpdir(), "secret-scan-consumer-"));
+  const root = await mkdtemp(join(tmpdir(), "redact-secret-consumer-"));
   const manifest = {
-    name: "secret-scan-consumer-qualification",
+    name: "redact-secret-consumer-qualification",
     private: true,
     type: "module",
     dependencies: {
-      "@omiologic/secret-scan": `file:${tarballs.js}`,
+      "@redact-secret/core": `file:${tarballs.js}`,
     },
     overrides: {
       [WASM_SPECIFIER]: `file:${tarballs.wasm}`,
@@ -149,10 +149,10 @@ async function main() {
     await rm(tarballs.wasm, { force: true });
     await mkdir(nodePlatformDir, { recursive: true });
     await rm(join(nodePlatformDir, JSON.parse(await readFile(join(nodePlatformDir, "package.json"), "utf8")).main), { force: true });
-    await rm(join(wasmPackageDir, "secret_scan_wasm.js"), { force: true });
-    await rm(join(wasmPackageDir, "secret_scan_wasm.d.ts"), { force: true });
-    await rm(join(wasmPackageDir, "secret_scan_wasm_bg.wasm"), { force: true });
-    await rm(join(wasmPackageDir, "secret_scan_wasm_bg.wasm.d.ts"), { force: true });
+    await rm(join(wasmPackageDir, "redact_secret_wasm.js"), { force: true });
+    await rm(join(wasmPackageDir, "redact_secret_wasm.d.ts"), { force: true });
+    await rm(join(wasmPackageDir, "redact_secret_wasm_bg.wasm"), { force: true });
+    await rm(join(wasmPackageDir, "redact_secret_wasm_bg.wasm.d.ts"), { force: true });
     if (consumerRoot) await rm(consumerRoot, { recursive: true, force: true });
   }
 

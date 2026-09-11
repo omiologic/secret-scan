@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Enforce the CPython packaging contract declared in the root Cargo.toml.
 
-``[workspace.metadata.secret-scan]`` states the distribution identity, the
+``[workspace.metadata.redact-secret]`` states the distribution identity, the
 abi3 floor, and the wheel matrix once. This script fails when any of the three
 places that have to agree with it drifts: ``bindings/python/pyproject.toml``,
 ``bindings/python/Cargo.toml``, and the wheel workflow.
@@ -107,14 +107,14 @@ def targets_for_platform(platform: str, declared: Iterable[str]) -> list[str]:
 MINIMUM_MATURIN = (1, 10)
 MATURIN_REQUIREMENT = re.compile(r"^maturin\s*>=\s*(\d+)\.(\d+)(?:\.\d+)?\s*,\s*<\s*2$")
 
-USER_AGENT = "secret-scan packaging check (https://github.com/omiologic/secret-scan)"
+USER_AGENT = "redact-secret packaging check (https://github.com/omiologic/secret-scan)"
 
 
 def load_policy(root: Path) -> dict:
-    """The `[workspace.metadata.secret-scan]` table, or an empty table."""
+    """The `[workspace.metadata.redact-secret]` table, or an empty table."""
     with (root / "Cargo.toml").open("rb") as handle:
         manifest = tomllib.load(handle)
-    return manifest.get("workspace", {}).get("metadata", {}).get("secret-scan", {})
+    return manifest.get("workspace", {}).get("metadata", {}).get("redact-secret", {})
 
 
 def abi3_floor(feature: str) -> int | None:
@@ -298,7 +298,7 @@ def validate(root: Path) -> list[str]:
     binding = root / BINDING
     policy = load_policy(root)
     if not policy:
-        return ["Cargo.toml: missing [workspace.metadata.secret-scan] policy"]
+        return ["Cargo.toml: missing [workspace.metadata.redact-secret] policy"]
 
     pyproject_path = binding / "pyproject.toml"
     crate_path = binding / "Cargo.toml"

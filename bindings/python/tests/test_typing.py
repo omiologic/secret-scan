@@ -8,8 +8,8 @@ import ast
 import inspect
 from pathlib import Path
 
-import secret_scan
-import secret_scan._native as native
+import redact_secret
+import redact_secret._native as native
 
 STUB_PATH = Path(native.__file__).with_name("_native.pyi")
 
@@ -38,14 +38,14 @@ def _stub_top_level_names() -> set[str]:
 
 def test_every_public_native_name_has_a_stub_declaration() -> None:
     stub_names = _stub_top_level_names()
-    for name in secret_scan.__all__:
+    for name in redact_secret.__all__:
         if not hasattr(native, name):
             continue  # re-exported from elsewhere, e.g. __version__
         assert name in stub_names, f"{name} is missing from _native.pyi"
 
 
 def test_package_declares_pep_561_support() -> None:
-    package_dir = Path(secret_scan.__file__).parent
+    package_dir = Path(redact_secret.__file__).parent
     assert (package_dir / "py.typed").is_file()
 
 
@@ -60,12 +60,12 @@ def test_functions_carry_introspectable_signatures() -> None:
         "default_incremental_policy": {"finding", "context"},
     }
     for name, params in expected.items():
-        signature = inspect.signature(getattr(secret_scan, name))
+        signature = inspect.signature(getattr(redact_secret, name))
         assert set(signature.parameters) == params, name
 
 
 def test_finding_and_context_types_expose_documented_attributes() -> None:
-    findings = secret_scan.scan(
+    findings = redact_secret.scan(
         "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000"
     )
     assert findings
@@ -86,13 +86,13 @@ def test_incremental_session_methods_carry_introspectable_signatures() -> None:
     }
     for name, params in expected.items():
         signature = inspect.signature(
-            getattr(secret_scan.IncrementalSanitizer, name)
+            getattr(redact_secret.IncrementalSanitizer, name)
         )
         assert set(signature.parameters) == params, name
 
 
 def test_incremental_types_expose_documented_attributes() -> None:
-    limits = secret_scan.IncrementalLimits(
+    limits = redact_secret.IncrementalLimits(
         max_input_bytes=1_000_000,
         max_buffered_bytes=16_512,
         max_token_bytes=8_192,
@@ -106,7 +106,7 @@ def test_incremental_types_expose_documented_attributes() -> None:
     ):
         assert isinstance(getattr(limits, attribute), int)
 
-    session = secret_scan.IncrementalSanitizer(limits)
+    session = redact_secret.IncrementalSanitizer(limits)
     assert isinstance(session.state, str)
     assert session.limits.max_input_bytes == limits.max_input_bytes
 

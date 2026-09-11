@@ -68,8 +68,8 @@ const ERROR_MESSAGES: Readonly<Record<SecretScanErrorCode, string>> = {
   MULTILINE_LIMIT_EXCEEDED: "Incremental sanitizer multiline limit exceeded.",
   INVALID_STATE: "The incremental sanitizer is no longer accepting input.",
   NOT_INITIALIZED:
-    "secret-scan is not initialized; await initialize() before this call.",
-  INITIALIZATION_FAILED: "secret-scan failed to initialize.",
+    "redact-secret is not initialized; await initialize() before this call.",
+  INITIALIZATION_FAILED: "redact-secret failed to initialize.",
   INVALID_CHUNK: "Stream sanitizer input must contain bytes.",
   INVALID_UTF8: "Stream sanitizer input is not valid UTF-8.",
   UNPAIRED_SURROGATE: "Secret scan input contains an unpaired UTF-16 surrogate.",

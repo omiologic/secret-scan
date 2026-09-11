@@ -1,7 +1,7 @@
 //! The JavaScript-visible finding and range types [`scan`](crate::scan) and
 //! [`scan_and_redact`](crate::scan_and_redact) return.
 //!
-//! [`FindingJs`] wraps a [`secret_scan::Finding`] behind an opaque handle: its
+//! [`FindingJs`] wraps a [`redact_secret::Finding`] behind an opaque handle: its
 //! getters expose only safe metadata (with the range converted to UTF-16 code
 //! units), and it carries the original UTF-8-byte-range finding privately so
 //! [`redact`](crate::redact) can accept the exact values [`scan`](crate::scan)
@@ -42,7 +42,7 @@ impl RangeJs {
 #[wasm_bindgen(js_name = "Finding")]
 #[derive(Clone, Debug)]
 pub struct FindingJs {
-    inner: secret_scan::Finding,
+    inner: redact_secret::Finding,
     range: RangeJs,
 }
 
@@ -94,7 +94,7 @@ impl FindingJs {
 impl FindingJs {
     /// Wraps `finding`, converting its UTF-8 byte range to UTF-16 code units
     /// against `input`.
-    pub(crate) fn new(input: &str, finding: secret_scan::Finding) -> Self {
+    pub(crate) fn new(input: &str, finding: redact_secret::Finding) -> Self {
         let (start, end) = range::to_utf16_range(input, finding.range());
         Self {
             inner: finding,
@@ -102,10 +102,10 @@ impl FindingJs {
         }
     }
 
-    /// Unwraps the original core [`Finding`](secret_scan::Finding), with its
+    /// Unwraps the original core [`Finding`](redact_secret::Finding), with its
     /// UTF-8 byte range intact, for [`redact`](crate::redact) to consume
     /// directly.
-    pub(crate) fn into_inner(self) -> secret_scan::Finding {
+    pub(crate) fn into_inner(self) -> redact_secret::Finding {
         self.inner
     }
 }
@@ -113,11 +113,11 @@ impl FindingJs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use secret_scan::{Action, ByteRange, Confidence};
+    use redact_secret::{Action, ByteRange, Confidence};
 
     #[test]
     fn exposes_safe_metadata_with_a_utf16_range() {
-        let core_finding = secret_scan::Finding::new(
+        let core_finding = redact_secret::Finding::new(
             "finding-1",
             "aws_access_key_id",
             "aws-access-key",
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn round_trips_through_into_inner_unchanged() {
-        let core_finding = secret_scan::Finding::new(
+        let core_finding = redact_secret::Finding::new(
             "finding-1",
             "jwt",
             "jwt",

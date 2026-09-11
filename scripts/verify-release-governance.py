@@ -27,7 +27,7 @@ credential or tool it needs is unavailable locally:
   (`registry.npmjs.org/{package}`), which includes its maintainer list
   without requiring authentication. This can show who already maintains a
   package; it cannot show whether a not-yet-authenticated CI identity has
-  scope-level rights to publish a *new* package under `@omiologic` -- an
+  scope-level rights to publish a *new* package under `@redact-secret` -- an
   admin must confirm that with `npm access ls-collaborators` (or the npm
   website) as that identity.
 - `crate NAME...` -- crates.io's public API: whether the name exists, and if
@@ -36,7 +36,29 @@ credential or tool it needs is unavailable locally:
 - `pypi PROJECT` -- PyPI's public JSON API confirms whether the project name
   exists. PyPI's Trusted Publisher configuration is not exposed by any
   public API; this script says so and defers to an admin checking the
-  project's "Manage -> Publishing" page.
+  project's "Manage -> Publishing" page. Given `--pypi`, this also rechecks
+  every PEP 503 alias of that name (see below).
+- `--check-repo` -- `GET /repos/{repo}` via `gh`: whether the GitHub
+  repository itself exists, distinct from whether its `release` environment
+  or `main` branch are protected (issue #153's registry-name preflight,
+  which targets a *candidate* identity that may not be the operational
+  repository yet).
+
+PEP 503 normalizes a PyPI project name by lowercasing it and collapsing
+every run of `-`, `_`, and `.` to a single `-`; `redact-secret`,
+`redact_secret`, and `redact.secret` are therefore the same project
+identity, not three candidate names. `--pypi` fetches every alias's own
+JSON response and confirms they all report the same canonical `info.name`
+(`check_pypi_normalized_aliases`), rather than assuming PyPI's own
+normalization without checking it.
+
+A 404 for a candidate name -- on npm, crates.io, PyPI, or a candidate
+GitHub repository path -- means no public project exists under that name
+today. It is **not** evidence of a *reservation*: this script does not
+create, and does not recommend creating, a placeholder package or project
+to hold a name for later. Rechecking these names immediately before a
+release candidate's sign-off (rather than trusting an earlier, dated check)
+is what issue #153's registry-name preflight is for.
 
 Run with `all` and repeated `--npm`, `--crate`, and one `--pypi` to produce
 one evidence record; run a single subcommand to check one thing.
@@ -46,6 +68,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import urllib.error
@@ -166,6 +189,47 @@ def check_pypi_project(read: HttpReader, project: str) -> dict:
     }
 
 
+PEP_503_RUNS = re.compile(r"[-_.]+")
+
+
+def normalize_pep503(name: str) -> str:
+    """PEP 503: lowercase, with every run of `-`, `_`, `.` collapsed to `-`."""
+    return PEP_503_RUNS.sub("-", name).lower()
+
+
+def check_pypi_normalized_aliases(read: HttpReader, name: str) -> dict:
+    """Confirm every PEP 503 spelling of `name` is one PyPI project, not
+    several. A 404 on every alias means no public project exists under any
+    of them today -- not evidence that the name is reserved."""
+    normalized = normalize_pep503(name)
+    aliases = sorted({name, normalized, normalized.replace("-", "_")})
+    responses = {alias: read(f"https://pypi.org/pypi/{alias}/json") for alias in aliases}
+    reported_names = {
+        alias: (data.get("info", {}).get("name") if isinstance(data, dict) else None)
+        for alias, data in responses.items()
+    }
+    distinct = {value for value in reported_names.values() if value is not None}
+    return {
+        "check": "pypi-normalized-aliases",
+        "aliases": aliases,
+        "exists": bool(distinct),
+        "reported_names": reported_names,
+        "agree": len(distinct) <= 1,
+    }
+
+
+def check_github_repo(read: GitHubReader, repo: str) -> dict:
+    data = read(f"repos/{repo}")
+    if data is None:
+        return {"check": "github-repo", "repo": repo, "exists": False}
+    return {
+        "check": "github-repo",
+        "repo": repo,
+        "exists": True,
+        "private": data.get("private") if isinstance(data, dict) else None,
+    }
+
+
 def _run(label: str, fn: Callable[[], dict]) -> dict:
     try:
         return fn()
@@ -183,8 +247,11 @@ def build_evidence(
     npm_packages: list[str],
     crates: list[str],
     pypi_project: str | None,
+    check_repo: bool = False,
 ) -> dict:
     results: list[dict] = []
+    if check_repo:
+        results.append(_run("github-repo", lambda: check_github_repo(gh_read, repo)))
     if environment:
         results.append(_run("github-environment", lambda: check_github_environment(gh_read, repo, environment)))
     if branch:
@@ -195,6 +262,9 @@ def build_evidence(
         results.append(_run("crate", lambda crate=crate: check_crate(http_read, crate)))
     if pypi_project:
         results.append(_run("pypi", lambda: check_pypi_project(http_read, pypi_project)))
+        results.append(
+            _run("pypi-normalized-aliases", lambda: check_pypi_normalized_aliases(http_read, pypi_project))
+        )
 
     return {
         "issue": 143,
@@ -212,6 +282,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--npm", dest="npm_packages", action="append", default=[])
     parser.add_argument("--crate", dest="crates", action="append", default=[])
     parser.add_argument("--pypi", dest="pypi_project", default=None)
+    parser.add_argument(
+        "--check-repo", action="store_true", help="check whether --repo itself exists on GitHub"
+    )
     parser.add_argument("--out", type=argparse.FileType("w"), default=sys.stdout)
     args = parser.parse_args(argv)
 
@@ -224,6 +297,7 @@ def main(argv: list[str] | None = None) -> int:
         npm_packages=args.npm_packages,
         crates=args.crates,
         pypi_project=args.pypi_project,
+        check_repo=args.check_repo,
     )
     json.dump(evidence, args.out, indent=2, sort_keys=True)
     args.out.write("\n")

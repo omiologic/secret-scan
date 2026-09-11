@@ -174,7 +174,7 @@ pub fn run_detector_pipeline(
 /// # Examples
 ///
 /// ```
-/// use secret_scan::{Action, DefaultPolicy, DetectorRegistry, scan};
+/// use redact_secret::{Action, DefaultPolicy, DetectorRegistry, scan};
 ///
 /// let registry = DetectorRegistry::with_built_in([])?;
 /// let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000";
@@ -186,7 +186,7 @@ pub fn run_detector_pipeline(
 /// assert_eq!(findings[0].action(), Action::Redact);
 /// assert_eq!(findings[0].detector(), "github-token");
 /// assert_eq!(findings[0].range().start(), 8);
-/// # Ok::<(), secret_scan::SecretScanError>(())
+/// # Ok::<(), redact_secret::SecretScanError>(())
 /// ```
 ///
 /// # Errors
@@ -226,7 +226,7 @@ pub fn scan(
 /// # Examples
 ///
 /// ```
-/// use secret_scan::{
+/// use redact_secret::{
 ///     DefaultPolicy, DetectorRegistry, default_placeholder_formatter, scan_and_redact,
 /// };
 ///
@@ -237,7 +237,7 @@ pub fn scan(
 ///
 /// assert_eq!(result.text(), "API_KEY=<SECRET_1> trailing");
 /// assert_eq!(result.findings().len(), 1);
-/// # Ok::<(), secret_scan::SecretScanError>(())
+/// # Ok::<(), redact_secret::SecretScanError>(())
 /// ```
 ///
 /// # Errors

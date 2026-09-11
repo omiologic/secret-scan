@@ -1,8 +1,8 @@
-//! `secret-scan` command-line interface.
+//! `redact-secret` command-line interface.
 //!
 //! The CLI is a host adapter: it owns process arguments, standard streams,
 //! exit codes, and file access, and delegates all detection, policy, and
-//! redaction behavior to the `secret_scan` core
+//! redaction behavior to the `redact_secret` core
 //! (`decision-adopt-rust-core-monorepo`). It reports the same product version
 //! as every other artifact in the workspace
 //! (`decision-release-bindings-in-lockstep`).
@@ -37,7 +37,7 @@ use std::env;
 use std::io::{self, BufWriter, Write};
 use std::process::ExitCode;
 
-use secret_scan::{RANGE_UNIT, VERSION};
+use redact_secret::{RANGE_UNIT, VERSION};
 
 use args::{Command, Format};
 use failure::Failure;
@@ -45,10 +45,10 @@ use limits::{MAX_BUFFERED_BYTES, MAX_INPUT_BYTES, MAX_MULTILINE_BYTES, MAX_TOKEN
 
 /// The short usage block printed with a rejected command line.
 const USAGE: &str = "\
-usage: secret-scan [--json] [--] [<path>...]
-       secret-scan --redact [--] [<path>]
-       secret-scan --version | -V
-       secret-scan --help | -h";
+usage: redact-secret [--json] [--] [<path>...]
+       redact-secret --redact [--] [<path>]
+       redact-secret --version | -V
+       redact-secret --help | -h";
 
 /// What the run proved, before it is turned into an exit code.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -110,7 +110,7 @@ where
             Ok(Outcome::Clean)
         }
         Command::Version => {
-            write_line(stdout, &format!("secret-scan {VERSION}"))?;
+            write_line(stdout, &format!("redact-secret {VERSION}"))?;
             Ok(Outcome::Clean)
         }
         Command::Check { sources, format } => {
@@ -152,7 +152,7 @@ fn write_line(out: &mut dyn Write, text: &str) -> Result<(), Failure> {
 fn report_failure(stderr: &mut dyn Write, failure: Failure) {
     let _ = writeln!(
         stderr,
-        "secret-scan: {}: {}",
+        "redact-secret: {}: {}",
         failure.code(),
         failure.message()
     );
@@ -165,7 +165,7 @@ fn report_failure(stderr: &mut dyn Write, failure: Failure) {
 fn help() -> String {
     format!(
         "\
-secret-scan {VERSION} — deterministic secret detection and redaction
+redact-secret {VERSION} — deterministic secret detection and redaction
 
 {USAGE}
 
@@ -263,7 +263,7 @@ mod tests {
     fn version_output_is_unchanged() {
         let run = invoke(&["--version"], "");
         assert_eq!(run.outcome, Ok(Outcome::Clean));
-        assert_eq!(run.stdout, format!("secret-scan {VERSION}\n"));
+        assert_eq!(run.stdout, format!("redact-secret {VERSION}\n"));
     }
 
     #[test]
@@ -347,6 +347,6 @@ mod tests {
         report_failure(&mut stderr, Failure::Usage(failure::UNKNOWN_OPTION));
         let stderr = String::from_utf8(stderr).unwrap();
         assert!(stderr.contains("USAGE: unrecognized option"));
-        assert!(stderr.contains("secret-scan --redact"));
+        assert!(stderr.contains("redact-secret --redact"));
     }
 }

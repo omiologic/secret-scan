@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use secret_scan::SecretScanErrorCode;
+use redact_secret::SecretScanErrorCode;
 
 use crate::failure::Failure;
 use crate::limits::MAX_INPUT_BYTES;

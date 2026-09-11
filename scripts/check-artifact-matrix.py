@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Enforce the cross-platform qualification matrix declared in Cargo.toml.
 
-``[workspace.metadata.secret-scan]`` states, once, every platform and engine
+``[workspace.metadata.redact-secret]`` states, once, every platform and engine
 the product is qualified on. This script fails when any of the places that
 have to agree with it drifts, so a supported platform cannot be added or
 dropped in one file alone.
@@ -128,7 +128,7 @@ def read_json(root: Path, path: Path) -> dict | None:
 def load_policy(root: Path) -> dict:
     with (root / "Cargo.toml").open("rb") as handle:
         manifest = tomllib.load(handle)
-    return manifest.get("workspace", {}).get("metadata", {}).get("secret-scan", {})
+    return manifest.get("workspace", {}).get("metadata", {}).get("redact-secret", {})
 
 
 def compare(label: str, declared, found, where: str) -> list[str]:
@@ -202,7 +202,7 @@ def platform_names(qualifier_text: str) -> dict[str, str]:
     ``scripts/qualify-node-addon.mjs`` declares as ``TARGET_PLATFORM_NAMES``,
     e.g. ``"x86_64-unknown-linux-gnu": "linux-x64-gnu"`` — the same names
     ``bindings/node/npm/<platform>/`` directories and
-    ``@omiologic/secret-scan-<platform>`` package names use, so every check
+    ``@redact-secret/node-<platform>`` package names use, so every check
     below is keyed off the one place that mapping is spelled out."""
     return dict(re.findall(r'"([a-z0-9_]+-[a-z0-9-]+)":\s*"([a-z0-9-]+)"', qualifier_text))
 
@@ -227,7 +227,7 @@ def check_node_publish_targets(root: Path, policy: dict) -> list[str]:
     for target in sorted(set(declared) - set(names)):
         errors.append(f"{ADDON_QUALIFIER.as_posix()}: no platform file name for {target}")
     expected_platforms = {names[target] for target in declared if target in names}
-    expected_packages = {f"@omiologic/secret-scan-{platform}" for platform in expected_platforms}
+    expected_packages = {f"@redact-secret/node-{platform}" for platform in expected_platforms}
 
     directory = root / NATIVE_NPM_DIR
     found_platforms = (
@@ -236,7 +236,7 @@ def check_node_publish_targets(root: Path, policy: dict) -> list[str]:
     errors.extend(compare("published platform packages", expected_platforms, found_platforms, NATIVE_NPM_DIR.as_posix()))
     for platform in sorted(expected_platforms & found_platforms):
         manifest = read_json(root, NATIVE_NPM_DIR / platform / "package.json")
-        expected_name = f"@omiologic/secret-scan-{platform}"
+        expected_name = f"@redact-secret/node-{platform}"
         if manifest is None:
             errors.append(f"{(NATIVE_NPM_DIR / platform / 'package.json').as_posix()}: missing or invalid")
         elif manifest.get("name") != expected_name:
@@ -262,7 +262,7 @@ def check_node_publish_targets(root: Path, policy: dict) -> list[str]:
     if runtime is None:
         errors.append(f"{RUNTIME_NODE.as_posix()}: missing")
     else:
-        referenced = set(re.findall(r'"(@omiologic/secret-scan-[a-z0-9-]+)"', runtime))
+        referenced = set(re.findall(r'"(@redact-secret/node-[a-z0-9-]+)"', runtime))
         errors.extend(compare("the platform-package mapping", expected_packages, referenced, RUNTIME_NODE.as_posix()))
 
     return errors
@@ -416,7 +416,7 @@ def validate(root: Path) -> list[str]:
     root = root.resolve()
     policy = load_policy(root)
     if not policy:
-        return ["Cargo.toml: missing [workspace.metadata.secret-scan] policy"]
+        return ["Cargo.toml: missing [workspace.metadata.redact-secret] policy"]
 
     workflow = read_text(root, WORKFLOW)
     if workflow is None:

@@ -15,7 +15,7 @@ mod support;
 
 use std::time::Instant;
 
-use secret_scan::{IncrementalLimits, IncrementalSanitizer, SecretScanErrorCode, SessionState};
+use redact_secret::{IncrementalLimits, IncrementalSanitizer, SecretScanErrorCode, SessionState};
 use support::{CanonicalFixture, run_session, synchronous_corpus, whole_input};
 
 /// The adversarial tier of the canonical synchronous corpus.

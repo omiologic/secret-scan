@@ -11,7 +11,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use secret_scan::{
+use redact_secret::{
     Action, DefaultPolicy, DetectedFinding, DetectorRegistry, Finding, FormatterFailure,
     IncrementalLimits, IncrementalPolicy, IncrementalPolicyContext, IncrementalResult,
     IncrementalSanitizer, MAX_PLACEHOLDER_LENGTH, PlaceholderContext, PlaceholderFormatter,

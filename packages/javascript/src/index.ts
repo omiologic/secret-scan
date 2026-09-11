@@ -1,5 +1,5 @@
 /**
- * `@omiologic/secret-scan`: deterministic secret detection and redaction, one
+ * `@redact-secret/core`: deterministic secret detection and redaction, one
  * API across Node.js and the browser.
  *
  * The package's `exports` map selects the N-API addon on Node and the
@@ -7,7 +7,7 @@
  * Every runtime uses the same contract:
  *
  * ```ts
- * import { initialize, scanAndRedact } from "@omiologic/secret-scan";
+ * import { initialize, scanAndRedact } from "@redact-secret/core";
  *
  * await initialize();
  * const { text, findings } = scanAndRedact(input);
@@ -28,8 +28,8 @@
  * `exports` map.
  *
  * Byte streams are served by the two adapter subpaths,
- * `@omiologic/secret-scan/node-stream` and
- * `@omiologic/secret-scan/web-stream`, each of which drives one incremental
+ * `@redact-secret/core/node-stream` and
+ * `@redact-secret/core/web-stream`, each of which drives one incremental
  * session per stream. This root module never resolves a `node:` module.
  */
 

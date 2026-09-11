@@ -4,7 +4,7 @@
  * (`decision-define-runtime-bindings`).
  *
  * This module is served next to the artifact it imports, so the generated
- * `default()` init resolves `secret_scan_wasm_bg.wasm` from the same
+ * `default()` init resolves `redact_secret_wasm_bg.wasm` from the same
  * directory and the whole surface is exercised exactly as a browser consumer
  * loads it: a real `fetch` of a real `.wasm` response, instantiated by the
  * engine under test.
@@ -22,7 +22,7 @@ import init, {
   scan,
   scanAndRedact,
   version,
-} from "./secret_scan_wasm.js";
+} from "./redact_secret_wasm.js";
 
 const results = [];
 let failures = 0;

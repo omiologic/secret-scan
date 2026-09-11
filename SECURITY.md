@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-`@omiologic/secret-scan` has not yet had an approved public release. There is
+`@redact-secret/core` has not yet had an approved public release. There is
 currently no published version with a security-support commitment. This policy
 will be updated when the first release is approved.
 

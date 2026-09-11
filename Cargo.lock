@@ -406,6 +406,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "redact-secret"
+version = "0.1.0-beta.1"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "redact-secret-cli"
+version = "0.1.0-beta.1"
+dependencies = [
+ "redact-secret",
+ "serde_json",
+]
+
+[[package]]
+name = "redact-secret-node"
+version = "0.1.0-beta.1"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "redact-secret",
+ "serde_json",
+]
+
+[[package]]
+name = "redact-secret-python"
+version = "0.1.0-beta.1"
+dependencies = [
+ "pyo3",
+ "redact-secret",
+]
+
+[[package]]
+name = "redact-secret-wasm"
+version = "0.1.0-beta.1"
+dependencies = [
+ "js-sys",
+ "redact-secret",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -424,51 +469,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "secret-scan"
-version = "0.1.0-beta.1"
-dependencies = [
- "serde_json",
-]
-
-[[package]]
-name = "secret-scan-cli"
-version = "0.1.0-beta.1"
-dependencies = [
- "secret-scan",
- "serde_json",
-]
-
-[[package]]
-name = "secret-scan-node"
-version = "0.1.0-beta.1"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "secret-scan",
- "serde_json",
-]
-
-[[package]]
-name = "secret-scan-python"
-version = "0.1.0-beta.1"
-dependencies = [
- "pyo3",
- "secret-scan",
-]
-
-[[package]]
-name = "secret-scan-wasm"
-version = "0.1.0-beta.1"
-dependencies = [
- "js-sys",
- "secret-scan",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-test",
 ]
 
 [[package]]

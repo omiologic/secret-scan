@@ -46,7 +46,7 @@ class Repository:
         targets_toml = "[" + ", ".join(json.dumps(t) for t in self.targets) + "]"
         self.write(
             "Cargo.toml",
-            "[workspace]\n[workspace.metadata.secret-scan]\n"
+            "[workspace]\n[workspace.metadata.redact-secret]\n"
             f"node-publish-targets = {targets_toml}\n",
         )
         mapping = "\n".join(
@@ -63,7 +63,7 @@ class Repository:
                     f"bindings/node/npm/{platform}/package.json",
                     json.dumps(
                         {
-                            "name": f"@omiologic/secret-scan-{platform}",
+                            "name": f"@redact-secret/node-{platform}",
                             "version": "0.1.0-beta.1",
                         },
                         indent=2,
@@ -74,7 +74,7 @@ class Repository:
             self.write(
                 "bindings/wasm/npm/package.json",
                 json.dumps(
-                    {"name": "@omiologic/secret-scan-wasm", "version": "0.1.0-beta.1"}, indent=2
+                    {"name": "@redact-secret/wasm", "version": "0.1.0-beta.1"}, indent=2
                 )
                 + "\n",
             )
@@ -82,7 +82,7 @@ class Repository:
             self.write(
                 "packages/javascript/package.json",
                 json.dumps(
-                    {"name": "@omiologic/secret-scan", "version": self.wrapper_version}, indent=2
+                    {"name": "@redact-secret/core", "version": self.wrapper_version}, indent=2
                 )
                 + "\n",
             )
@@ -128,21 +128,21 @@ class PlanTests(unittest.TestCase):
         entry = next(
             e for e in plan["dependencies"] if e["target"] == "aarch64-apple-darwin"
         )
-        self.assertEqual(entry["package"], "@omiologic/secret-scan-darwin-arm64")
+        self.assertEqual(entry["package"], "@redact-secret/node-darwin-arm64")
         self.assertEqual(entry["version"], "0.1.0-beta.1")
         self.assertEqual(entry["expectedArtifact"], "node-addon-aarch64-apple-darwin")
         self.assertTrue(entry["artifactPresent"])
 
     def test_the_wrapper_is_gated_on_every_dependency_package(self) -> None:
         plan, _ = self.build_plan()
-        self.assertEqual(plan["wrapper"]["package"], "@omiologic/secret-scan")
+        self.assertEqual(plan["wrapper"]["package"], "@redact-secret/core")
         self.assertEqual(
             sorted(plan["wrapper"]["gatedOn"]),
             sorted(
                 [
-                    "@omiologic/secret-scan-darwin-arm64",
-                    "@omiologic/secret-scan-linux-x64-gnu",
-                    "@omiologic/secret-scan-wasm",
+                    "@redact-secret/node-darwin-arm64",
+                    "@redact-secret/node-linux-x64-gnu",
+                    "@redact-secret/wasm",
                 ]
             ),
         )

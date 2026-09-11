@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-import secret_scan
+import redact_secret
 
 from .conftest import (
     byte_offset_to_char_offset_reference,
@@ -47,7 +47,7 @@ def _fixtures() -> list[dict]:
 FIXTURES = _fixtures()
 
 
-def _summary(findings: list[secret_scan.Finding]) -> list[tuple]:
+def _summary(findings: list[redact_secret.Finding]) -> list[tuple]:
     return [
         (f.id, f.detector, f.type, f.confidence, f.action, f.start, f.end)
         for f in findings
@@ -85,7 +85,7 @@ def test_whole_input_reference_matches_the_canonical_expectation(
 ) -> None:
     """Anchors the reference the partition tests compare against to the
     corpus, so a drifting binding cannot agree with itself and pass."""
-    result = secret_scan.scan_and_redact(fixture["input"])
+    result = redact_secret.scan_and_redact(fixture["input"])
     assert result.text == fixture["text"]
     assert [
         (f.id, f.detector, f.type, f.confidence, f.start, f.end)
@@ -98,7 +98,7 @@ def test_every_code_point_partition_reproduces_the_whole_input_result(
     fixture: dict,
 ) -> None:
     text = fixture["input"]
-    reference = secret_scan.scan_and_redact(text)
+    reference = redact_secret.scan_and_redact(text)
     expected = _summary(reference.findings)
 
     for chunks in code_point_partitions(text):
@@ -117,7 +117,7 @@ def test_one_code_point_per_append_reproduces_the_whole_input_result(
     fixture: dict,
 ) -> None:
     text = fixture["input"]
-    reference = secret_scan.scan_and_redact(text)
+    reference = redact_secret.scan_and_redact(text)
 
     actual_text, actual_findings = run_session(single_code_point_partition(text))
     assert actual_text == reference.text
@@ -152,16 +152,16 @@ def test_placeholder_numbering_continues_across_calls(fixture: dict) -> None:
     indices: list[int] = []
 
     def formatter(
-        finding: secret_scan.Finding, context: secret_scan.PlaceholderContext
+        finding: redact_secret.Finding, context: redact_secret.PlaceholderContext
     ) -> str:
         indices.append(context.placeholder_index)
-        return secret_scan.default_placeholder_formatter(finding, context)
+        return redact_secret.default_placeholder_formatter(finding, context)
 
-    session = secret_scan.IncrementalSanitizer(generous_limits(), None, formatter)
+    session = redact_secret.IncrementalSanitizer(generous_limits(), None, formatter)
     produced = ""
     for chunk in single_code_point_partition(text):
         produced += session.append(chunk).text
     produced += session.finalize().text
 
-    assert produced == secret_scan.scan_and_redact(text).text
+    assert produced == redact_secret.scan_and_redact(text).text
     assert indices == list(range(1, len(indices) + 1))

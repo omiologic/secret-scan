@@ -520,7 +520,7 @@ impl Finding {
 /// # Examples
 ///
 /// ```
-/// use secret_scan::{DefaultPolicy, DetectorRegistry, default_placeholder_formatter, scan_and_redact};
+/// use redact_secret::{DefaultPolicy, DetectorRegistry, default_placeholder_formatter, scan_and_redact};
 ///
 /// let registry = DetectorRegistry::with_built_in([])?;
 /// let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000";
@@ -530,7 +530,7 @@ impl Finding {
 /// // The range indexes the original input, never `result.text()`.
 /// assert_eq!(&input[finding.range().start()..finding.range().end()], "ghp_SYNTHETICREVOKED00000000000000000000");
 /// assert_eq!(result.text(), "API_KEY=<SECRET_1>");
-/// # Ok::<(), secret_scan::SecretScanError>(())
+/// # Ok::<(), redact_secret::SecretScanError>(())
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ScanResult {

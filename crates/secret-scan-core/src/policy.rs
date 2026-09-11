@@ -62,19 +62,19 @@ fn default_action(finding: &DetectedFinding) -> Action {
 /// # Examples
 ///
 /// ```
-/// use secret_scan::{Action, DefaultPolicy, DetectorRegistry, scan};
+/// use redact_secret::{Action, DefaultPolicy, DetectorRegistry, scan};
 ///
 /// let registry = DetectorRegistry::with_built_in([])?;
 /// let findings = scan("API_KEY=ghp_SYNTHETICREVOKED00000000000000000000", &registry, &DefaultPolicy)?;
 /// assert_eq!(findings[0].action(), Action::Redact);
 ///
 /// // Any `Fn(&DetectedFinding, &PolicyContext) -> Result<Action, _>` is a policy.
-/// let block_all = |_: &secret_scan::DetectedFinding, _: &secret_scan::PolicyContext| {
+/// let block_all = |_: &redact_secret::DetectedFinding, _: &redact_secret::PolicyContext| {
 ///     Ok(Action::Block)
 /// };
 /// let findings = scan("API_KEY=ghp_SYNTHETICREVOKED00000000000000000000", &registry, &block_all)?;
 /// assert_eq!(findings[0].action(), Action::Block);
-/// # Ok::<(), secret_scan::SecretScanError>(())
+/// # Ok::<(), redact_secret::SecretScanError>(())
 /// ```
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DefaultPolicy;

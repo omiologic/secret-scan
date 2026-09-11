@@ -16,13 +16,13 @@ approval `AGENTS.md` defines.
 
 ## The declaration
 
-`[workspace.metadata.secret-scan]` in the root `Cargo.toml` states the whole
+`[workspace.metadata.redact-secret]` in the root `Cargo.toml` states the whole
 supported surface once:
 
 | Key | What it declares |
 | --- | --- |
 | `node-addon-targets` | Every triple the N-API addon is built and smoke-tested for |
-| `node-publish-targets` | Every triple with a published `@omiologic/secret-scan-<platform>` npm package |
+| `node-publish-targets` | Every triple with a published `@redact-secret/node-<platform>` npm package |
 | `cli-release-targets` | Every triple the CLI binary is built and smoke-tested for |
 | `python-wheel-targets` | Every triple an abi3 wheel is built and smoke-tested for |
 | `browser-engines` | Every engine the WebAssembly artifact is initialized and scanned in |
@@ -139,7 +139,7 @@ target, and is then qualified in a musl image, which is where it runs.
    each expectation's UTF-8 byte offsets converted to UTF-16 code units by a
    reference conversion independent of the binding.
 4. The published JavaScript package's public API, driven against that addon
-   resolved under `@omiologic/secret-scan-node` from
+   resolved under `@redact-secret/node-<platform>` from
    `packages/javascript/node_modules`, the way an installed consumer
    resolves it: `initialize()`, one canonical fixture through
    `scripts/qualify-runtime-fixture.mjs`, a frozen finding,
@@ -177,7 +177,7 @@ The second, `scripts/browser-package-harness.mjs`, is bundled the way a
 consumer bundles it — the `browser` condition selecting `dist/runtime/
 browser.js` through the package's own `imports` map, and the artifact
 specifier aliased to the glue being served — and drives the published
-`@omiologic/secret-scan` public API on top of the same artifact: the
+`@redact-secret/core` public API on top of the same artifact: the
 `NOT_INITIALIZED` gate, `await initialize()`, `RANGE_UNIT` and `VERSION`, the
 whole canonical corpus, frozen findings with exactly the seven documented
 keys, `scanAndRedact` against `scan` then `redact`, a policy callback
@@ -265,8 +265,8 @@ npm run wasm:build
 npx playwright install --with-deps chromium firefox webkit
 npm run browser:qualify                 # or --engine chromium
 
-cargo build --release --locked -p secret-scan-cli
-npm run cli:qualify -- --binary target/release/secret-scan
+cargo build --release --locked -p redact-secret-cli
+npm run cli:qualify -- --binary target/release/redact-secret
 ```
 
 Only the host's own triple can be qualified locally; the fan-out across the

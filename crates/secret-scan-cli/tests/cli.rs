@@ -1,4 +1,4 @@
-//! End-to-end tests over the real `secret-scan` binary.
+//! End-to-end tests over the real `redact-secret` binary.
 //!
 //! These exercise the parts a unit test cannot: process arguments as the
 //! operating system delivers them, real files, real standard streams, and the
@@ -26,7 +26,7 @@ const SYNTHETIC_AWS_KEY: &str = "AKIAIOSFODNN7SYNTHET";
 
 /// The binary under test, as cargo built it for this test target.
 fn binary() -> &'static str {
-    env!("CARGO_BIN_EXE_secret-scan")
+    env!("CARGO_BIN_EXE_redact-secret")
 }
 
 /// A scratch directory unique to this process, removed when the guard drops.
@@ -38,7 +38,7 @@ impl Scratch {
     fn new() -> Self {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let root = std::env::temp_dir().join(format!(
-            "secret-scan-cli-{}-{}",
+            "redact-secret-cli-{}-{}",
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
@@ -205,7 +205,7 @@ fn a_usage_failure_exits_two_and_prints_the_usage_block() {
     assert_eq!(run.code, 2);
     assert_eq!(run.stdout, "");
     assert!(run.stderr.contains("USAGE: unrecognized option"));
-    assert!(run.stderr.contains("usage: secret-scan"));
+    assert!(run.stderr.contains("usage: redact-secret"));
     assert!(!run.stderr.contains("--nope"));
 }
 
@@ -574,7 +574,7 @@ fn version_reports_the_product_version_alone() {
     let run = run_args(&["--version"], b"");
     assert_eq!(run.code, 0);
     assert_eq!(run.stdout.lines().count(), 1);
-    assert!(run.stdout.starts_with("secret-scan "));
+    assert!(run.stdout.starts_with("redact-secret "));
     assert_eq!(run_args(&["-V"], b"").stdout, run.stdout);
 }
 
@@ -682,7 +682,7 @@ fn canonical_redact_fixtures() -> Vec<CanonicalRedactFixture> {
         .collect()
 }
 
-/// Runs the real `secret-scan --redact` binary over every canonical-tier
+/// Runs the real `redact-secret --redact` binary over every canonical-tier
 /// corpus fixture and asserts its stdout equals the corpus-expected redacted
 /// text, exercising argument parsing, standard I/O, and the redaction
 /// pipeline together the way a pre-commit hook actually invokes them.

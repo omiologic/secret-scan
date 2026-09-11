@@ -1,6 +1,6 @@
 [package]
-name = "secret-scan-cli"
-description = "Command-line interface built on the secret-scan core."
+name = "redact-secret-cli"
+description = "Command-line interface built on the redact-secret core."
 readme = "README.md"
 version.workspace = true
 edition.workspace = true
@@ -11,19 +11,19 @@ homepage.workspace = true
 authors.workspace = true
 # Publication runs only through the gated release process
 # (decision-ship-first-release-artifact-set); this override is what makes
-# `cargo publish -p secret-scan-cli` possible at all.
+# `cargo publish -p redact-secret-cli` possible at all.
 publish = true
 
 [[bin]]
-name = "secret-scan"
+name = "redact-secret"
 path = "src/main.rs"
 # The binary is named for the product and the core library's path is
-# `secret_scan`, which rustdoc writes to the same output directory. The CLI
+# `redact_secret`, which rustdoc writes to the same output directory. The CLI
 # is a host adapter with no API to document, so it opts out of rustdoc.
 doc = false
 
 [dependencies]
-secret-scan.workspace = true
+redact-secret.workspace = true
 
 [dev-dependencies]
 # Test-only. Lets the canonical-corpus integration test read

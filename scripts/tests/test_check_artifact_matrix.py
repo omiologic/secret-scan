@@ -69,7 +69,7 @@ class Repository:
     def build(self) -> Path:
         self.write(
             "Cargo.toml",
-            "[workspace]\n[workspace.metadata.secret-scan]\n"
+            "[workspace]\n[workspace.metadata.redact-secret]\n"
             f"node-addon-targets = {self._toml_list(self.addon_targets)}\n"
             f"node-publish-targets = {self._toml_list(self.publish_targets)}\n"
             f"cli-release-targets = {self._toml_list(self.cli_targets)}\n"
@@ -85,7 +85,7 @@ class Repository:
             target: f"platform-{index}" for index, target in enumerate(self.qualifier_addon_targets)
         }
         publish_platforms = [platform_map[target] for target in self.publish_targets if target in platform_map]
-        default_packages = [f"@omiologic/secret-scan-{platform}" for platform in publish_platforms]
+        default_packages = [f"@redact-secret/node-{platform}" for platform in publish_platforms]
         optional_deps = self.js_optional_deps if self.js_optional_deps is not None else default_packages
         runtime_packages = (
             self.runtime_node_packages if self.runtime_node_packages is not None else default_packages
@@ -110,7 +110,7 @@ class Repository:
             "bindings/node/package.json",
             json.dumps(
                 {
-                    "napi": {"binaryName": "secret-scan", "targets": self.napi_targets},
+                    "napi": {"binaryName": "redact-secret", "targets": self.napi_targets},
                     "engines": {"node": self.engines_node},
                 },
                 indent=2,
@@ -129,7 +129,7 @@ class Repository:
 
         npm_dirs = self.npm_dirs if self.npm_dirs is not None else publish_platforms
         for platform in npm_dirs:
-            name = self.npm_manifest_name_overrides.get(platform, f"@omiologic/secret-scan-{platform}")
+            name = self.npm_manifest_name_overrides.get(platform, f"@redact-secret/node-{platform}")
             self.write(
                 f"bindings/node/npm/{platform}/package.json",
                 json.dumps({"name": name, "version": "0.0.0"}, indent=2) + "\n",
@@ -347,29 +347,29 @@ class MatrixTests(unittest.TestCase):
 
     def test_a_native_manifest_with_the_wrong_package_name_fails(self) -> None:
         def configure(repository: Repository) -> None:
-            repository.npm_manifest_name_overrides["platform-0"] = "@omiologic/secret-scan-wrong"
+            repository.npm_manifest_name_overrides["platform-0"] = "@redact-secret/node-wrong"
 
         self.assertOneError(
             configure,
-            "name '@omiologic/secret-scan-wrong' must be '@omiologic/secret-scan-platform-0'",
+            "name '@redact-secret/node-wrong' must be '@redact-secret/node-platform-0'",
         )
 
     def test_a_missing_optional_dependency_fails(self) -> None:
         def configure(repository: Repository) -> None:
             repository.js_optional_deps = []
 
-        self.assertOneError(configure, "optionalDependencies omits @omiologic/secret-scan-platform-0")
+        self.assertOneError(configure, "optionalDependencies omits @redact-secret/node-platform-0")
 
     def test_an_extra_optional_dependency_fails(self) -> None:
         def configure(repository: Repository) -> None:
             repository.js_optional_deps = [
-                "@omiologic/secret-scan-platform-0",
-                "@omiologic/secret-scan-platform-1",
+                "@redact-secret/node-platform-0",
+                "@redact-secret/node-platform-1",
             ]
 
         self.assertOneError(
             configure,
-            "optionalDependencies names @omiologic/secret-scan-platform-1, which Cargo.toml does not declare",
+            "optionalDependencies names @redact-secret/node-platform-1, which Cargo.toml does not declare",
         )
 
     def test_the_runtime_resolver_missing_a_published_package_fails(self) -> None:
@@ -377,7 +377,7 @@ class MatrixTests(unittest.TestCase):
             repository.runtime_node_packages = []
 
         self.assertOneError(
-            configure, "the platform-package mapping omits @omiologic/secret-scan-platform-0"
+            configure, "the platform-package mapping omits @redact-secret/node-platform-0"
         )
 
     def test_the_runtime_resolver_naming_an_unpublished_package_fails(self) -> None:
@@ -387,13 +387,13 @@ class MatrixTests(unittest.TestCase):
 
         def configure(repository: Repository) -> None:
             repository.runtime_node_packages = [
-                "@omiologic/secret-scan-platform-0",
-                "@omiologic/secret-scan-platform-1",
+                "@redact-secret/node-platform-0",
+                "@redact-secret/node-platform-1",
             ]
 
         self.assertOneError(
             configure,
-            "the platform-package mapping names @omiologic/secret-scan-platform-1, "
+            "the platform-package mapping names @redact-secret/node-platform-1, "
             "which Cargo.toml does not declare",
         )
 

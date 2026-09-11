@@ -1,7 +1,7 @@
 //! Bounded incremental sanitization for `CPython`
 //! (`decision-define-runtime-bindings`).
 //!
-//! Exposes [`secret_scan::IncrementalSanitizer`] as a synchronous Python
+//! Exposes [`redact_secret::IncrementalSanitizer`] as a synchronous Python
 //! session with mandatory limits, an explicit `accepting` /
 //! `finalized` / `aborted` / `failed` lifecycle, and immutable per-call
 //! results. A session never hands retained plaintext back to Python: it
@@ -22,7 +22,7 @@ use std::rc::Rc;
 
 use pyo3::prelude::*;
 
-use secret_scan::{
+use redact_secret::{
     Action, ByteRange, DefaultPolicy, DetectedFinding, Finding as CoreFinding, FormatterFailure,
     IncrementalLimits, IncrementalPolicy, IncrementalPolicyContext, IncrementalResult,
     IncrementalSanitizer, PlaceholderContext, PlaceholderFormatter, PolicyFailure,
@@ -256,7 +256,7 @@ impl PlaceholderFormatter for PyIncrementalFormatterAdapter {
 /// counts, not code point counts, because they bound memory rather than
 /// index into a string; `len(chunk.encode("utf-8"))` is what they measure.
 #[pyclass(
-    module = "secret_scan._native",
+    module = "redact_secret._native",
     name = "IncrementalLimits",
     frozen,
     skip_from_py_object
@@ -353,7 +353,7 @@ impl PyIncrementalLimits {
 /// will eventually produce.
 ///
 /// Never constructed from Python; only produced for a policy callback.
-#[pyclass(module = "secret_scan._native", name = "IncrementalPolicyContext")]
+#[pyclass(module = "redact_secret._native", name = "IncrementalPolicyContext")]
 pub(crate) struct PyIncrementalPolicyContext {
     /// Zero-based position among findings finalized so far in this session.
     #[pyo3(get)]
@@ -378,7 +378,7 @@ impl PyIncrementalPolicyContext {
 /// into the logical whole-session input.
 ///
 /// Never constructed from Python; only produced by a session.
-#[pyclass(module = "secret_scan._native", name = "IncrementalResult", frozen)]
+#[pyclass(module = "redact_secret._native", name = "IncrementalResult", frozen)]
 pub(crate) struct PyIncrementalResult {
     /// The sanitized text this call resolved. May be empty when the call
     /// only extended the retained, still-unresolved window.
@@ -412,7 +412,7 @@ impl PyIncrementalResult {
 /// A session holds a Python callback and Rust state that is not shared
 /// between threads: use it from the thread that created it.
 #[pyclass(
-    module = "secret_scan._native",
+    module = "redact_secret._native",
     name = "IncrementalSanitizer",
     unsendable
 )]

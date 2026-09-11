@@ -93,7 +93,7 @@ const LOOKAROUND_BYTES: usize = 128;
 /// # Examples
 ///
 /// ```
-/// use secret_scan::IncrementalLimits;
+/// use redact_secret::IncrementalLimits;
 ///
 /// let (token, multiline) = (4_096, 16_384);
 /// let limits = IncrementalLimits::new(
@@ -103,7 +103,7 @@ const LOOKAROUND_BYTES: usize = 128;
 ///     multiline,
 /// )?;
 /// assert_eq!(limits.max_token_bytes(), token);
-/// # Ok::<(), secret_scan::SecretScanError>(())
+/// # Ok::<(), redact_secret::SecretScanError>(())
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[allow(clippy::struct_field_names)]
@@ -309,7 +309,7 @@ fn find_next_newline(chunk: &str, from: usize) -> Option<usize> {
 /// # Examples
 ///
 /// ```
-/// use secret_scan::{IncrementalLimits, IncrementalSanitizer, SessionState};
+/// use redact_secret::{IncrementalLimits, IncrementalSanitizer, SessionState};
 ///
 /// let (token, multiline) = (8_192, 16_384);
 /// let limits = IncrementalLimits::new(
@@ -329,7 +329,7 @@ fn find_next_newline(chunk: &str, from: usize) -> Option<usize> {
 ///
 /// assert_eq!(output, "API_KEY=<SECRET_1>\ntail");
 /// assert_eq!(session.state(), SessionState::Finalized);
-/// # Ok::<(), secret_scan::SecretScanError>(())
+/// # Ok::<(), redact_secret::SecretScanError>(())
 /// ```
 pub struct IncrementalSanitizer {
     registry: DetectorRegistry,

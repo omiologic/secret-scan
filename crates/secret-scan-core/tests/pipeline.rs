@@ -12,7 +12,7 @@
     clippy::unnecessary_literal_bound
 )]
 
-use secret_scan::{
+use redact_secret::{
     Action, ByteRange, Candidate, Confidence, DetectedFinding, Detector, DetectorContext,
     DetectorFailure, DetectorRegistry, Finding, Policy, PolicyContext, PolicyFailure,
     SecretScanError, SecretScanErrorCode, Specificity, run_detector_pipeline, scan,

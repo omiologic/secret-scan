@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Packs, content-checks, publishes, and verifies one runtime dependency
- * package of `@omiologic/secret-scan` -- a native platform package under
+ * package of `@redact-secret/core` -- a native platform package under
  * `bindings/node/npm/<platform>` or the WebAssembly package under
  * `bindings/wasm/npm` -- at its declared, immutable version. Issue #141
  * requires every such package to clear this gate before the public wrapper

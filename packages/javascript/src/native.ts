@@ -27,7 +27,7 @@ import type {
  * comparison of a public finding.
  */
 export const NATIVE_HANDLE: unique symbol = Symbol.for(
-  "@omiologic/secret-scan.native-handle",
+  "@redact-secret/core.native-handle",
 );
 
 export interface NativeFinding {

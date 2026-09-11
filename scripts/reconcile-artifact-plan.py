@@ -20,10 +20,10 @@ reconcile complete a partial publication safely:
   be safely reconciled without rebuilding, so reconcile refuses it (`block`)
   rather than guess at a replacement.
 
-`decision-release-bindings-in-lockstep` treats `secret-scan-cli` and
-`secret-scan` as one product at one version, and `secret-scan-cli`'s manifest
-depends on `secret-scan`'s registry release (`release.yml` publishes core
-before CLI for the same reason). `plan_crate_pair` therefore refuses to
+`decision-release-bindings-in-lockstep` treats `redact-secret-cli` and
+`redact-secret` as one product at one version, and `redact-secret-cli`'s
+manifest depends on `redact-secret`'s registry release (`release.yml`
+publishes core before CLI for the same reason). `plan_crate_pair` therefore refuses to
 publish a missing CLI crate unless the core crate's own state first resolves
 to `skip` or `publish`: an existing core publication that does not verify
 against this source revision blocks the CLI crate too, even when the CLI
@@ -85,8 +85,8 @@ def classify(observation: Observation) -> Decision:
 
 
 def plan_crate_pair(core: Observation, cli: Observation) -> dict[str, Decision]:
-    """`secret-scan` (core) must verify against this source revision before
-    `secret-scan-cli` may be published, even when the CLI crate's own state
+    """`redact-secret` (core) must verify against this source revision before
+    `redact-secret-cli` may be published, even when the CLI crate's own state
     looks publishable -- the CLI crate's `Cargo.toml` depends on the core
     crate's registry release, so publishing it against an unverified or
     conflicting core would ship a CLI whose declared dependency is not
@@ -98,7 +98,7 @@ def plan_crate_pair(core: Observation, cli: Observation) -> dict[str, Decision]:
             "core": core_decision,
             "cli": Decision(
                 "block",
-                "secret-scan-cli cannot be reconciled: the existing secret-scan (core) "
+                "redact-secret-cli cannot be reconciled: the existing redact-secret (core) "
                 f"publication does not verify against this source revision ({core_decision.reason})",
             ),
         }

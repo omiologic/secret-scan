@@ -20,7 +20,7 @@ import gc
 
 import pytest
 
-import secret_scan
+import redact_secret
 
 from .conftest import GENEROUS_LIMITS, generous_limits, load_corpus
 
@@ -54,11 +54,11 @@ DEFAULT_LIFECYCLE_LIMITS = {
 
 def test_limits_are_mandatory_and_keyword_only() -> None:
     with pytest.raises(TypeError):
-        secret_scan.IncrementalLimits()  # type: ignore[call-arg]
+        redact_secret.IncrementalLimits()  # type: ignore[call-arg]
     with pytest.raises(TypeError):
-        secret_scan.IncrementalLimits(1_000_000, 16_512, 8_192, 16_384)  # type: ignore[misc]
+        redact_secret.IncrementalLimits(1_000_000, 16_512, 8_192, 16_384)  # type: ignore[misc]
     with pytest.raises(TypeError):
-        secret_scan.IncrementalSanitizer()  # type: ignore[call-arg]
+        redact_secret.IncrementalSanitizer()  # type: ignore[call-arg]
 
 
 def test_limits_expose_what_they_were_given() -> None:
@@ -67,7 +67,7 @@ def test_limits_expose_what_they_were_given() -> None:
     assert limits.max_buffered_bytes == GENEROUS_LIMITS["max_buffered_bytes"]
     assert limits.max_token_bytes == GENEROUS_LIMITS["max_token_bytes"]
     assert limits.max_multiline_bytes == GENEROUS_LIMITS["max_multiline_bytes"]
-    assert secret_scan.IncrementalSanitizer(limits).limits.max_input_bytes == (
+    assert redact_secret.IncrementalSanitizer(limits).limits.max_input_bytes == (
         GENEROUS_LIMITS["max_input_bytes"]
     )
 
@@ -93,8 +93,8 @@ def test_limits_are_read_only() -> None:
     ],
 )
 def test_invalid_limits_raise_invalid_limits_error(override: dict) -> None:
-    with pytest.raises(secret_scan.InvalidLimitsError) as excinfo:
-        secret_scan.IncrementalLimits(**{**GENEROUS_LIMITS, **override})
+    with pytest.raises(redact_secret.InvalidLimitsError) as excinfo:
+        redact_secret.IncrementalLimits(**{**GENEROUS_LIMITS, **override})
     assert excinfo.value.code == "INVALID_LIMITS"
 
 
@@ -107,10 +107,10 @@ def test_buffer_limit_must_cover_the_documented_lookaround_window() -> None:
         "max_token_bytes": construct,
         "max_multiline_bytes": construct,
     }
-    exact = secret_scan.IncrementalLimits.minimum_buffered_bytes(construct, construct)
-    assert secret_scan.IncrementalLimits(max_buffered_bytes=exact, **base)
-    with pytest.raises(secret_scan.InvalidLimitsError):
-        secret_scan.IncrementalLimits(max_buffered_bytes=exact - 1, **base)
+    exact = redact_secret.IncrementalLimits.minimum_buffered_bytes(construct, construct)
+    assert redact_secret.IncrementalLimits(max_buffered_bytes=exact, **base)
+    with pytest.raises(redact_secret.InvalidLimitsError):
+        redact_secret.IncrementalLimits(max_buffered_bytes=exact - 1, **base)
 
 
 # ---------------------------------------------------------------------
@@ -139,11 +139,11 @@ def test_lifecycle_fixture_inputs_are_ascii() -> None:
             assert operation.get("chunk", "").isascii(), fixture["id"]
 
 
-def _limits_for(fixture: dict) -> secret_scan.IncrementalLimits:
+def _limits_for(fixture: dict) -> redact_secret.IncrementalLimits:
     declared = fixture.get("limits")
     if declared is None:
-        return secret_scan.IncrementalLimits(**DEFAULT_LIFECYCLE_LIMITS)
-    return secret_scan.IncrementalLimits(
+        return redact_secret.IncrementalLimits(**DEFAULT_LIFECYCLE_LIMITS)
+    return redact_secret.IncrementalLimits(
         **{LIMIT_NAMES[key]: value for key, value in declared.items()}
     )
 
@@ -152,11 +152,11 @@ def _limits_for(fixture: dict) -> secret_scan.IncrementalLimits:
     "fixture", LIFECYCLE_FIXTURES, ids=lambda fixture: fixture["id"]
 )
 def test_lifecycle_matches_the_canonical_corpus(fixture: dict) -> None:
-    session = secret_scan.IncrementalSanitizer(_limits_for(fixture))
+    session = redact_secret.IncrementalSanitizer(_limits_for(fixture))
     outcome = fixture["outcome"]
     text = ""
     finding_count = 0
-    raised: secret_scan.SecretScanError | None = None
+    raised: redact_secret.SecretScanError | None = None
 
     for index, operation in enumerate(fixture["operations"]):
         try:
@@ -167,7 +167,7 @@ def test_lifecycle_matches_the_canonical_corpus(fixture: dict) -> None:
             else:
                 session.abort()
                 continue
-        except secret_scan.SecretScanError as error:
+        except redact_secret.SecretScanError as error:
             # Only the last declared operation is allowed to fail.
             assert index == len(fixture["operations"]) - 1, fixture["id"]
             raised = error
@@ -196,18 +196,18 @@ def test_lifecycle_corpus_covers_both_outcomes() -> None:
 
 
 def test_a_new_session_is_accepting() -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     assert session.state == "accepting"
     assert repr(session) == 'IncrementalSanitizer(state="accepting")'
 
 
 @pytest.mark.parametrize("operation", ["append", "finalize", "abort"])
 def test_every_operation_after_finalize_raises_invalid_state(operation: str) -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     session.finalize()
     assert session.state == "finalized"
 
-    with pytest.raises(secret_scan.InvalidStateError) as excinfo:
+    with pytest.raises(redact_secret.InvalidStateError) as excinfo:
         if operation == "append":
             session.append("x")
         elif operation == "finalize":
@@ -220,18 +220,18 @@ def test_every_operation_after_finalize_raises_invalid_state(operation: str) -> 
 
 @pytest.mark.parametrize("operation", ["append", "finalize", "abort"])
 def test_every_operation_after_a_failure_raises_invalid_state(operation: str) -> None:
-    limits = secret_scan.IncrementalLimits(
+    limits = redact_secret.IncrementalLimits(
         max_input_bytes=64,
         max_buffered_bytes=192,
         max_token_bytes=32,
         max_multiline_bytes=64,
     )
-    session = secret_scan.IncrementalSanitizer(limits)
-    with pytest.raises(secret_scan.InputLimitExceededError):
+    session = redact_secret.IncrementalSanitizer(limits)
+    with pytest.raises(redact_secret.InputLimitExceededError):
         session.append("x" * 65)
     assert session.state == "failed"
 
-    with pytest.raises(secret_scan.InvalidStateError):
+    with pytest.raises(redact_secret.InvalidStateError):
         if operation == "append":
             session.append("x")
         elif operation == "finalize":
@@ -242,8 +242,8 @@ def test_every_operation_after_a_failure_raises_invalid_state(operation: str) ->
 
 
 def test_append_rejects_a_non_string_chunk() -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits())
-    with pytest.raises(secret_scan.InvalidInputError) as excinfo:
+    session = redact_secret.IncrementalSanitizer(generous_limits())
+    with pytest.raises(redact_secret.InvalidInputError) as excinfo:
         session.append(b"bytes")  # type: ignore[arg-type]
     assert excinfo.value.code == "INVALID_INPUT"
     # A rejected chunk is not input: the session is unchanged and usable.
@@ -252,7 +252,7 @@ def test_append_rejects_a_non_string_chunk() -> None:
 
 
 def test_an_empty_session_finalizes_to_empty_output() -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     result = session.finalize()
     assert result.text == ""
     assert list(result.findings) == []
@@ -260,20 +260,20 @@ def test_an_empty_session_finalizes_to_empty_output() -> None:
 
 
 def test_the_context_manager_aborts_a_session_left_accepting() -> None:
-    with secret_scan.IncrementalSanitizer(generous_limits()) as session:
+    with redact_secret.IncrementalSanitizer(generous_limits()) as session:
         session.append(OPEN_CONSTRUCT)
     assert session.state == "aborted"
 
 
 def test_the_context_manager_leaves_a_finalized_session_alone() -> None:
-    with secret_scan.IncrementalSanitizer(generous_limits()) as session:
+    with redact_secret.IncrementalSanitizer(generous_limits()) as session:
         session.finalize()
     assert session.state == "finalized"
 
 
 def test_the_context_manager_does_not_swallow_an_exception() -> None:
     with pytest.raises(ValueError):
-        with secret_scan.IncrementalSanitizer(generous_limits()) as session:
+        with redact_secret.IncrementalSanitizer(generous_limits()) as session:
             session.append(OPEN_CONSTRUCT)
             raise ValueError("caller's own failure")
     assert session.state == "aborted"
@@ -285,7 +285,7 @@ def test_the_context_manager_does_not_swallow_an_exception() -> None:
 
 
 def test_results_are_read_only() -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     result = session.append(f"{OPEN_CONSTRUCT}\n")
     with pytest.raises(AttributeError):
         result.text = "tampered"  # type: ignore[misc]
@@ -294,7 +294,7 @@ def test_results_are_read_only() -> None:
 
 
 def test_mutating_the_findings_list_does_not_change_the_result() -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     result = session.append(f"{OPEN_CONSTRUCT}\n")
     assert len(result.findings) == 1
 
@@ -305,7 +305,7 @@ def test_mutating_the_findings_list_does_not_change_the_result() -> None:
 
 
 def test_a_result_is_not_re_emitted_by_a_later_call() -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     first = session.append(f"{OPEN_CONSTRUCT}\n")
     second = session.append("plain text\n")
     final = session.finalize()
@@ -318,7 +318,7 @@ def test_a_result_is_not_re_emitted_by_a_later_call() -> None:
 
 
 def test_finding_ids_are_stable_and_continue_across_calls() -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     ids = []
     for _ in range(3):
         ids.extend(f.id for f in session.append(f"{OPEN_CONSTRUCT}\n").findings)
@@ -335,23 +335,23 @@ def test_policy_receives_only_safe_metadata_with_absolute_offsets() -> None:
     seen: list[tuple] = []
 
     def policy(
-        finding: secret_scan.DetectedFinding,
-        context: secret_scan.IncrementalPolicyContext,
+        finding: redact_secret.DetectedFinding,
+        context: redact_secret.IncrementalPolicyContext,
     ) -> str:
         seen.append((type(finding).__name__, type(context).__name__, finding.start, context.finding_index))
         assert not hasattr(finding, "value")
         assert not hasattr(finding, "text")
         assert not hasattr(context, "finding_count")
-        return secret_scan.default_incremental_policy(finding, context)
+        return redact_secret.default_incremental_policy(finding, context)
 
     chunks = ["\U0001f511 ", f"{OPEN_CONSTRUCT}\n", f"{OPEN_CONSTRUCT}\n"]
-    session = secret_scan.IncrementalSanitizer(generous_limits(), policy)
+    session = redact_secret.IncrementalSanitizer(generous_limits(), policy)
     for chunk in chunks:
         session.append(chunk)
     session.finalize()
 
     joined = "".join(chunks)
-    expected_starts = [f.start for f in secret_scan.scan(joined)]
+    expected_starts = [f.start for f in redact_secret.scan(joined)]
     assert [entry[0] for entry in seen] == ["DetectedFinding", "DetectedFinding"]
     assert [entry[1] for entry in seen] == [
         "IncrementalPolicyContext",
@@ -365,28 +365,28 @@ def test_default_incremental_policy_agrees_with_the_default_policy() -> None:
     actions: list[str] = []
 
     def policy(
-        finding: secret_scan.DetectedFinding,
-        context: secret_scan.IncrementalPolicyContext,
+        finding: redact_secret.DetectedFinding,
+        context: redact_secret.IncrementalPolicyContext,
     ) -> str:
-        actions.append(secret_scan.default_incremental_policy(finding, context))
+        actions.append(redact_secret.default_incremental_policy(finding, context))
         return actions[-1]
 
     text = f"{OPEN_CONSTRUCT}\n-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n"
-    session = secret_scan.IncrementalSanitizer(generous_limits(), policy)
+    session = redact_secret.IncrementalSanitizer(generous_limits(), policy)
     session.append(text)
     session.finalize()
 
-    assert actions == [f.action for f in secret_scan.scan(text)]
+    assert actions == [f.action for f in redact_secret.scan(text)]
 
 
 def test_a_policy_override_changes_the_emitted_text() -> None:
     def allow_everything(
-        finding: secret_scan.DetectedFinding,
-        context: secret_scan.IncrementalPolicyContext,
+        finding: redact_secret.DetectedFinding,
+        context: redact_secret.IncrementalPolicyContext,
     ) -> str:
         return "allow"
 
-    session = secret_scan.IncrementalSanitizer(generous_limits(), allow_everything)
+    session = redact_secret.IncrementalSanitizer(generous_limits(), allow_everything)
     result = session.append(f"{OPEN_CONSTRUCT}\n")
     session.finalize()
     assert result.text == f"{OPEN_CONSTRUCT}\n"
@@ -397,23 +397,23 @@ def test_formatter_receives_only_safe_metadata_with_absolute_offsets() -> None:
     seen: list[tuple] = []
 
     def formatter(
-        finding: secret_scan.Finding, context: secret_scan.PlaceholderContext
+        finding: redact_secret.Finding, context: redact_secret.PlaceholderContext
     ) -> str:
         seen.append((type(finding).__name__, finding.start, context.placeholder_index))
         assert not hasattr(finding, "value")
-        return secret_scan.typed_placeholder_formatter(finding, context)
+        return redact_secret.typed_placeholder_formatter(finding, context)
 
     chunks = ["\U0001f511 ", f"{OPEN_CONSTRUCT}\n", f"{OPEN_CONSTRUCT}\n"]
-    session = secret_scan.IncrementalSanitizer(generous_limits(), None, formatter)
+    session = redact_secret.IncrementalSanitizer(generous_limits(), None, formatter)
     text = "".join(session.append(chunk).text for chunk in chunks)
     text += session.finalize().text
 
     joined = "".join(chunks)
-    assert text == secret_scan.scan_and_redact(
-        joined, formatter=secret_scan.typed_placeholder_formatter
+    assert text == redact_secret.scan_and_redact(
+        joined, formatter=redact_secret.typed_placeholder_formatter
     ).text
     assert [entry[0] for entry in seen] == ["Finding", "Finding"]
-    assert [entry[1] for entry in seen] == [f.start for f in secret_scan.scan(joined)]
+    assert [entry[1] for entry in seen] == [f.start for f in redact_secret.scan(joined)]
     assert [entry[2] for entry in seen] == [1, 2]
 
 
@@ -445,8 +445,8 @@ def test_formatter_receives_only_safe_metadata_with_absolute_offsets() -> None:
 def test_a_failing_policy_fails_the_session_without_leaking(
     policy, expected: str, code: str
 ) -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits(), policy)
-    with pytest.raises(getattr(secret_scan, expected)) as excinfo:
+    session = redact_secret.IncrementalSanitizer(generous_limits(), policy)
+    with pytest.raises(getattr(redact_secret, expected)) as excinfo:
         session.append(f"{OPEN_CONSTRUCT}\n")
 
     assert excinfo.value.code == code
@@ -489,8 +489,8 @@ def test_a_failing_policy_fails_the_session_without_leaking(
 def test_a_failing_formatter_fails_the_session_without_leaking(
     formatter, expected: str, code: str
 ) -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits(), None, formatter)
-    with pytest.raises(getattr(secret_scan, expected)) as excinfo:
+    session = redact_secret.IncrementalSanitizer(generous_limits(), None, formatter)
+    with pytest.raises(getattr(redact_secret, expected)) as excinfo:
         session.append(f"{OPEN_CONSTRUCT}\n")
 
     assert excinfo.value.code == code
@@ -519,7 +519,7 @@ def _live_marker_strings() -> int:
 
 def test_abort_leaves_no_marker_bearing_text_reachable() -> None:
     baseline = _live_marker_strings()
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     session.append(OPEN_CONSTRUCT)  # no newline: the construct stays open
     session.abort()
 
@@ -530,17 +530,17 @@ def test_abort_leaves_no_marker_bearing_text_reachable() -> None:
 def test_a_failure_leaves_no_marker_bearing_text_reachable() -> None:
     baseline = _live_marker_strings()
     exact = len(OPEN_CONSTRUCT)
-    limits = secret_scan.IncrementalLimits(
+    limits = redact_secret.IncrementalLimits(
         max_input_bytes=exact,
-        max_buffered_bytes=secret_scan.IncrementalLimits.minimum_buffered_bytes(
+        max_buffered_bytes=redact_secret.IncrementalLimits.minimum_buffered_bytes(
             exact, exact
         ),
         max_token_bytes=exact,
         max_multiline_bytes=exact,
     )
-    session = secret_scan.IncrementalSanitizer(limits)
+    session = redact_secret.IncrementalSanitizer(limits)
     session.append(OPEN_CONSTRUCT)  # accepted, retained, still open
-    with pytest.raises(secret_scan.InputLimitExceededError):
+    with pytest.raises(redact_secret.InputLimitExceededError):
         session.append("x")
 
     assert session.state == "failed"
@@ -550,14 +550,14 @@ def test_a_failure_leaves_no_marker_bearing_text_reachable() -> None:
 def test_an_aborted_session_emits_nothing_it_had_retained() -> None:
     """The stronger half of the retention contract: what was held open is
     not merely unreachable, it is never emitted."""
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     emitted = session.append(OPEN_CONSTRUCT).text
     session.abort()
     assert emitted == ""
 
 
 def test_a_repr_never_carries_retained_text() -> None:
-    session = secret_scan.IncrementalSanitizer(generous_limits())
+    session = redact_secret.IncrementalSanitizer(generous_limits())
     session.append(OPEN_CONSTRUCT)
     assert RETENTION_MARKER not in repr(session)
     assert repr(session) == 'IncrementalSanitizer(state="accepting")'

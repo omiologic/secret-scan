@@ -14,16 +14,16 @@ CHECK = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = CHECK
 SPEC.loader.exec_module(CHECK)
 
-DISTRIBUTION = "omiologic-secret-scan"
-IMPORT_NAME = "secret_scan"
-NATIVE = "secret_scan._native"
+DISTRIBUTION = "redact-secret"
+IMPORT_NAME = "redact_secret"
+NATIVE = "redact_secret._native"
 TARGETS = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
 
-INIT = '''"""Docstring that mentions `import secret_scan` the way a user writes it."""
+INIT = '''"""Docstring that mentions `import redact_secret` the way a user writes it."""
 
 from __future__ import annotations
 
-from secret_scan._native import VERSION, scan
+from redact_secret._native import VERSION, scan
 
 __all__ = ["VERSION", "scan"]
 '''
@@ -57,8 +57,8 @@ class Binding:
     def build(self) -> Path:
         self.write(
             "Cargo.toml",
-            "[workspace]\n[workspace.metadata.secret-scan]\n"
-            'product-name = "secret-scan"\n'
+            "[workspace]\n[workspace.metadata.redact-secret]\n"
+            'product-name = "Redact Secret"\n'
             f'python-distribution = "{self.distribution}"\n'
             f'python-import-name = "{self.import_name}"\n'
             f'python-native-module = "{self.native}"\n'
@@ -91,7 +91,7 @@ class Binding:
         )
         self.write(
             "bindings/python/Cargo.toml",
-            '[package]\nname = "secret-scan-python"\n'
+            '[package]\nname = "redact-secret-python"\n'
             '[lib]\ncrate-type = ["cdylib", "rlib"]\n'
             "[features]\ndefault = []\n"
             'extension-module = ["pyo3/extension-module"]\n'
@@ -130,7 +130,7 @@ class CheckPythonPackageTest(unittest.TestCase):
 
     def test_distribution_name_must_match_the_manifest(self) -> None:
         self.binding.project_name = "something-else"
-        self.assertOneError("name 'something-else' must be 'omiologic-secret-scan'")
+        self.assertOneError("name 'something-else' must be 'redact-secret'")
 
     def test_a_pinned_version_is_rejected(self) -> None:
         self.binding.project_extra = 'version = "9.9.9"\n'
@@ -198,11 +198,11 @@ class CheckPythonPackageTest(unittest.TestCase):
         self.assertOneError("may not import 're'")
 
     def test_a_docstring_example_is_not_an_import(self) -> None:
-        self.binding.init = '"""Use it as::\n\n    import secret_scan\n"""\nfrom secret_scan._native import scan\n'
+        self.binding.init = '"""Use it as::\n\n    import redact_secret\n"""\nfrom redact_secret._native import scan\n'
         self.assertEqual(self.validate(), [])
 
     def test_defining_behavior_in_the_package_is_rejected(self) -> None:
-        self.binding.init = "from secret_scan._native import scan\n\n\ndef scan_twice(text):\n    return scan(text)\n"
+        self.binding.init = "from redact_secret._native import scan\n\n\ndef scan_twice(text):\n    return scan(text)\n"
         self.assertOneError("defines 'scan_twice'")
 
     def test_typing_markers_are_required(self) -> None:

@@ -28,12 +28,12 @@ const PUBLIC_RUNTIME_EXPORTS = [
  * root, and neither adds an error type of its own.
  */
 const PUBLIC_ADAPTER_EXPORTS = {
-  "@omiologic/secret-scan/node-stream": [
+  "@redact-secret/core/node-stream": [
     "NodeStreamSanitizer",
     "SecretScanError",
     "createNodeStreamSanitizer",
   ],
-  "@omiologic/secret-scan/web-stream": [
+  "@redact-secret/core/web-stream": [
     "SecretScanError",
     "WebStreamSanitizer",
     "createWebStreamSanitizer",
@@ -42,13 +42,13 @@ const PUBLIC_ADAPTER_EXPORTS = {
 
 describe("exact exports", () => {
   it("exposes only the reviewed root runtime values", async () => {
-    const publicApi = await import("@omiologic/secret-scan");
+    const publicApi = await import("@redact-secret/core");
 
     expect(Object.keys(publicApi).sort()).toEqual(PUBLIC_RUNTIME_EXPORTS);
   });
 
   it("states its range unit and its lockstep product version", async () => {
-    const { RANGE_UNIT, VERSION } = await import("@omiologic/secret-scan");
+    const { RANGE_UNIT, VERSION } = await import("@redact-secret/core");
     const manifest = await import("../package.json", { with: { type: "json" } });
 
     expect(RANGE_UNIT).toBe("utf16-code-units");
@@ -65,12 +65,12 @@ describe("exact exports", () => {
 
   it("keeps every documented internal module unreachable", async () => {
     for (const subpath of [
-      "@omiologic/secret-scan/native",
-      "@omiologic/secret-scan/runtime",
-      "@omiologic/secret-scan/session",
-      "@omiologic/secret-scan/adapters/shared",
-      "@omiologic/secret-scan/dist/index.js",
-      "@omiologic/secret-scan/runtime/node",
+      "@redact-secret/core/native",
+      "@redact-secret/core/runtime",
+      "@redact-secret/core/session",
+      "@redact-secret/core/adapters/shared",
+      "@redact-secret/core/dist/index.js",
+      "@redact-secret/core/runtime/node",
     ]) {
       await expect(import(subpath)).rejects.toThrowError(
         /is not exported|ERR_PACKAGE_PATH_NOT_EXPORTED|Cannot find/,

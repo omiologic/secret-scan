@@ -75,16 +75,16 @@ CARGO_FAILURE = re.compile(r"cargo", re.I)
 
 # Run in a temporary directory, against the installed wheel only.
 SMOKE = '''
-import secret_scan
+import redact_secret
 from pathlib import Path
 
 expected_version = {version!r}
-assert secret_scan.VERSION == expected_version, (secret_scan.VERSION, expected_version)
-assert secret_scan.__version__ == secret_scan.VERSION
-assert secret_scan.RANGE_UNIT == "unicode-code-points", secret_scan.RANGE_UNIT
+assert redact_secret.VERSION == expected_version, (redact_secret.VERSION, expected_version)
+assert redact_secret.__version__ == redact_secret.VERSION
+assert redact_secret.RANGE_UNIT == "unicode-code-points", redact_secret.RANGE_UNIT
 
 # Typed under PEP 561, from the installed location.
-package = Path(secret_scan.__file__).parent
+package = Path(redact_secret.__file__).parent
 for marker in ("py.typed", "_native.pyi"):
     assert (package / marker).is_file(), marker
 
@@ -93,48 +93,48 @@ for marker in ("py.typed", "_native.pyi"):
 # only lands on the credential if the range really is in Unicode code points.
 secret = "SYNTHETIC_REVOKED_QUALIFICATION_VALUE"
 text = "\\u00e9\\u00e9 api_key=" + secret + "\\nordinary text"
-findings = secret_scan.scan(text)
+findings = redact_secret.scan(text)
 assert findings, "the smoke input produced no finding"
 finding = findings[0]
 assert text[finding.start:finding.end] == secret, text[finding.start:finding.end]
 assert "SYNTHETIC_REVOKED" not in repr(finding), "a finding must never carry the matched value"
 
-redacted = secret_scan.redact(text, findings)
+redacted = redact_secret.redact(text, findings)
 assert "SYNTHETIC_REVOKED" not in redacted, redacted
 assert redacted.endswith("\\nordinary text"), redacted
 
 # scan_and_redact agrees with scan + redact.
-result = secret_scan.scan_and_redact(text)
+result = redact_secret.scan_and_redact(text)
 assert result.text == redacted, (result.text, redacted)
 assert [(f.start, f.end, f.detector) for f in result.findings] == [
     (f.start, f.end, f.detector) for f in findings
 ]
 
 # Deterministic across repeated calls.
-assert secret_scan.scan_and_redact(text).text == result.text
+assert redact_secret.scan_and_redact(text).text == result.text
 
 # A bounded incremental session sanitizes the same input across a boundary
 # that falls inside the credential.
-limits = secret_scan.IncrementalLimits(
+limits = redact_secret.IncrementalLimits(
     max_input_bytes=1_000_000,
     max_buffered_bytes=32_896,
     max_token_bytes=8_192,
     max_multiline_bytes=32_768,
 )
-with secret_scan.IncrementalSanitizer(limits) as session:
+with redact_secret.IncrementalSanitizer(limits) as session:
     parts = [session.append(text[:30]).text, session.append(text[30:]).text, session.finalize().text]
 streamed = "".join(parts)
 assert streamed == redacted, (streamed, redacted)
 
 # Errors are the documented sanitized hierarchy, not host exceptions.
 try:
-    secret_scan.scan(None)
-except secret_scan.SecretScanError as error:
+    redact_secret.scan(None)
+except redact_secret.SecretScanError as error:
     assert "SYNTHETIC_REVOKED" not in str(error)
 else:
     raise AssertionError("scan(None) must raise a SecretScanError")
 
-print("smoke ok:", secret_scan.VERSION, secret_scan.RANGE_UNIT)
+print("smoke ok:", redact_secret.VERSION, redact_secret.RANGE_UNIT)
 '''
 
 
@@ -348,7 +348,7 @@ def qualify_wheel(path: Path, rules: dict, pythons: list[str | None], conformanc
     """Install the wheel and run it, once per requested interpreter."""
     errors: list[str] = []
     for base_python in pythons:
-        with tempfile.TemporaryDirectory(prefix="secret-scan-qualify-") as scratch:
+        with tempfile.TemporaryDirectory(prefix="redact-secret-qualify-") as scratch:
             root = Path(scratch)
             try:
                 interpreter = create_environment(root / "venv", base_python)
@@ -394,7 +394,7 @@ def run_conformance(path: Path, interpreter: Path, version: str) -> list[str]:
     """The repository's Python suite, against the installed wheel.
 
     The suite lives in the repository because it reads the shared
-    ``conformance/`` corpus, but it imports ``secret_scan`` like any consumer,
+    ``conformance/`` corpus, but it imports ``redact_secret`` like any consumer,
     so running it here exercises the artifact rather than the source tree.
     """
     install = run(
@@ -404,10 +404,10 @@ def run_conformance(path: Path, interpreter: Path, version: str) -> list[str]:
     if install.returncode != 0:
         return [f"{path.name}: could not install pytest for the conformance run\n{install.stderr.strip()}"]
     # The suite runs from the repository, and `bindings/python/python/` sits
-    # beside it. Prove the interpreter resolves `secret_scan` to the installed
+    # beside it. Prove the interpreter resolves `redact_secret` to the installed
     # wheel before trusting what the suite reports.
     located = run(
-        [str(interpreter), "-c", "import secret_scan; print(secret_scan.__file__)"],
+        [str(interpreter), "-c", "import redact_secret; print(redact_secret.__file__)"],
         cwd=str(ROOT),
         capture_output=True,
     )
@@ -477,7 +477,7 @@ def qualify_sdist(path: Path, rules: dict, base_python: str | None, build: bool)
     `MATURIN_NO_INSTALL_RUST=1` and no cargo, the failure has to name cargo.
     """
     errors: list[str] = []
-    with tempfile.TemporaryDirectory(prefix="secret-scan-sdist-") as scratch:
+    with tempfile.TemporaryDirectory(prefix="redact-secret-sdist-") as scratch:
         root = Path(scratch)
         try:
             interpreter = create_environment(root / "venv", base_python)
@@ -502,7 +502,7 @@ def qualify_sdist(path: Path, rules: dict, base_python: str | None, build: bool)
     # dependencies point at.
     if shutil.which("cargo") is None:
         return errors + [f"{path.name}: --build-sdist needs cargo on PATH"]
-    with tempfile.TemporaryDirectory(prefix="secret-scan-sdist-build-") as scratch:
+    with tempfile.TemporaryDirectory(prefix="redact-secret-sdist-build-") as scratch:
         root = Path(scratch)
         try:
             interpreter = create_environment(root / "venv", base_python)
@@ -583,7 +583,7 @@ def main() -> int:
 
     rules = policy()
     if not rules:
-        print("ERROR Cargo.toml: missing [workspace.metadata.secret-scan] policy")
+        print("ERROR Cargo.toml: missing [workspace.metadata.redact-secret] policy")
         return 1
 
     pythons: list[str | None] = list(args.pythons) if args.pythons else [None]

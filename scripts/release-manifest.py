@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         dest="artifacts",
         action="append",
         default=[],
-        help="repeatable: an artifact this release qualifies, e.g. npm:@omiologic/secret-scan",
+        help="repeatable: an artifact this release qualifies, e.g. npm:@redact-secret/core",
     )
     parser.add_argument(
         "--registry-state",

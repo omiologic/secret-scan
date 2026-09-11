@@ -208,7 +208,7 @@ function inspectAddon(target) {
     assert(entries.includes(required), `${required}: missing from the addon`);
   }
   if (target !== undefined) {
-    const expected = `secret-scan.${TARGET_PLATFORM_NAMES[target]}.node`;
+    const expected = `redact-secret.${TARGET_PLATFORM_NAMES[target]}.node`;
     assertEqual(compiled[0], expected, "compiled addon name");
   }
   return compiled[0];
@@ -272,7 +272,7 @@ async function linkAddon() {
     specifier !== undefined,
     `no platform package is mapped for ${process.platform}/${process.arch}`,
   );
-  const scope = join(JS_PACKAGE_DIR, "node_modules", "@omiologic");
+  const scope = join(JS_PACKAGE_DIR, "node_modules", "@redact-secret");
   const link = join(scope, specifier.split("/")[1]);
   mkdirSync(scope, { recursive: true });
   rmSync(link, { recursive: true, force: true });

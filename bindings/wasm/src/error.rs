@@ -2,13 +2,13 @@
 //! (`decision-define-runtime-bindings`).
 //!
 //! Every failure this crate reports to JavaScript carries only a fixed code
-//! and message, mirroring [`secret_scan::SecretScanError`]'s input-free
+//! and message, mirroring [`redact_secret::SecretScanError`]'s input-free
 //! contract. Two codes ([`WasmErrorCode::NotInitialized`] and
 //! [`WasmErrorCode::InitializationFailed`]) are produced by this binding
 //! rather than the core, the same way the core documents that
 //! `INVALID_INPUT` and `INVALID_OPTIONS` are host-produced codes.
 
-use secret_scan::{SecretScanError, SecretScanErrorCode};
+use redact_secret::{SecretScanError, SecretScanErrorCode};
 use wasm_bindgen::JsValue;
 
 /// Every error code this binding can report to JavaScript: every
@@ -38,9 +38,9 @@ impl WasmErrorCode {
     fn message(self) -> &'static str {
         match self {
             Self::NotInitialized => {
-                "secret-scan wasm module is not initialized; call initialize() first."
+                "redact-secret wasm module is not initialized; call initialize() first."
             }
-            Self::InitializationFailed => "secret-scan wasm module failed to initialize.",
+            Self::InitializationFailed => "redact-secret wasm module failed to initialize.",
             Self::Core(code) => code.message(),
         }
     }

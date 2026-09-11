@@ -12,11 +12,11 @@
 //! without the threads proposal, so the core never requires one), and a
 //! `static` requires `Sync`.
 //!
-//! [`Detector`]: secret_scan::Detector
+//! [`Detector`]: redact_secret::Detector
 
 use std::cell::OnceCell;
 
-use secret_scan::DetectorRegistry;
+use redact_secret::DetectorRegistry;
 
 use crate::error::WasmErrorCode;
 

@@ -2,7 +2,7 @@
 //! detectors.
 //!
 //! The core crate may not depend on any external crate
-//! (`[workspace.metadata.secret-scan] allowed-dependencies = []`), so this
+//! (`[workspace.metadata.redact-secret] allowed-dependencies = []`), so this
 //! module reimplements just enough of "literal prefix, then a bounded run of
 //! an alphabet, then a byte-adjacent boundary check" to reproduce the
 //! TypeScript oracle's `RegExp` + `TOKEN_CHARACTER` guard idiom without a

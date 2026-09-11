@@ -2,7 +2,7 @@
 
 ## Overview
 
-`secret-scan` is a deterministic, cross-language text-inspection product for
+Redact Secret is a deterministic, cross-language text-inspection product for
 detecting and redacting credentials before untrusted content crosses a trust
 boundary. One Rust core is the canonical implementation of built-in detection,
 candidate normalization and overlap resolution, policy evaluation, redaction,
@@ -28,7 +28,7 @@ The migration is complete:
 
 - `crates/secret-scan-core` and the top-level `conformance/` corpus are the
   canonical source of behavior;
-- `packages/javascript` is the published JavaScript package (`@omiologic/secret-scan`)
+- `packages/javascript` is the published JavaScript package (`@redact-secret/core`)
   over the Node and WebAssembly bindings; and
 - the repository-root TypeScript detector core that previously served as the
   behavioral oracle has been removed (`RB-2`, issue #72).
@@ -53,7 +53,7 @@ Untrusted text path
 User / Tool / MCP / Log
           |
           v
-      secret-scan
+    Redact Secret
           |
           v
      Sanitized Text
@@ -103,11 +103,11 @@ The binding and package layout is:
 | Path | Responsibility | Public artifact |
 | --- | --- | --- |
 | `crates/secret-scan-core` | Canonical detector, policy, redaction, and incremental behavior | crates.io library crate |
-| `crates/secret-scan-cli` | Process arguments, files, standard streams, output, and exit codes | `secret-scan` binary |
+| `crates/secret-scan-cli` | Process arguments, files, standard streams, output, and exit codes | `redact-secret` binary |
 | `bindings/node` | N-API conversion between Node.js and the Rust core | Private input to the npm package |
 | `bindings/wasm` | `wasm-bindgen` conversion between browsers and the Rust core | Private input to the npm package |
-| `bindings/python` | PyO3 extension and Python-facing package surface | PyPI `omiologic-secret-scan`, imported as `secret_scan` |
-| `packages/javascript` | One typed API with runtime-specific loading | `@omiologic/secret-scan` |
+| `bindings/python` | PyO3 extension and Python-facing package surface | PyPI `redact-secret`, imported as `redact_secret` |
+| `packages/javascript` | One typed API with runtime-specific loading | `@redact-secret/core` |
 | `conformance` | Language-neutral behavioral fixtures and schema | Repository contract, not a package |
 
 Detailed workspace dependency, lint, unsafe-code, MSRV, public-API,
@@ -351,7 +351,7 @@ forbidden in the core and CLI. Any binding-local unsafe code must be scoped to a
 real FFI boundary and documented according to workspace policy.
 
 The core's published surface is pinned by name in
-`[workspace.metadata.secret-scan] core-public-api`, and the files its package
+`[workspace.metadata.redact-secret] core-public-api`, and the files its package
 may carry are pinned by `core-package-globs`; `npm run rust:check` fails when
 either drifts. The built-in detector registry and the incremental retention
 tuning are private, so both can change without breaking a dependent.
@@ -385,7 +385,7 @@ artifact in Chromium, Firefox, and WebKit, and recording an artifact inventory
 — source commit, product version, conformance-corpus digests, per-artifact
 SHA-256, and the file-by-file contents of each publishable package — that
 states `"published": false`. The supported target, engine, and Node.js lists
-live once in `[workspace.metadata.secret-scan]`, and a declaration check binds
+live once in `[workspace.metadata.redact-secret]`, and a declaration check binds
 every manifest, script, and workflow matrix to them so a supported platform
 cannot be added or dropped in one file alone. That check also enforces
 least-privilege workflow permissions and commit-pinned third-party actions.
@@ -411,7 +411,7 @@ The first stable architecture does not include:
 - PII detection, prompt-injection analysis, organization data policy, or other
   broader context-safety functions.
 
-Those capabilities may wrap or follow `secret-scan`, but they must not weaken
+Those capabilities may wrap or follow Redact Secret, but they must not weaken
 the deterministic core or create another authoritative detector implementation.
 
 ## Decision sources

@@ -1,6 +1,6 @@
 [package]
-name = "secret-scan-node"
-description = "N-API native addon exposing the secret-scan core to Node.js."
+name = "redact-secret-node"
+description = "N-API native addon exposing the redact-secret core to Node.js."
 readme = "README.md"
 version.workspace = true
 edition.workspace = true
@@ -15,7 +15,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-secret-scan.workspace = true
+redact-secret.workspace = true
 napi.workspace = true
 napi-derive.workspace = true
 

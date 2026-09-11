@@ -31,18 +31,18 @@ class Artifacts:
         self.root = root
         self.files: dict[str, list[str]] = {
             "node-addon-aarch64-apple-darwin": [
-                "secret-scan.darwin-arm64.node",
+                "redact-secret.darwin-arm64.node",
                 "index.js",
             ],
             "node-addon-x86_64-unknown-linux-musl": [
-                "secret-scan.linux-x64-musl.node",
+                "redact-secret.linux-x64-musl.node",
                 "index.js",
             ],
-            "cli-aarch64-apple-darwin": ["secret-scan"],
-            "cli-x86_64-pc-windows-msvc": ["secret-scan.exe"],
+            "cli-aarch64-apple-darwin": ["redact-secret"],
+            "cli-x86_64-pc-windows-msvc": ["redact-secret.exe"],
             "python-wheel-aarch64-apple-darwin": ["package-cp310-abi3-macosx.whl"],
             "python-sdist": ["package-0.1.0.tar.gz"],
-            "wasm-web": ["secret_scan_wasm.js", "secret_scan_wasm_bg.wasm"],
+            "wasm-web": ["redact_secret_wasm.js", "redact_secret_wasm_bg.wasm"],
         }
 
     def build(self) -> Path:
@@ -71,11 +71,11 @@ class InventoryTests(unittest.TestCase):
     def test_every_file_is_recorded_with_a_family_size_and_digest(self) -> None:
         collected = self.collect()
         entry = next(
-            item for item in collected if item["file"] == "secret-scan.darwin-arm64.node"
+            item for item in collected if item["file"] == "redact-secret.darwin-arm64.node"
         )
         self.assertEqual(entry["family"], "node-addon")
         self.assertEqual(entry["target"], "aarch64-apple-darwin")
-        self.assertEqual(entry["bytes"], len(b"secret-scan.darwin-arm64.node"))
+        self.assertEqual(entry["bytes"], len(b"redact-secret.darwin-arm64.node"))
         self.assertEqual(len(entry["sha256"]), 64)
 
     def test_a_missing_addon_target_fails(self) -> None:
@@ -117,7 +117,7 @@ class InventoryTests(unittest.TestCase):
 
     def test_an_undeclared_target_fails(self) -> None:
         def configure(artifacts: Artifacts) -> None:
-            artifacts.files["cli-aarch64-unknown-linux-gnu"] = ["secret-scan"]
+            artifacts.files["cli-aarch64-unknown-linux-gnu"] = ["redact-secret"]
 
         self.assertEqual(
             self.errors(configure),
@@ -175,7 +175,7 @@ class InventoryTests(unittest.TestCase):
             "sourceCommit": "0" * 40,
             "productVersion": "0.1.0-beta.1",
             "artifacts": self.collect(),
-            "packageContents": {"@omiologic/secret-scan": ["dist/index.js"]},
+            "packageContents": {"@redact-secret/core": ["dist/index.js"]},
         }
         summary = RECORD.render_summary(inventory)
         self.assertIn("0" * 40, summary)

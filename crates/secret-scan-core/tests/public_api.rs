@@ -1,6 +1,6 @@
 //! The stabilized public API, exercised the way a dependent crate sees it.
 //!
-//! Every item is reached through a `secret_scan::` path, so this file fails
+//! Every item is reached through a `redact_secret::` path, so this file fails
 //! to compile if a promised export is renamed or removed, and the module
 //! privacy assertions below fail to compile if an internal is re-exposed.
 //! `scripts/check-rust-workspace.py` pins the same surface from the manifest
@@ -22,7 +22,7 @@
 
 mod support;
 
-use secret_scan::{
+use redact_secret::{
     Action, ByteRange, Candidate, Confidence, DefaultPolicy, DetectedFinding, Detector,
     DetectorContext, DetectorFailure, DetectorRegistry, Finding, FormatterFailure,
     IncrementalLimits, IncrementalPolicy, IncrementalPolicyContext, IncrementalResult,
@@ -502,7 +502,7 @@ fn enum_names_round_trip_through_their_public_wire_form() {
 }
 
 /// The built-in detector set is not a public path: a dependent crate reaches
-/// it only through [`DetectorRegistry::with_built_in`]. `secret_scan` has no
+/// it only through [`DetectorRegistry::with_built_in`]. `redact_secret` has no
 /// `detectors` module to import, and this test states the consequence a
 /// caller can observe.
 #[test]

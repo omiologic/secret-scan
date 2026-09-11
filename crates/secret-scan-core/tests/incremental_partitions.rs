@@ -18,7 +18,7 @@ mod support;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use secret_scan::{
+use redact_secret::{
     Action, ByteRange, Candidate, Confidence, DefaultPolicy, DetectedFinding, Detector,
     DetectorContext, DetectorFailure, DetectorRegistry, Finding, IncrementalPolicyContext,
     IncrementalSanitizer, Policy, PolicyContext, PolicyFailure, default_placeholder_formatter,
@@ -505,7 +505,7 @@ fn the_default_policy_is_count_independent_so_it_partitions_safely() {
             &PolicyContext::new(index, findings.len()),
         )
         .unwrap();
-        let without_total = secret_scan::IncrementalPolicy::evaluate(
+        let without_total = redact_secret::IncrementalPolicy::evaluate(
             &DefaultPolicy,
             finding.detected(),
             &IncrementalPolicyContext::new(index),

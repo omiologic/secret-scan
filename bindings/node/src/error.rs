@@ -1,4 +1,4 @@
-//! Sanitized error mapping between [`secret_scan::SecretScanError`] and the
+//! Sanitized error mapping between [`redact_secret::SecretScanError`] and the
 //! JavaScript error contract (`decision-define-runtime-bindings`).
 //!
 //! Every thrown error carries the core's fixed `SCREAMING_SNAKE_CASE` code as
@@ -6,10 +6,10 @@
 //! error carries input or a matched value.
 
 use napi::Error as NapiError;
-use secret_scan::SecretScanError;
+use redact_secret::SecretScanError;
 
 /// The JavaScript error type this crate throws: `status` (surfaced to
-/// JavaScript as `code`) carries the fixed [`secret_scan::SecretScanErrorCode`]
+/// JavaScript as `code`) carries the fixed [`redact_secret::SecretScanErrorCode`]
 /// string instead of a generic N-API status name.
 pub type JsError = NapiError<String>;
 
@@ -21,7 +21,7 @@ pub fn to_js_error(error: SecretScanError) -> JsError {
 
 #[cfg(test)]
 mod tests {
-    use secret_scan::SecretScanErrorCode;
+    use redact_secret::SecretScanErrorCode;
 
     use super::*;
 

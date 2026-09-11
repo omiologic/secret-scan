@@ -6,7 +6,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use secret_scan::{
+use redact_secret::{
     Action, ByteRange, Confidence, DefaultPolicy, DetectorRegistry, run_detector_pipeline, scan,
 };
 
@@ -66,7 +66,7 @@ fn disjoint_findings_from_every_built_in_detector_all_survive() {
 
     let mut by_detector: Vec<&str> = findings
         .iter()
-        .map(secret_scan::DetectedFinding::detector)
+        .map(redact_secret::DetectedFinding::detector)
         .collect();
     by_detector.sort_unstable();
     assert_eq!(by_detector, ["bearer-token", "generic-token"]);

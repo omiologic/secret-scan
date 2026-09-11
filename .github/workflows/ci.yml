@@ -90,7 +90,7 @@ jobs:
         run: cargo doc --workspace --no-deps --locked
 
       - name: Verify the published core package builds on its own
-        run: cargo package -p secret-scan --locked
+        run: cargo package -p redact-secret --locked
 
       - name: Check dependency sources, licenses, advisories, and bans
         uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
@@ -131,8 +131,8 @@ jobs:
       - name: Smoke-check the CLI on this host
         shell: bash
         run: |
-          expected="secret-scan $(node -p "require('./packages/javascript/package.json').version")"
-          actual=$(cargo run --quiet --locked -p secret-scan-cli -- --version)
+          expected="redact-secret $(node -p "require('./packages/javascript/package.json').version")"
+          actual=$(cargo run --quiet --locked -p redact-secret-cli -- --version)
           if [[ "$actual" != "$expected" ]]; then
             echo "expected '$expected', got '$actual'" >&2
             exit 1
@@ -183,7 +183,7 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: Check the core and browser binding for wasm32
-        run: cargo check -p secret-scan -p secret-scan-wasm --target wasm32-unknown-unknown --locked
+        run: cargo check -p redact-secret -p redact-secret-wasm --target wasm32-unknown-unknown --locked
 
       - name: Install wasm-bindgen-cli
         # Must match the `wasm-bindgen` version in Cargo.toml exactly: the
@@ -195,4 +195,4 @@ jobs:
         env:
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
           WASM_BINDGEN_TEST_ONLY_NODE: "1"
-        run: cargo test -p secret-scan-wasm --target wasm32-unknown-unknown --locked
+        run: cargo test -p redact-secret-wasm --target wasm32-unknown-unknown --locked

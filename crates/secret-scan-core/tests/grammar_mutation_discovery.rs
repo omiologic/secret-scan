@@ -44,7 +44,7 @@ mod support;
 use std::collections::HashSet;
 use std::time::Instant;
 
-use secret_scan::Finding;
+use redact_secret::Finding;
 use support::{as_chunks, generous_limits, run_session, whole_input};
 
 // ---------------------------------------------------------------------------

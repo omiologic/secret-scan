@@ -8,7 +8,7 @@
  * `IncrementalSanitizerOptions` once `initialize()` has succeeded.
  */
 
-import { createSecretScanRuntime } from "../../src/runtime.js";
+import { createRedactSecretRuntime } from "../../src/runtime.js";
 import type {
   IncrementalSanitizer,
   IncrementalSanitizerOptions,
@@ -26,7 +26,7 @@ export const LIMITS = Object.freeze({
 export async function openSession(
   options: Partial<IncrementalSanitizerOptions> = {},
 ): Promise<IncrementalSanitizer> {
-  const runtime = createSecretScanRuntime(async () => createSanitizingBinding());
+  const runtime = createRedactSecretRuntime(async () => createSanitizingBinding());
   await runtime.initialize();
   return runtime.createIncrementalSanitizer({ limits: LIMITS, ...options });
 }

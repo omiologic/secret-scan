@@ -146,18 +146,18 @@ impl fmt::Display for SecretScanErrorCode {
 /// # Examples
 ///
 /// ```
-/// use secret_scan::{DetectorRegistry, SecretScanErrorCode, redact, scan, DefaultPolicy};
+/// use redact_secret::{DetectorRegistry, SecretScanErrorCode, redact, scan, DefaultPolicy};
 ///
 /// let registry = DetectorRegistry::with_built_in([])?;
 /// let input = "API_KEY=ghp_SYNTHETICREVOKED00000000000000000000";
 /// let findings = scan(input, &registry, &DefaultPolicy)?;
 ///
 /// // The same findings do not describe a shorter input.
-/// let error = redact("short", &findings, &secret_scan::default_placeholder_formatter).unwrap_err();
+/// let error = redact("short", &findings, &redact_secret::default_placeholder_formatter).unwrap_err();
 /// assert_eq!(error.code(), SecretScanErrorCode::InvalidFindings);
 /// assert_eq!(error.to_string(), "Redaction findings are invalid.");
 /// assert!(!error.to_string().contains("ghp_"));
-/// # Ok::<(), secret_scan::SecretScanError>(())
+/// # Ok::<(), redact_secret::SecretScanError>(())
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SecretScanError {

@@ -29,7 +29,7 @@ publish = false
 
 [workspace.dependencies]
 # Internal crates.
-secret-scan = { path = "crates/secret-scan-core", version = "=0.1.0-beta.1" }
+redact-secret = { path = "crates/secret-scan-core", version = "=0.1.0-beta.1" }
 
 # Binding dependencies. The MSRV above is the maximum `rust-version` among the
 # packages selected by these requirements; see docs/rust-workspace.md#msrv.
@@ -63,9 +63,9 @@ unimplemented = "deny"
 # storage, or UI behavior into a library boundary. Bindings and the CLI may
 # add entries to `binding-allowed-dependencies` when a host integration
 # requires them; the core never may.
-[workspace.metadata.secret-scan]
-core-package = "secret-scan"
-product-name = "secret-scan"
+[workspace.metadata.redact-secret]
+core-package = "redact-secret"
+product-name = "Redact Secret"
 allowed-dependencies = []
 # Crates a binding needs to speak to its host. The core is binding-neutral:
 # none of these may appear in its dependency graph, its manifest, or its
@@ -155,13 +155,13 @@ core-package-required = ["Cargo.toml", "README.md", "src/lib.rs"]
 # the distribution name, the abi3 floor, and the wheel matrix can only change
 # in a reviewed manifest change. See docs/python-packaging.md.
 #
-# `python-distribution` is the PyPI name, which is not the product name: PyPI
-# `secret-scan` belongs to an unrelated project, so this is the registry
-# fallback of `decision-release-bindings-in-lockstep`. `python-import-name` is
-# the product name and does not move with it.
-python-distribution = "omiologic-secret-scan"
-python-import-name = "secret_scan"
-python-native-module = "secret_scan._native"
+# `python-distribution` is the PyPI name and `python-import-name` is the
+# Python import path; per PEP 503 normalization, `redact-secret` and
+# `redact_secret` are the same PyPI project identity, so no registry-fallback
+# name is needed here (see `decision-adopt-redact-secret-naming-contract`).
+python-distribution = "redact-secret"
+python-import-name = "redact_secret"
+python-native-module = "redact_secret._native"
 # One abi3 wheel per platform serves every CPython from this floor upward, so
 # the Cargo feature and the `requires-python` floor are the same statement and
 # must not drift apart.
@@ -198,7 +198,7 @@ node-addon-targets = [
   "x86_64-unknown-linux-gnu",
   "x86_64-unknown-linux-musl",
 ]
-# Every target with a published `@omiologic/secret-scan-<platform>` npm
+# Every target with a published `@redact-secret/node-<platform>` npm
 # package: `bindings/node/npm/<platform>/package.json` must exist for each,
 # `packages/javascript/package.json`'s `optionalDependencies` and
 # `runtime/node.ts`'s host-to-package mapping must name exactly these
@@ -215,7 +215,7 @@ node-publish-targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
 ]
-# Every target a CLI release must build and smoke-test a `secret-scan` binary
+# Every target a CLI release must build and smoke-test a `redact-secret` binary
 # for. The CLI ships no musl variant, so this is the six triples the addon
 # shares with `python-wheel-targets` and not the addon's own eight: a static
 # musl executable is a supported artifact only where it is also published.

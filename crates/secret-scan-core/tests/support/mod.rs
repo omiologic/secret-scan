@@ -11,7 +11,7 @@
 
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use secret_scan::{
+use redact_secret::{
     Confidence, DefaultPolicy, DetectorRegistry, Finding, IncrementalLimits, IncrementalSanitizer,
     default_placeholder_formatter, redact, scan,
 };

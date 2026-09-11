@@ -13,7 +13,7 @@
 //! then disagree about what they accept. One mebibyte covers those inputs and
 //! still bounds retained plaintext.
 
-use secret_scan::{IncrementalLimits, SecretScanError};
+use redact_secret::{IncrementalLimits, SecretScanError};
 
 /// The largest logical input a single source may supply, streamed or whole.
 pub const MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
@@ -33,7 +33,7 @@ pub const READ_CHUNK_BYTES: usize = 64 * 1024;
 ///
 /// # Errors
 ///
-/// Returns [`secret_scan::SecretScanErrorCode::InvalidLimits`] only if the
+/// Returns [`redact_secret::SecretScanErrorCode::InvalidLimits`] only if the
 /// constants above stop satisfying the core's documented relationship, which
 /// a unit test in this module pins.
 pub fn incremental_limits() -> Result<IncrementalLimits, SecretScanError> {

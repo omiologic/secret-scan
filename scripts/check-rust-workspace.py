@@ -5,7 +5,7 @@ Checks, in order:
 
 1. Core dependency boundary: the core crate's transitive normal and build
    dependency graph contains only packages listed in
-   ``[workspace.metadata.secret-scan] allowed-dependencies`` and never a
+   ``[workspace.metadata.redact-secret] allowed-dependencies`` and never a
    package listed in ``forbidden-dependencies``.
 2. Unsafe-code policy: every member inherits workspace lints, the workspace
    denies ``unsafe_code``, and the core and CLI crate roots forbid it.
@@ -64,7 +64,7 @@ CI_MSRV = re.compile(r"^\s*MSRV:\s*[\"']?(\d+\.\d+(?:\.\d+)?)[\"']?\s*$", re.M)
 CI_NODE_VERSIONS = re.compile(r"node-version:\s*\n((?:\s*-\s*\d+\s*\n)+)")
 NODE_VERSION_ENTRY = re.compile(r"-\s*(\d+)")
 FORBID_UNSAFE = re.compile(r"^\s*#!\[forbid\(unsafe_code\)\]\s*$", re.M)
-FORBID_UNSAFE_ROOTS = {"secret-scan": "src/lib.rs", "secret-scan-cli": "src/main.rs"}
+FORBID_UNSAFE_ROOTS = {"redact-secret": "src/lib.rs", "redact-secret-cli": "src/main.rs"}
 LOCKSTEP_MANIFESTS = ("bindings/node/package.json", "packages/javascript/package.json")
 # The WebAssembly package: an ordinary lockstep manifest for version
 # purposes, but it declares no `engines.node` (it ships no Node.js-specific
@@ -106,7 +106,7 @@ FORBIDDEN_SOURCE = {
     "println!": "standard output",
     "eprintln!": "standard error",
 }
-USER_AGENT = "secret-scan workspace check (https://github.com/omiologic/secret-scan)"
+USER_AGENT = "redact-secret workspace check (https://github.com/omiologic/secret-scan)"
 
 
 def version_key(version: str) -> tuple[int, int, int]:
@@ -360,7 +360,7 @@ def check_core_public_api(root: Path, metadata: dict, policy: dict) -> list[str]
     """The core crate root exports exactly ``core-public-api``."""
     declared = policy.get("core-public-api")
     if declared is None:
-        return ["Cargo.toml: [workspace.metadata.secret-scan] must declare core-public-api"]
+        return ["Cargo.toml: [workspace.metadata.redact-secret] must declare core-public-api"]
     crate = core_root(metadata, policy)
     if crate is None:
         return []
@@ -480,7 +480,7 @@ def check_core_package_contents(policy: dict, listed: list[str]) -> list[str]:
     """Every published file matches an allowed glob, and none is missing."""
     globs = policy.get("core-package-globs")
     if globs is None:
-        return ["Cargo.toml: [workspace.metadata.secret-scan] must declare core-package-globs"]
+        return ["Cargo.toml: [workspace.metadata.redact-secret] must declare core-package-globs"]
     allowed = [glob_to_regex(pattern) for pattern in globs]
     errors = []
     for path in listed:
@@ -498,9 +498,9 @@ def validate(root: Path, metadata: dict, package_lister=None) -> list[str]:
     with (root / "Cargo.toml").open("rb") as handle:
         root_manifest = tomllib.load(handle)
     policy = metadata.get("metadata") or {}
-    policy = policy.get("secret-scan")
+    policy = policy.get("redact-secret")
     if not policy:
-        return ["Cargo.toml: missing [workspace.metadata.secret-scan] policy"]
+        return ["Cargo.toml: missing [workspace.metadata.redact-secret] policy"]
     errors: list[str] = []
     errors.extend(check_core_boundary(metadata, policy))
     errors.extend(check_unsafe_policy(root, metadata, root_manifest))
@@ -552,7 +552,7 @@ def main() -> int:
     if derived is not None:
         print(f"Derived MSRV {derived} from " + ", ".join(f"{name} {version}" for name, version, _ in culprits))
     if args.recheck_crate_name and not errors:
-        errors.extend(recheck_crate_name(metadata["metadata"]["secret-scan"]))
+        errors.extend(recheck_crate_name(metadata["metadata"]["redact-secret"]))
     for error in errors:
         print(f"ERROR {error}")
     print(f"Rust workspace check complete: {len(errors)} error(s)")

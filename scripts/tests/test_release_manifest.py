@@ -20,7 +20,7 @@ VALID_FIELDS = dict(
     source_revision="a" * 40,
     conformance_identity="b" * 40,
     version="0.1.0-beta.1",
-    artifact_set=["npm:@omiologic/secret-scan"],
+    artifact_set=["npm:@redact-secret/core"],
     registry_state={"npm": "published"},
 )
 
@@ -39,7 +39,7 @@ class BuildManifestTests(unittest.TestCase):
             },
         )
         self.assertEqual(manifest["source_revision"], VALID_FIELDS["source_revision"])
-        self.assertEqual(manifest["artifact_set"], ["npm:@omiologic/secret-scan"])
+        self.assertEqual(manifest["artifact_set"], ["npm:@redact-secret/core"])
         self.assertEqual(manifest["registry_state"], {"npm": "published"})
 
     def test_rejects_each_missing_field(self) -> None:
@@ -80,7 +80,7 @@ class CliTests(unittest.TestCase):
                     "--version",
                     VALID_FIELDS["version"],
                     "--artifact",
-                    "npm:@omiologic/secret-scan",
+                    "npm:@redact-secret/core",
                     "--registry-state",
                     "npm=published",
                     "--out",
@@ -104,7 +104,7 @@ class CliTests(unittest.TestCase):
                     "--version",
                     VALID_FIELDS["version"],
                     "--artifact",
-                    "npm:@omiologic/secret-scan",
+                    "npm:@redact-secret/core",
                     "--registry-state",
                     "npm=published",
                     "--out",

@@ -10,7 +10,7 @@
 //! (`decision-govern-cross-language-conformance`).
 
 use js_sys::Function;
-use secret_scan::{
+use redact_secret::{
     Action, DetectedFinding, Finding, FormatterFailure, PlaceholderContext, PlaceholderFormatter,
     Policy, PolicyContext, PolicyFailure,
 };
@@ -90,7 +90,7 @@ impl PlaceholderFormatter for JsPlaceholderFormatter<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use secret_scan::{ByteRange, Confidence};
+    use redact_secret::{ByteRange, Confidence};
     use wasm_bindgen_test::wasm_bindgen_test;
 
     fn detected_finding() -> DetectedFinding {

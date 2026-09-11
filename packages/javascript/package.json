@@ -1,5 +1,5 @@
 {
-  "name": "@omiologic/secret-scan",
+  "name": "@redact-secret/core",
   "description": "Deterministic secret detection and redaction for browser and server JavaScript/TypeScript applications.",
   "license": "MIT",
   "repository": {
@@ -53,14 +53,14 @@
   },
   "version": "0.1.0-beta.1",
   "dependencies": {
-    "@omiologic/secret-scan-wasm": "0.1.0-beta.1"
+    "@redact-secret/wasm": "0.1.0-beta.1"
   },
   "optionalDependencies": {
-    "@omiologic/secret-scan-darwin-arm64": "0.1.0-beta.1",
-    "@omiologic/secret-scan-darwin-x64": "0.1.0-beta.1",
-    "@omiologic/secret-scan-linux-arm64-gnu": "0.1.0-beta.1",
-    "@omiologic/secret-scan-linux-x64-gnu": "0.1.0-beta.1",
-    "@omiologic/secret-scan-win32-arm64-msvc": "0.1.0-beta.1",
-    "@omiologic/secret-scan-win32-x64-msvc": "0.1.0-beta.1"
+    "@redact-secret/node-darwin-arm64": "0.1.0-beta.1",
+    "@redact-secret/node-darwin-x64": "0.1.0-beta.1",
+    "@redact-secret/node-linux-arm64-gnu": "0.1.0-beta.1",
+    "@redact-secret/node-linux-x64-gnu": "0.1.0-beta.1",
+    "@redact-secret/node-win32-arm64-msvc": "0.1.0-beta.1",
+    "@redact-secret/node-win32-x64-msvc": "0.1.0-beta.1"
   }
 }

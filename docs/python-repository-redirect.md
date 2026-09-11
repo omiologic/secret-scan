@@ -33,13 +33,13 @@ surfaces that share it.
 Install the package from PyPI once a release is approved:
 
 ```sh
-pip install omiologic-secret-scan
+pip install redact-secret
 ```
 
 ```python
-import secret_scan
+import redact_secret
 
-result = secret_scan.scan_and_redact(text)
+result = redact_secret.scan_and_redact(text)
 ```
 
 File issues and pull requests against the monorepo, not here:

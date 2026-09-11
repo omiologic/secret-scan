@@ -1,4 +1,4 @@
-//! Browser WebAssembly binding for the `secret-scan` core, built with
+//! Browser WebAssembly binding for the `redact-secret` core, built with
 //! `wasm-bindgen` (`decision-define-runtime-bindings`).
 //!
 //! - Every synchronous operation ([`scan`], [`redact`], [`scan_and_redact`])
@@ -31,7 +31,7 @@ mod result;
 mod util;
 
 use js_sys::Function;
-use secret_scan::{
+use redact_secret::{
     DefaultPolicy, DetectorRegistry, Finding, SecretScanError, default_placeholder_formatter,
 };
 use wasm_bindgen::JsValue;
@@ -46,7 +46,7 @@ use error::to_js_error;
 #[wasm_bindgen]
 #[must_use]
 pub fn version() -> String {
-    secret_scan::VERSION.to_owned()
+    redact_secret::VERSION.to_owned()
 }
 
 /// Idempotently initializes the module: builds and caches the built-in
@@ -69,9 +69,9 @@ fn run_scan(
 ) -> Result<Vec<Finding>, SecretScanError> {
     match policy {
         Some(function) => {
-            secret_scan::scan(input, registry, &callbacks::JsPolicy::new(input, function))
+            redact_secret::scan(input, registry, &callbacks::JsPolicy::new(input, function))
         }
-        None => secret_scan::scan(input, registry, &DefaultPolicy),
+        None => redact_secret::scan(input, registry, &DefaultPolicy),
     }
 }
 
@@ -81,12 +81,12 @@ fn run_redact(
     formatter: Option<&Function>,
 ) -> Result<String, SecretScanError> {
     match formatter {
-        Some(function) => secret_scan::redact(
+        Some(function) => redact_secret::redact(
             input,
             findings,
             &callbacks::JsPlaceholderFormatter::new(input, function),
         ),
-        None => secret_scan::redact(input, findings, &default_placeholder_formatter),
+        None => redact_secret::redact(input, findings, &default_placeholder_formatter),
     }
 }
 
@@ -193,7 +193,7 @@ mod tests {
     /// runs on a native host, not just `wasm32`): the built-in AWS detector
     /// fires, the default policy redacts a `Confidence::High`
     /// `aws_access_key_id` finding (`ALWAYS_REDACT_TYPES` in
-    /// `secret_scan::policy`), and the default formatter replaces it with
+    /// `redact_secret::policy`), and the default formatter replaces it with
     /// `<SECRET_1>` — deterministically, on every call, for the same input,
     /// whether `scan` and `redact` are called separately or as one
     /// `scanAndRedact` call.

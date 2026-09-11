@@ -3,7 +3,7 @@
  * (`runtime/browser.ts`, `bindings/wasm/src/{lib,metadata,finding}.rs`).
  *
  * Every test here runs against `createWasmShapedBinding` — a double injected
- * through `createSecretScanRuntime` exactly like `fake-binding.ts` and
+ * through `createRedactSecretRuntime` exactly like `fake-binding.ts` and
  * `sanitizing-binding.ts` are, but shaped like the real WebAssembly artifact
  * (nested `range` objects, opaque `Finding` handles, a generated `default()`
  * init) rather than the flat Node shape those two use. It is passed through
@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
 
 import { SecretScanError } from "../src/errors.js";
 import { NATIVE_HANDLE } from "../src/native.js";
-import { createSecretScanRuntime } from "../src/runtime.js";
+import { createRedactSecretRuntime } from "../src/runtime.js";
 import { VERSION } from "../src/version.js";
 import {
   createWasmShapedBinding,
@@ -33,7 +33,7 @@ const LIMITS = {
 describe("WebAssembly-shaped binding: lifecycle", () => {
   it("runs the generated default() init before the binding's own initialize()", async () => {
     const wasm = createWasmShapedBinding();
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
 
     await runtime.initialize();
 
@@ -42,7 +42,7 @@ describe("WebAssembly-shaped binding: lifecycle", () => {
 
   it("loads at most once no matter how many callers await it", async () => {
     const wasm = createWasmShapedBinding();
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
 
     await Promise.all([
       runtime.initialize(),
@@ -56,7 +56,7 @@ describe("WebAssembly-shaped binding: lifecycle", () => {
 
   it("rejects an artifact built from a different product version", async () => {
     const wasm = createWasmShapedBinding({ version: "0.0.0-other" });
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
 
     await expect(runtime.initialize()).rejects.toThrowError(
       expect.objectContaining({ code: "INITIALIZATION_FAILED" }),
@@ -68,7 +68,7 @@ describe("WebAssembly-shaped binding: lifecycle", () => {
 
   it("accepts the artifact that reports this package's version", async () => {
     const wasm = createWasmShapedBinding({ version: VERSION });
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
 
     await runtime.initialize();
 
@@ -77,7 +77,7 @@ describe("WebAssembly-shaped binding: lifecycle", () => {
 
   it("refuses every synchronous operation before initialize succeeds", () => {
     const wasm = createWasmShapedBinding();
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
 
     for (const call of [
       () => runtime.scan("SYNTHETIC_REVOKED_VALUE"),
@@ -95,7 +95,7 @@ describe("WebAssembly-shaped binding: lifecycle", () => {
 describe("WebAssembly-shaped binding: finding normalization", () => {
   it("flattens the opaque, nested-range finding scan returns", async () => {
     const wasm = createWasmShapedBinding({ findings: [sampleWasmFinding] });
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
     await runtime.initialize();
 
     const [finding] = runtime.scan(
@@ -116,7 +116,7 @@ describe("WebAssembly-shaped binding: finding normalization", () => {
 
   it("returns the exact handle scan produced back to redact", async () => {
     const wasm = createWasmShapedBinding({ findings: [sampleWasmFinding] });
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
     await runtime.initialize();
 
     const input = "API_KEY=SYNTHETIC_REVOKED_CONTEXT_VALUE";
@@ -132,7 +132,7 @@ describe("WebAssembly-shaped binding: finding normalization", () => {
 describe("WebAssembly-shaped binding: policy and formatter callbacks", () => {
   it("gives a policy callback a finding whose start and end are numbers, frozen", async () => {
     const wasm = createWasmShapedBinding({ findings: [sampleWasmFinding] });
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
     await runtime.initialize();
 
     let seen: unknown;
@@ -160,7 +160,7 @@ describe("WebAssembly-shaped binding: policy and formatter callbacks", () => {
 
   it("gives a formatter callback a finding whose start and end are numbers, frozen", async () => {
     const wasm = createWasmShapedBinding({ findings: [sampleWasmFinding] });
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
     await runtime.initialize();
 
     const input = "API_KEY=SYNTHETIC_REVOKED_CONTEXT_VALUE";
@@ -191,7 +191,7 @@ describe("WebAssembly-shaped binding: policy and formatter callbacks", () => {
 describe("WebAssembly-shaped binding: incremental sanitization", () => {
   it("rejects with a fixed code, since bindings/wasm has no such export", async () => {
     const wasm = createWasmShapedBinding();
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
 
     await runtime.initialize();
 
@@ -207,7 +207,7 @@ describe("WebAssembly-shaped binding: incremental sanitization", () => {
 
   it("does not stop initialize() from resolving", async () => {
     const wasm = createWasmShapedBinding();
-    const runtime = createSecretScanRuntime(wasm.load);
+    const runtime = createRedactSecretRuntime(wasm.load);
 
     await expect(runtime.initialize()).resolves.toBeUndefined();
     expect(() =>

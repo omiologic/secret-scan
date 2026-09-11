@@ -1,7 +1,7 @@
 //! Shared low-level scanning helpers for hand-written detector grammars.
 //!
 //! The core crate depends on nothing outside `std`
-//! (`workspace.metadata.secret-scan.allowed-dependencies` is empty), so every
+//! (`workspace.metadata.redact-secret.allowed-dependencies` is empty), so every
 //! detector parses its grammar by hand instead of through a regex engine.
 //! These helpers centralize the small pieces of ECMAScript character-class
 //! semantics that more than one ported grammar depends on, operating on

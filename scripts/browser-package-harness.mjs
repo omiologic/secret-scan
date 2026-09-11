@@ -26,7 +26,7 @@ import {
   redact,
   scan,
   scanAndRedact,
-} from "@omiologic/secret-scan";
+} from "@redact-secret/core";
 
 const results = [];
 let failures = 0;

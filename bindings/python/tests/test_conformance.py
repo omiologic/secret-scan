@@ -1,7 +1,7 @@
 """Synchronous conformance and Unicode range tests.
 
 Runs the full canonical corpus (`decision-govern-cross-language-
-conformance`) through `secret_scan.scan`, converting each expectation's
+conformance`) through `redact_secret.scan`, converting each expectation's
 canonical UTF-8 byte offsets to Python code point offsets with an
 independent reference conversion (not the binding under test), and asserts
 `scan`'s detector/type/confidence/span output matches exactly.
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-import secret_scan
+import redact_secret
 
 from .conftest import byte_offset_to_char_offset_reference, load_corpus
 
@@ -28,7 +28,7 @@ def _expected_tuples(text: str, expected: list[dict]) -> list[tuple]:
     return tuples
 
 
-def _actual_tuples(findings: list[secret_scan.Finding]) -> list[tuple]:
+def _actual_tuples(findings: list[redact_secret.Finding]) -> list[tuple]:
     return [(f.detector, f.type, f.confidence, f.start, f.end) for f in findings]
 
 
@@ -47,7 +47,7 @@ def _synchronous_fixtures() -> list[dict]:
 )
 def test_scan_matches_the_canonical_synchronous_corpus(fixture: dict) -> None:
     text = fixture["input"]
-    findings = secret_scan.scan(text)
+    findings = redact_secret.scan(text)
     assert _actual_tuples(findings) == _expected_tuples(text, fixture["expected"])
 
 
@@ -82,5 +82,5 @@ def test_unicode_astral_ranges_convert_to_exact_code_point_offsets(
     start = byte_offset_to_char_offset_reference(text, expected["start"])
     end = byte_offset_to_char_offset_reference(text, expected["end"])
 
-    assert secret_scan._native.byte_offset_to_char_offset(text, expected["start"]) == start
-    assert secret_scan._native.byte_offset_to_char_offset(text, expected["end"]) == end
+    assert redact_secret._native.byte_offset_to_char_offset(text, expected["start"]) == start
+    assert redact_secret._native.byte_offset_to_char_offset(text, expected["end"]) == end

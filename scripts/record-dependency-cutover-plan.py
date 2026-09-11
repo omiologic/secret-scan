@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Record the npm dependency cutover's intended publish order and inventory.
 
-Issue #141: before `@omiologic/secret-scan` (the wrapper) may publish, every
+Issue #141: before `@redact-secret/core` (the wrapper) may publish, every
 runtime dependency package it declares -- the six native
-`@omiologic/secret-scan-<platform>` packages and `@omiologic/secret-scan-wasm`
+`@redact-secret/node-<platform>` packages and `@redact-secret/wasm`
 -- must already be packed, content-checked, published, and verified at its
 declared, immutable version. `.github/workflows/release.yml` enforces the
 ordering itself through `needs:` (checked by `scripts/check-release-gate.py`,
@@ -56,7 +56,7 @@ def _load_check_artifact_matrix():
 def declared_matrix(root: Path) -> dict:
     with (root / "Cargo.toml").open("rb") as handle:
         manifest = tomllib.load(handle)
-    return manifest["workspace"]["metadata"]["secret-scan"]
+    return manifest["workspace"]["metadata"]["redact-secret"]
 
 
 def source_commit(root: Path) -> str:

@@ -14,12 +14,12 @@ import { resolveAddonSpecifier } from "../src/runtime/node.js";
 const EXPECTED: ReadonlyArray<
   readonly [platform: string, arch: string, specifier: string]
 > = [
-  ["darwin", "arm64", "@omiologic/secret-scan-darwin-arm64"],
-  ["darwin", "x64", "@omiologic/secret-scan-darwin-x64"],
-  ["linux", "arm64", "@omiologic/secret-scan-linux-arm64-gnu"],
-  ["linux", "x64", "@omiologic/secret-scan-linux-x64-gnu"],
-  ["win32", "arm64", "@omiologic/secret-scan-win32-arm64-msvc"],
-  ["win32", "x64", "@omiologic/secret-scan-win32-x64-msvc"],
+  ["darwin", "arm64", "@redact-secret/node-darwin-arm64"],
+  ["darwin", "x64", "@redact-secret/node-darwin-x64"],
+  ["linux", "arm64", "@redact-secret/node-linux-arm64-gnu"],
+  ["linux", "x64", "@redact-secret/node-linux-x64-gnu"],
+  ["win32", "arm64", "@redact-secret/node-win32-arm64-msvc"],
+  ["win32", "x64", "@redact-secret/node-win32-x64-msvc"],
 ];
 
 function withHost<T>(platform: string, arch: string, fn: () => T): T {

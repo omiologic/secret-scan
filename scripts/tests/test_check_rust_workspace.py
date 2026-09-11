@@ -41,7 +41,7 @@ mod tests {
 }
 """
 CORE_API = ["Finding", "VERSION", "scan"]
-CORE_MANIFEST = '[package]\nname = "secret-scan"\ninclude = ["src/**/*.rs", "README.md"]\n[lints]\nworkspace = true\n'
+CORE_MANIFEST = '[package]\nname = "redact-secret"\ninclude = ["src/**/*.rs", "README.md"]\n[lints]\nworkspace = true\n'
 PACKAGE_GLOBS = ["Cargo.toml", "README.md", "src/**/*.rs"]
 PACKAGE_REQUIRED = ["Cargo.toml", "README.md", "src/lib.rs"]
 PACKAGE_LIST = ["Cargo.toml", "README.md", "src/lib.rs", "src/detectors/aws.rs"]
@@ -85,8 +85,8 @@ class Workspace:
                 f"bindings/node/npm/{platform}/package.json",
                 json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}),
             )
-        self.add_member("secret-scan", "crates/secret-scan-core", "src/lib.rs", CORE_LIB, manifest=CORE_MANIFEST)
-        self.add_member("secret-scan-cli", "crates/secret-scan-cli", "src/main.rs", "#![forbid(unsafe_code)]\n", deps=["secret-scan"])
+        self.add_member("redact-secret", "crates/secret-scan-core", "src/lib.rs", CORE_LIB, manifest=CORE_MANIFEST)
+        self.add_member("redact-secret-cli", "crates/secret-scan-cli", "src/main.rs", "#![forbid(unsafe_code)]\n", deps=["redact-secret"])
 
     def write(self, relative: str, content: str) -> None:
         path = self.root / relative
@@ -121,8 +121,8 @@ class Workspace:
             "workspace_members": list(self.members),
             "resolve": {"nodes": nodes},
             "metadata": {
-                "secret-scan": {
-                    "core-package": "secret-scan",
+                "redact-secret": {
+                    "core-package": "redact-secret",
                     "allowed-dependencies": self.allowed,
                     "forbidden-dependencies": self.forbidden,
                     "binding-dependencies": self.bindings,
@@ -179,7 +179,7 @@ class RustWorkspaceCheckTests(unittest.TestCase):
     def test_core_dev_dependencies_are_outside_the_boundary(self) -> None:
         def configure(workspace: Workspace) -> None:
             workspace.packages[0]["_deps"].append("proptest")
-            workspace.dep_kinds[("secret-scan", "proptest")] = [{"kind": "dev"}]
+            workspace.dep_kinds[("redact-secret", "proptest")] = [{"kind": "dev"}]
             workspace.add_dependency("proptest")
 
         self.assertEqual(self.run_check(configure), [])
@@ -200,7 +200,7 @@ class RustWorkspaceCheckTests(unittest.TestCase):
 
     def test_member_without_workspace_lints_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
-            workspace.add_member("secret-scan-wasm", "bindings/wasm", "src/lib.rs", "", lints="")
+            workspace.add_member("redact-secret-wasm", "bindings/wasm", "src/lib.rs", "", lints="")
 
         errors = self.run_check(configure)
         self.assertTrue(any("must set [lints] workspace = true" in error for error in errors), errors)
@@ -224,7 +224,7 @@ class RustWorkspaceCheckTests(unittest.TestCase):
             workspace.packages[1]["version"] = "0.2.0"
 
         errors = self.run_check(configure)
-        self.assertTrue(any("secret-scan-cli: version 0.2.0" in error for error in errors), errors)
+        self.assertTrue(any("redact-secret-cli: version 0.2.0" in error for error in errors), errors)
 
     def test_dependency_requiring_newer_rust_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
@@ -359,7 +359,7 @@ class RustWorkspaceCheckTests(unittest.TestCase):
             workspace.packages[1]["rust_version"] = "1.85"
 
         errors = self.run_check(configure)
-        self.assertTrue(any("secret-scan-cli: rust-version 1.85" in error for error in errors), errors)
+        self.assertTrue(any("redact-secret-cli: rust-version 1.85" in error for error in errors), errors)
 
     # -- public API -------------------------------------------------------
 
@@ -486,7 +486,7 @@ class RustWorkspaceCheckTests(unittest.TestCase):
 
     def test_core_manifest_without_include_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
-            workspace.write("crates/secret-scan-core/Cargo.toml", '[package]\nname = "secret-scan"\n[lints]\nworkspace = true\n')
+            workspace.write("crates/secret-scan-core/Cargo.toml", '[package]\nname = "redact-secret"\n[lints]\nworkspace = true\n')
 
         errors = self.run_check(configure)
         self.assertTrue(any("must declare include" in error for error in errors), errors)

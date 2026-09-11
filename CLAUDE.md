@@ -1,4 +1,4 @@
-# secret-scan — Claude Code
+# Redact Secret — Claude Code
 
 All agent instructions for this repo live in `AGENTS.md`, so every agent
 (Claude Code, Codex, Hermes, Antigravity) reads the same source. It imports

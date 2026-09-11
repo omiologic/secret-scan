@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Issue #141, "registry-backed clean install" criterion: installs the real,
- * published `@omiologic/secret-scan` from the npm registry -- no local
+ * published `@redact-secret/core` from the npm registry -- no local
  * tarball, no `overrides` -- into a clean directory outside this repository,
  * and awaits `initialize()` and a correct `scan()` on the requested runtime.
  *
@@ -41,13 +41,13 @@ function parseArgs(argv) {
  * this checkout, and nothing overrides what the registry serves.
  */
 async function buildConsumerProject(version) {
-  const root = await mkdtemp(join(tmpdir(), "secret-scan-registry-consumer-"));
+  const root = await mkdtemp(join(tmpdir(), "redact-secret-registry-consumer-"));
   const manifest = {
-    name: "secret-scan-registry-install-verification",
+    name: "redact-secret-registry-install-verification",
     private: true,
     type: "module",
     dependencies: {
-      "@omiologic/secret-scan": version,
+      "@redact-secret/core": version,
     },
   };
   await writeFile(join(root, "package.json"), JSON.stringify(manifest, null, 2));

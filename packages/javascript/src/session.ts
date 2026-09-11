@@ -13,6 +13,6 @@
 
 import { loadNativeBinding } from "#native";
 
-import { createSecretScanRuntime } from "./runtime.js";
+import { createRedactSecretRuntime } from "./runtime.js";
 
-export const runtime = createSecretScanRuntime(loadNativeBinding);
+export const runtime = createRedactSecretRuntime(loadNativeBinding);

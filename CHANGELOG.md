@@ -287,6 +287,20 @@ select or authorize a release.
   package inventory as `dependency-cutover-plan.json`
   (`scripts/record-dependency-cutover-plan.py`).
 
+- Adopted the `Redact Secret` public identity (#151, #152):
+  `decision-adopt-redact-secret-naming-contract` records the accepted naming
+  matrix, and every manifest, source import, package dependency, workflow,
+  script, and current document was updated to it. The Rust core crate is now
+  `redact-secret` (lib `redact_secret`), the CLI crate `redact-secret-cli`
+  (binary `redact-secret`), the Python distribution `redact-secret` (import
+  `redact_secret`), and the npm packages `@redact-secret/core`,
+  `@redact-secret/wasm`, and `@redact-secret/node-<platform>`. Exported error
+  type names (`SecretScanError`, `SecretScanErrorCode`) and this repository's
+  own path layout are unchanged; the GitHub repository stays
+  `omiologic/secret-scan` until its separately authorized transfer (#157).
+  `scripts/check-legacy-identifiers.py` now enforces the previous identity's
+  absence outside a reviewed allowlist of historical records.
+
 ### Removed
 
 - `RB-2` (#72): removed the repository-root TypeScript detector core
