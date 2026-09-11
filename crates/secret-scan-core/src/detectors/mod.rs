@@ -55,6 +55,7 @@ pub(crate) fn built_in_detectors() -> Vec<Box<dyn Detector>> {
         Box::new(additional_providers::LINEAR),
         Box::new(additional_providers::SUPABASE),
         Box::new(additional_providers::VERCEL),
+        Box::new(additional_providers::NPM),
         jwt::jwt_detector(),
         bearer_token::bearer_token_detector(),
         Box::new(ConnectionStringDetector),
@@ -105,6 +106,7 @@ mod tests {
                 "linear-token",
                 "supabase-token",
                 "vercel-token",
+                "npm-token",
                 "jwt",
                 "bearer-token",
                 "connection-string",
@@ -117,7 +119,7 @@ mod tests {
     #[test]
     fn every_built_in_provider_candidate_claims_provider_specificity() {
         let pypi_input = format!("pypi-{}", "SYNTHETIC_REVOKED_".repeat(5));
-        let cases: [(&str, &str); 17] = [
+        let cases: [(&str, &str); 18] = [
             ("aws-access-key", "AKIASYNTHETICEXAMPLE"),
             (
                 "github-token",
@@ -141,6 +143,7 @@ mod tests {
             ("linear-token", "lin_api_SYNTHETICREVOKEDPROVIDERVALUE"),
             ("supabase-token", "sb_secret_SYNTHETICREVOKEDPROVIDERVALUE"),
             ("vercel-token", "vcp_SYNTHETICREVOKEDPROVIDERVALUE"),
+            ("npm-token", "npm_SYNTHETICREVOKEDNPMACCESSTOKENVALUE1"),
         ];
         let detectors = built_in_detectors();
         for (id, input) in cases {

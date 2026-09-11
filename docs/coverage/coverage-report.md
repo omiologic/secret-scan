@@ -13,11 +13,11 @@ python3 -B scripts/generate-coverage-report.py --out docs/coverage/coverage-repo
 
 | Row state | Count |
 | --- | --- |
-| supported | 24 |
+| supported | 25 |
 | intentionally-unsupported | 0 |
 | unresolved | 0 |
 
-Coverage declarations: 34.
+Coverage declarations: 35.
 
 ## Coverage by detector
 
@@ -36,6 +36,7 @@ Coverage declarations: 34.
 | huggingface-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | jwt | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | linear-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
+| npm-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | openai-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | otpauth-uri | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | private-key | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
@@ -65,6 +66,7 @@ Coverage declarations: 34.
 | huggingface_token | huggingface-token | provider | supported | not-applicable | none |
 | jwt | jwt | structural | supported | not-applicable | host-context |
 | linear_token | linear-token | provider | supported | not-applicable | none |
+| npm_access_token | npm-token | provider | supported | not-applicable | none |
 | openai_api_key | openai-token | provider | supported | not-applicable | none |
 | otpauth_secret | otpauth-uri | structural | supported | supported | host-context |
 | private_key | private-key | structural | supported | not-applicable | host-context |
@@ -99,15 +101,15 @@ Coverage declarations: 34.
 
 | Dimension | Supported | Not applicable | Pending |
 | --- | --- | --- | --- |
-| adversarial | 34 | 0 | 0 |
-| boundary | 24 | 0 | 0 |
-| host-context | 18 | 0 | 6 |
+| adversarial | 35 | 0 | 0 |
+| boundary | 25 | 0 | 0 |
+| host-context | 19 | 0 | 6 |
 | incremental | 3 | 7 | 0 |
-| malformed | 34 | 0 | 0 |
-| near-miss-negative | 24 | 0 | 0 |
-| overlap | 21 | 0 | 3 |
-| positive | 24 | 0 | 0 |
-| range | 34 | 0 | 0 |
+| malformed | 35 | 0 | 0 |
+| near-miss-negative | 25 | 0 | 0 |
+| overlap | 22 | 0 | 3 |
+| positive | 25 | 0 | 0 |
+| range | 35 | 0 | 0 |
 
 ## Unresolved and pending coverage
 
