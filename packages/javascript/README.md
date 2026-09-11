@@ -182,9 +182,9 @@ Stream subpaths: `@redact-secret/core/node-stream` exports
 `@redact-secret/core/web-stream` exports `createWebStreamSanitizer`,
 `WebStreamSanitizer`, and `SecretScanError`.
 
-The root export and those two subpaths are the whole public API. There are no
-other public subpaths, and internal modules are unreachable through the
-`exports` map. `VERSION` is
+The root export and those two stream subpaths are the executable public API.
+`@redact-secret/core/package.json` also exposes package metadata. Internal
+modules are unreachable through the `exports` map. `VERSION` is
 the shared product version; the Rust crate, this package, the Python package,
 and the CLI are released in lockstep
 (`decision-release-bindings-in-lockstep`), and `initialize()` refuses an

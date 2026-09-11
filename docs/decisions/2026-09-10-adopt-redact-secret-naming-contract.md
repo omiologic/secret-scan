@@ -7,6 +7,23 @@ decided_at: 2026-09-10
 ---
 # Adopt the Redact Secret naming contract
 
+## Current application — 2026-09-11 (#144)
+
+The accepted naming matrix below is implemented. The canonical repository is
+now `redact-secret/redact-secret`; #157 completed the transfer, and current
+manifest repository/homepage/bugs URLs use it. Metadata uses
+`[workspace.metadata.redact-secret]`. The transfer-pending scope boundary and
+registry observations below describe the decision-time state, not the current
+candidate. `SecretScanError`/`SecretScanErrorCode` and internal crate-directory
+paths remain unchanged as decided.
+
+The original body is retained as historical rationale. The current artifact
+mapping is recorded in the [first-release decision's current application](2026-09-10-ship-first-release-artifact-set.md#current-application--2026-09-11-144).
+The candidate changelog is current product documentation and is no longer on
+the historical-name allowlist. No version or release operation is authorized
+by this update.
+
+
 ## Decision
 
 Replace the `secret-scan` public identity with `Redact Secret` across every

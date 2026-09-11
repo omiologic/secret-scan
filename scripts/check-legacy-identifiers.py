@@ -97,10 +97,6 @@ LEGACY_IDENTIFIER_ALLOWLIST: dict[str, str] = {
     "docs/audits/repository-transfer-evidence.md": (
         "a dated pre/post transfer evidence record that must identify the former path"
     ),
-    "CHANGELOG.md": (
-        "append-only historical narrative; past entries describe the "
-        "product under the name in force when they were written"
-    ),
     "scripts/check-legacy-identifiers.py": (
         "this script's own docstring and token patterns must name the "
         "legacy identifier literally to detect and document it; not a "

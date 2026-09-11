@@ -6,9 +6,12 @@ N-API native addon (`napi-rs`) for Node.js. Crate: `redact-secret-node`.
 - Exports `version`, `initialize`, `scan`, `redact`, and `scanAndRedact`.
 - This directory's own `package.json` is `private` and only carries the
   `napi` build configuration; it is never published itself. `npm/` holds one
-  tiny published package per `napi.targets` platform triple
+  tiny publication package per `node-publish-targets` platform triple
   (`@redact-secret/node-<platform>`), each carrying only that platform's
-  built `.node` file. `packages/javascript` depends on all of them through
+  built `.node` file. The six packages support Node.js 20, 22, and 24 on
+  glibc Linux, macOS, and Windows, x64 and arm64. `napi.targets` also includes
+  two musl targets that are qualified but have no npm publication package.
+  `packages/javascript` depends on the six publication packages through
   `optionalDependencies`, and npm's `os`/`cpu`/`libc` fields skip the ones
   that do not match a given install.
 - Does not yet export `createIncrementalSanitizer` over the core's

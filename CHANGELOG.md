@@ -1,387 +1,72 @@
 # Changelog
 
-This file records user-visible package changes. An `Unreleased` entry does not
-select or authorize a release.
+This file records the candidate product contract. Candidate notes are not a
+publication record and do not authorize a release.
 
 ## Unreleased
 
-### Added
+### Product and packages
 
-- A consumer documentation hub under `docs/`, with source setup, language
-  guides, policy and range contracts, streaming limits, and troubleshooting.
+- Redact Secret provides deterministic secret detection and redaction through
+  one side-effect-free Rust core, shared by JavaScript, Python, Rust, and CLI
+  consumers. The canonical `conformance/` corpus defines cross-language behavior.
+- The first release artifact set comprises the `redact-secret` Rust library,
+  `redact-secret-cli` crate and `redact-secret` binary, the `redact-secret` PyPI
+  distribution (import `redact_secret`), and the `@redact-secret/core` npm
+  package with `@redact-secret/wasm` and six `@redact-secret/node-<platform>`
+  runtime dependencies. All share one version and source revision.
+- The TypeScript detector implementation has been removed. JavaScript exposes
+  policy and placeholder formatter callbacks over safe metadata; it does not
+  restore the retired custom-detector API. Rust retains its native detector
+  traits and registry; custom detector callbacks do not cross language bindings.
 
-- A cross-platform qualification matrix (#33). The new `Artifact qualification`
-  workflow builds and proves every supported artifact from one commit and
-  publishes nothing: it calls `CI` and `Python wheels` for the Rust workspace
-  and the eight-target abi3 wheel matrix, and adds the N-API addon and the CLI
-  binary — the addon for eight targets (Linux glibc and musl on x64 and
-  arm64, macOS on x64 and arm64, Windows on x64 and arm64) and the CLI for
-  the six of those it ships, since it has no musl variant — plus the browser
-  WebAssembly artifact. Every native artifact is smoke-tested on the architecture it
-  targets, musl artifacts inside a musl container; the addon is qualified on
-  Node.js 20, 22, and 24; and the browser artifact is initialized and scanned
-  in Chromium, Firefox, and WebKit, both through its own exports and through
-  the published `@omiologic/secret-scan` package bundled on top of it. Each
-  qualifier runs the canonical
-  conformance corpus through the artifact under test — the addon and the
-  browser module against UTF-16 offsets converted by an independent reference
-  conversion, the CLI against the corpus's own UTF-8 byte offsets, which also
-  gives the CLI its first corpus-backed check. `scripts/qualify-node-addon.mjs`,
-  `scripts/qualify-browser-artifact.mjs` with `scripts/browser-harness.mjs`,
-  `scripts/build-browser-artifact.mjs`, and `scripts/qualify-cli-binary.mjs`
-  are runnable outside CI, exposed as `npm run addon:qualify`,
-  `browser:qualify`, `wasm:build`, and `cli:qualify`.
+### Public behavior and support
 
-- A single declaration of the supported surface, in
-  `[workspace.metadata.secret-scan]`: `node-addon-targets`, `browser-engines`,
-  and `node-support-majors` alongside `cli-release-targets` and the existing
-  `python-wheel-targets`. `scripts/check-artifact-matrix.py`
-  (`npm run artifacts:check`, now part of `npm run ci`) fails when
-  `bindings/node/package.json`, any workflow matrix, any qualifier script, or
-  any manifest declaring `engines.node` disagrees with it — in both
-  directions, so a platform cannot be added or dropped in one file alone, and
-  the CLI matrix must stay a subset of the addon's. The same check enforces
-  that every workflow and every job declares its own least-privilege
-  `permissions` and that every third-party action is pinned to a commit SHA
-  — `release.yml`'s `contents: write` for tagging and `id-token: write` for
-  PyPI Trusted Publishing are the only entries on that allowlist. 25 unit
-  tests cover each failure. `engines.node` stays
-  `scripts/check-rust-workspace.py`'s rule, so the two never contradict.
+- Whole-input scan, redaction, and combined operations return finding metadata
+  without matched values. Ranges refer to the original input: UTF-8 bytes in
+  Rust and CLI, UTF-16 code units in JavaScript, Unicode code points in Python.
+- Default policy blocks private keys, redacts known credential structures and
+  other high-confidence findings, and warns on other findings. Redaction
+  replaces `redact` and `block` spans; `warn` and `allow` preserve text. Hosts
+  enforce `block`. Caller-supplied overlapping redaction ranges are rejected.
+- Built-in coverage includes private keys, provider token families,
+  authorization/JWT credentials, contextual assignments, credential-bearing
+  connection URLs, and OTP shared-secret URIs. See the
+  [detection reference](docs/reference/detection.md) for supported formats and
+  precision/recall limits. Entropy alone is not a detection signal sufficient
+  to classify arbitrary text.
+- Rust, Python, and CLI standard input support bounded incremental sanitization.
+  JavaScript session and stream factories fail with `INCREMENTAL_UNAVAILABLE`
+  on both current artifacts; exported adapter contracts do not imply support.
+- JavaScript is ESM with explicit `await initialize()`. Node.js 20, 22, and 24
+  support glibc Linux, macOS, and Windows on x64 and arm64. npm and CLI ship six
+  non-musl targets. The two additional musl addons are qualified only, with no
+  npm publication path. Browsers require ES2022 and WebAssembly; qualification
+  covers Chromium, Firefox, and WebKit.
+- Python provides typed CPython 3.10+ abi3 wheels for eight targets: manylinux,
+  musllinux, macOS, and Windows on x64 and arm64. Source builds require Rust;
+  the workspace MSRV is 1.88. See the [qualification matrix](docs/qualification.md).
+- CLI check mode reports safe metadata with exit codes 0 (clean), 1 (findings),
+  and 2 (failure); redaction returns 0 or 2. Text source labels escape control
+  characters and backslashes, and JSON preserves source identity.
 
-- `scripts/record-artifact-inventory.py` closes a qualification run by
-  requiring the whole declared matrix and recording `artifact-inventory.json`
-  against the source commit: the product version, `"published": false`, the
-  SHA-256 of every canonical fixture file, the declared matrices, every
-  artifact file's size and SHA-256, and the file-by-file contents of the npm
-  package and the public Rust crate. 12 unit tests cover it.
+### Security and release evidence
 
-- `docs/qualification.md` documents the declaration, the workflow, the runner
-  map, what each qualifier proves, the inventory, and how to run the whole
-  thing locally.
-
-- `decision-ship-first-release-artifact-set` (#79): the first release ships
-  the full four-artifact product — the `secret-scan` crate on crates.io, the
-  `secret-scan` CLI, the `omiologic-secret-scan` PyPI distribution, and the
-  `@omiologic/secret-scan` npm package. `publish` is lifted for the
-  `secret-scan` and `secret-scan-cli` crates; `release.yml` gains
-  `publish-crates` and `publish-pypi` jobs alongside the existing npm job, all
-  under the same `release` environment gate; and `packages/javascript`
-  declares its Node and WebAssembly dependencies for real —
-  `optionalDependencies` on one `@omiologic/secret-scan-<platform>` package
-  per `napi.targets`, resolved at runtime by `process.platform`/
-  `process.arch`, plus an ordinary `dependencies` entry on
-  `@omiologic/secret-scan-wasm`. `scripts/qualify-package-consumer.mjs`
-  installs the packed `packages/javascript` tarball into a clean directory
-  outside the repository and awaits `initialize()` on both the Node and
-  browser runtimes. Publishing `packages/javascript` and its native/wasm
-  dependencies for the first time remains `RB-2`'s cutover (#72).
-
-- `docs/audits/release-gap-disposition.md` records one disposition for every
-  finding the Rust-core migration retrospective produced (#66): all 55 findings
-  from the closed-issue acceptance evidence ledger and the three independent
-  reviews, classified against issue #66's blocker test into 26 release blockers,
-  25 deferred quality findings, and 4 intentional exclusions. It specifies nine
-  bounded remediation Tasks under Feature #11 (#71-#79), each recording its
-  source finding ids, inputs, outputs, deterministic acceptance criteria,
-  dependencies, and exact exit evidence; resolves all twenty release-readiness criteria of #3,
-  #11, #60, and #61 to evidence, a blocker, a deferred item, or an intentional
-  exclusion; and rules that `_notes/` is deliberately untracked so no tracked
-  file may cite a path inside it. It classifies and specifies work only, changes
-  no closed issue's state, and authorizes no release operation.
-
-- `docs/audits/deferred-quality-backlog.md` records the 25 non-blocking findings
-  with their class, severity, evidence, and exact exit condition, tracked by #80
-  and deliberately outside Epic #60's tree so none of them blocks the closeout. Three of them
-  close as side effects of blocker work, and each says which.
-
-- `docs/audits/ci-release-automation-supply-chain-review.md` records an
-  independent review of the release candidate's pre-release qualification and
-  operational controls (#65): the five workflows, the release and reconcile
-  automation, the documented Rust, Node native, browser, Python wheel, CLI, and
-  package-artifact matrices, and the supply-chain posture behind them. It
-  records what was verified — SHA-pinned actions, empty default workflow
-  permissions, non-persisted checkout credentials, `--ignore-scripts`
-  installation, the enforced MSRV and wheel-matrix cross-checks, and the
-  fully qualified eight-target wheel matrix — and twenty-three evidence-backed
-  findings, five of them blocking, each with its affected control, severity, and
-  an exact exit condition. It dispatched no workflow and records evidence only;
-  it authorizes no release operation.
-
-- `docs/audits/javascript-python-bindings-package-contracts-review.md` records
-  an independent review of the release candidate across the JavaScript runtime
-  adapters, the Python binding, and the npm and PyPI package contracts (#64):
-  what was verified for each acceptance criterion with the spans and
-  reproductions that establish it, and twelve evidence-backed findings — three
-  of them blocking, all in the browser half of the JavaScript package — each
-  with its affected public contract, severity, and an exact exit condition. It
-  records evidence only and authorizes no release operation.
-
-- `docs/audits/core-conformance-cli-boundary-review.md` records an independent
-  review of the release candidate across the canonical Rust core, the shared
-  conformance contract, and the CLI host boundary (#63): what was verified in
-  each area with the spans and reproductions that establish it, and eight
-  evidence-backed findings, each with its affected spans, severity, and an
-  exact exit condition. It records evidence only and authorizes no release
-  operation.
-
-- `docs/audits/closed-issue-acceptance-evidence-ledger.md` records criterion-level
-  acceptance evidence for the closed Rust-core migration issues (#3-#10 and
-  #12-#32): every original criterion, its class, the current files and
-  deterministic tests that establish it, and the recorded CI run that executes
-  them, with the remaining gaps classified and attributed to their open work
-  items. It records evidence only and authorizes no release operation.
-
-- `docs/audits/release-readiness-audit.md` (#36) independently re-verifies all
-  nine release-blocker remediation Tasks (`RB-1`-`RB-9`, #71-#79) against the
-  tree rather than their closed-issue state, confirms no duplicate TypeScript
-  or pure-Python detector implementation remains, and re-resolves the twenty
-  release-readiness criteria of Epic #3, Feature #11, Epic #60, and Feature
-  #61. Eight of the nine Tasks hold; `RB-8`'s repository-settings half
-  (`release` environment protection, `main` branch protection) does not,
-  confirmed by live read-only API reads, despite issue #78 being closed with
-  no recorded exit evidence. The verdict is `NOT YET READY FOR RELEASE
-  APPROVAL` pending that one gap. It records evidence and a verdict only,
-  applies no repository-settings change, and authorizes no release operation.
-
-- CPython packaging for the Python binding: the `omiologic-secret-scan`
-  distribution (imported as `secret_scan`), built by maturin as a `cp310-abi3`
-  wheel that serves every CPython from 3.10 upward with no pure-Python
-  fallback, with PEP 561 typing markers, PEP 639 license metadata, no runtime
-  dependency, and a source distribution that vendors the core crate. The
-  supported wheel matrix is manylinux and musllinux, macOS, and Windows in both
-  x64 and arm64.
-- `npm run python:check` (`scripts/check-python-package.py`, now part of
-  `npm run ci`) enforces the packaging contract declared in
-  `[workspace.metadata.secret-scan]`: the distribution and import names, the
-  abi3 floor and the `requires-python` floor agreeing with each other, the
-  absence of any Python implementation beside the extension, the typing
-  markers, and the wheel matrix the workflow actually builds.
-  `--recheck-pypi-name` rechecks the registry names before a publication.
-- `scripts/qualify-python-wheel.py` inspects wheel and source-distribution
-  contents and metadata, installs each wheel with no index, no dependency, and
-  no source fallback, smoke-tests it outside the repository, runs the shared
-  conformance suite against the installed artifact, and checks both documented
-  source-distribution branches. `.github/workflows/python-wheels.yml` builds
-  every target and qualifies each wheel on the architecture it targets, on
-  CPython 3.10 (3.11 on Windows on Arm) and 3.14 — the newest interpreter the
-  distribution claims a classifier for. Qualification understands what a
-  repaired Linux wheel actually carries: a compressed platform tag set whose
-  elements must all name the same target, and an
-  `omiologic_secret_scan.libs/` directory of vendored shared objects.
-- `docs/python-packaging.md` documents the distribution identity, the abi3
-  contract, the wheel matrix, qualification, and source-distribution behavior.
-
-- Rust workspace scaffold with the `secret-scan` core crate, the `secret-scan`
-  CLI, Node, WebAssembly, and Python binding crates, and a `packages/javascript`
-  ownership boundary; the TypeScript implementation is unchanged.
-- Explicit workspace format, lint, test, dependency, unsafe-code, and MSRV
-  (Rust 1.88) policies enforced by `npm run rust:check`, `cargo deny`, and new
-  Rust CI jobs covering native hosts, the MSRV toolchain, and the wasm32 target.
-- Rust core pipeline contracts: immutable candidate, finding, confidence,
-  specificity, action, policy, formatter, and UTF-8 byte-range types; Shannon
-  entropy; an ordered detector registry; candidate validation on character
-  boundaries; the documented overlap precedence; and sanitized errors with fixed
-  public codes and messages. Built-in detectors, the default policy, and
-  redaction are not ported yet.
-- Stabilized public Rust API for the `secret-scan` core crate: `scan_and_redact`
-  and a shared `ScanResult` (which `IncrementalResult` now names) alongside the
-  existing scan, redact, incremental, policy, formatter, finding, and sanitized
-  error APIs, all documented with runnable examples. Public ranges are UTF-8
-  byte offsets into the original input, including the findings returned with
-  redacted text.
-- The built-in detector registry and the incremental retention tuning are now
-  private: the built-in set is reached only through
-  `DetectorRegistry::with_built_in`, and `INCREMENTAL_LOOKAROUND_BYTES` is
-  replaced by `IncrementalLimits::minimum_buffered_bytes`. The Python binding
-  mirrors that: its `INCREMENTAL_LOOKAROUND_BYTES` module constant is replaced
-  by the `IncrementalLimits.minimum_buffered_bytes(max_token_bytes,
-  max_multiline_bytes)` static method, so no binding exposes tuning the core
-  keeps private.
-- `npm run rust:check` gained public-API, source-boundary, core-manifest-shape,
-  and package-content checks, so the core keeps no runtime I/O, no Cargo
-  features, and no binding-specific dependency, and the published package
-  carries only the library and its README. CI additionally builds the docs with
-  warnings denied and verifies that the published core package builds on its
-  own. The crates.io names `secret-scan` and `secret_scan` were rechecked on
-  2026-09-09 before the manifests were finalized.
-- Bounded incremental sanitization in the Python binding:
-  `IncrementalSanitizer` with mandatory `IncrementalLimits`, an explicit
-  `accepting`/`finalized`/`aborted`/`failed` lifecycle, immutable per-call
-  results, incremental `policy` and `formatter` callbacks that receive only safe
-  metadata, and a `with` block that aborts a session left unfinalized. Findings
-  carry absolute Unicode code point offsets into the whole-session input and
-  keep stable ids across calls; `abort` and every failure discard retained
-  plaintext and raise a fixed, input-free exception.
-- Unified `@omiologic/secret-scan` npm package in `packages/javascript`: one
-  typed API whose conditional `exports` select the Node N-API addon or the
-  browser WebAssembly build, a shared `await initialize()` contract that gates
-  every synchronous operation, frozen findings with explicit UTF-16 code-unit
-  offsets, one sanitized `SecretScanError`, and a lockstep version check. It is
-  not published yet; the repository-root TypeScript implementation remains the
-  released package and the behavioral oracle.
-- Node and Web stream adapters on that package, published as the
-  `@omiologic/secret-scan/node-stream` and `@omiologic/secret-scan/web-stream`
-  subpaths. Each drives one incremental session per stream through a single
-  fatal, stateful UTF-8 decoder, emits only text whose detection window is
-  closed, exposes frozen findings with absolute whole-stream offsets, and
-  discards retained plaintext on Node destruction, Web cancellation, writable
-  abort, and explicit abort. Backpressure and errors travel through the host's
-  own stream contract, and two new `SecretScanError` codes, `INVALID_CHUNK` and
-  `INVALID_UTF8`, report malformed adapter input. The root export and the Web
-  subpath resolve no Node-only module.
-- `check` and `redact` modes on the `secret-scan` CLI. Check reads standard
-  input when no path is given and otherwise every path given, exiting `0` when
-  clean, `1` on any finding, and `2` on a usage, decoding, or processing
-  failure; a failure outranks a finding. Reports carry safe file identity and
-  finding metadata only, as one line per finding or, with `--json`, one
-  machine-consumable object with `version`, `rangeUnit`, `findingCount`,
-  `sources`, and `failures`, whose `id` is unique across the whole report.
-  `--redact` sanitizes standard input or exactly one path to standard output,
-  never modifies its input in place, and reports `0` or `2` only, because a
-  finding is its purpose rather than its failure. Standard input is streamed
-  through the incremental core under explicit declared limits and a path is
-  read whole under the same total-input bound; the construct limits are sized
-  for the long lines a pipeline carries, so an ordinary minified bundle,
-  lockfile entry, or base64 blob behaves the same streamed or scanned by path.
-  Input that is not valid UTF-8 fails closed with an input-free diagnostic, and
-  a partial read, a limit failure, an abort, or a closed downstream pipe leaves
-  no retained plaintext.
-
-### Changed
-
-- `RB-2` (#72): repointed the published `@omiologic/secret-scan` npm artifact
-  from the repository-root TypeScript implementation to `packages/javascript`,
-  the typed Node N-API/WebAssembly wrapper over the Rust core.
-  `packages/javascript` is now the only tracked manifest declaring the
-  package name, and it carries its own tracked `LICENSE`.
-
-- The N-API addon now declares `x86_64-unknown-linux-musl` and
-  `aarch64-unknown-linux-musl` as supported targets, matching the wheel
-  matrix; the CLI keeps its six non-musl targets.
-  `bindings/node/package-lock.json` is tracked so the addon build toolchain
-  installs reproducibly with `npm ci`.
-
-- `CI` runs the JavaScript checks on Node.js 24 as well as 20 and 22, so every
-  major `engines.node >=20` claims is exercised, and is callable as a reusable
-  workflow so one qualification run carries its evidence.
-
-- `Release` (#141): added `publish-native-dependencies` and
-  `publish-wasm-dependency`, which pack, content-check, publish, and verify
-  the six native `@omiologic/secret-scan-<platform>` packages and
-  `@omiologic/secret-scan-wasm` from the exact artifacts `Artifact
-  qualification` already qualified for the release commit, never rebuilding
-  them. The wrapper's `publish` job now declares both in `needs:`
-  (`scripts/check-release-gate.py` enforces the edge), so it cannot become
-  eligible ahead of its own runtime dependencies. `verify-registry-install`
-  and `verify-registry-install-browser` then install the real, published
-  package from the registry — no local tarball, no `overrides` — on each
-  supported Node platform class and in the browser, and `record-manifest`
-  records every dependency package's registry state alongside the wrapper's.
-  `scripts/publish-dependency-package.mjs` is idempotent by registry state,
-  not by a first-cutover/routine-release switch, so the first dispatch and
-  every routine one after it are the same graph: there is no separate
-  "publish only the wrapper" path to run by mistake.
-
-- `Package Release Rehearsal` (#141) now exercises a real no-publication
-  rehearsal instead of a synthetic terminal outcome: it calls `Artifact
-  qualification`, validates `Release`'s dependency-cutover job graph, packs
-  and content-checks (never publishes) every runtime dependency package the
-  qualified artifacts resolve, and records the intended publish order and
-  package inventory as `dependency-cutover-plan.json`
-  (`scripts/record-dependency-cutover-plan.py`).
-
-- Adopted the `Redact Secret` public identity (#151, #152):
-  `decision-adopt-redact-secret-naming-contract` records the accepted naming
-  matrix, and every manifest, source import, package dependency, workflow,
-  script, and current document was updated to it. The Rust core crate is now
-  `redact-secret` (lib `redact_secret`), the CLI crate `redact-secret-cli`
-  (binary `redact-secret`), the Python distribution `redact-secret` (import
-  `redact_secret`), and the npm packages `@redact-secret/core`,
-  `@redact-secret/wasm`, and `@redact-secret/node-<platform>`. Exported error
-  type names (`SecretScanError`, `SecretScanErrorCode`) and this repository's
-  own path layout are unchanged; the GitHub repository stays
-  `omiologic/secret-scan` until its separately authorized transfer (#157).
-  `scripts/check-legacy-identifiers.py` now enforces the previous identity's
-  absence outside a reviewed allowlist of historical records.
-
-### Removed
-
-- `RB-2` (#72): removed the repository-root TypeScript detector core
-  (`src/`) and its behavioral fixture suites (`test/`). The canonical
-  behavioral contract is the fixture corpus under `conformance/fixtures/`;
-  the migration tooling that originally generated it from the retired
-  TypeScript oracle (`scripts/migrate-conformance-corpus.ts`,
-  `scripts/migrate-incremental-corpus.ts`) was removed with it.
-
-### Fixed
-
-- CLI text reports and diagnostics escape control characters and backslashes
-  in source paths, preventing forged report lines and terminal control output.
-  JSON source identities still round-trip without changing the path.
-- Corrected JavaScript streaming availability and supported Node versions,
-  musl publication claims, obsolete TypeScript-oracle references, and the Rust
-  redaction documentation: overlapping caller ranges are rejected.
-
-- Every job in `Package Release Rehearsal` now declares its own permissions
-  rather than inheriting the workflow default.
-
-- The six native `@omiologic/secret-scan-<platform>` npm packages now declare
-  `engines.node: "20.x || 22.x || 24.x"`, matching the wrapper and the addon's
-  own manifest instead of the narrower `"20.x || 22.x"` they had silently kept
-  since CI started exercising Node 24 (#140). `scripts/check-rust-workspace.py`
-  now enforces `engines.node` (and version lockstep) on every native platform
-  manifest and the WebAssembly package's version, discovered under
-  `bindings/node/npm/*/package.json` rather than named individually, so this
-  cannot drift back unnoticed.
-
-- `scripts/check-artifact-matrix.py` gained a `node-publish-targets` check
-  (#140): the new `node-publish-targets` declaration, the platform
-  directories under `bindings/node/npm/`, `packages/javascript/package.json`'s
-  `optionalDependencies`, and `runtime/node.ts`'s host-to-package mapping must
-  now name exactly the same six packages, in every direction, so a target
-  cannot gain or lose a publication path — or the glibc/musl publication
-  boundary drift apart from what the addon matrix, the runtime resolver, the
-  README, and `docs/qualification.md` say — in one file alone.
-
-### Notes
-
-- The eight-target addon matrix outruns the six per-platform npm packages
-  `packages/javascript` declares, and `runtime/node.ts` maps hosts by
-  platform and architecture with no libc dimension, so an npm install on
-  Alpine resolves the glibc package. This is by design, not a gap: `npm
-  ships glibc only` is the accepted decision
-  (`decision-ship-first-release-artifact-set`, #79), and `node-publish-targets`
-  (#140) now makes that boundary an enforced declaration rather than an
-  implicit fact.
-
-- Neither JavaScript artifact builds a streaming session, so
-  `createIncrementalSanitizer` reports the fixed `INCREMENTAL_UNAVAILABLE`
-  code on Node and in the browser alike, while `bindings/python` offers the
-  streaming API. Both qualifiers assert that rejection, so an artifact that
-  later gains the surface fails the check until the contract is revisited.
-
-## 0.1.0-beta.1 - 2026-08-31
-
-### Added
-
-- Runtime-neutral whole-input detection, policy, and redaction APIs for modern
-  browsers and Node.js.
-- Bounded incremental sanitization plus isolated Node and Web stream adapters.
-- Deterministic built-in coverage for the credential families and contextual
-  structures documented in the README.
-- Extension contracts for custom detectors, policies, and placeholder
-  formatters.
-
-### Changed
-
-- Limited the root public API to supported consumer contracts; incremental
-  lookaround tuning remains an internal implementation detail.
-- Defined custom placeholder safety for every non-empty replaced range,
-  including caller-supplied findings shorter than four UTF-16 code units.
-- Reconciled coverage exclusions, extension trust assumptions, server resource
-  guidance, adapter behavior, and package contents across public documentation.
-
-### Security
-
-- Placeholder output is rejected when it contains any replaced matched text
-  that can fit within the 256-code-unit placeholder limit.
+- The core has no runtime I/O, environment lookup, telemetry, or secret storage.
+  Errors use fixed, input-free codes and messages; callback errors and unsafe
+  placeholders fail closed. Client scanning is preventive UX; server scanning
+  is authoritative. Hosts must bound whole-input resources and Python chunks.
+- Version lockstep includes the private root manifest, every Cargo member,
+  JavaScript facade, and all native/Wasm manifests. The legacy-identifier gate
+  rejects unintended old identities, including in this candidate changelog.
+- The pinned OpenGrep engine and vendored rules are verified against the reviewed
+  baseline. The CI gate fails on unresolved findings or unacknowledged scan
+  errors independently of best-effort SARIF upload. A baseline pass is not a
+  claim of zero findings or complete parser coverage.
+- Qualification, package-content checks, and clean packed-package consumer
+  tests precede publication. The release graph verifies all seven npm runtime
+  dependencies before publishing the facade and records durable manifests for
+  successful and failed runs. Reconciliation requires separate authorization.
+- These notes consolidate the unpublished development history; the former
+  dated entry was not a published release. Candidate version approval and
+  release authorization remain separate requirements.

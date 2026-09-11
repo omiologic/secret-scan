@@ -89,8 +89,12 @@ class CheckLegacyIdentifiersTest(unittest.TestCase):
         self.assertOneError("legacy identifier 'secret-scan' outside the allowlist")
 
     def test_a_hit_on_an_allowlisted_path_passes(self) -> None:
-        self.repo.write("CHANGELOG.md", "- Renamed the secret-scan npm package.\n")
+        self.repo.write("docs/decisions/2026-09-10-adopt-redact-secret-naming-contract.md", "Previous identity: secret-scan.\n")
         self.assertEqual(self.validate(), [])
+
+    def test_candidate_changelog_cannot_reintroduce_legacy_identity(self) -> None:
+        self.repo.write("CHANGELOG.md", "Install @omiologic/secret-scan.\n")
+        self.assertOneError("legacy identifier 'secret-scan' outside the allowlist")
 
     def test_an_allowlist_entry_naming_a_missing_file_is_rejected(self) -> None:
         original = dict(CHECK.LEGACY_IDENTIFIER_ALLOWLIST)

@@ -8,6 +8,37 @@ decided_at: 2026-09-10
 
 # Ship the first release's full artifact set
 
+## Current application — 2026-09-11 (#144)
+
+The full four-surface commitment remains accepted. The
+[naming contract](2026-09-10-adopt-redact-secret-naming-contract.md) and completed
+release-path corrections replace the old identities and implementation states
+in the historical body below with this current candidate mapping:
+
+| Surface | Current artifact | Publication path in `release.yml` |
+| --- | --- | --- |
+| Rust | crates.io `redact-secret` | `publish-crates`, core before CLI |
+| CLI | crates.io `redact-secret-cli`; binary `redact-secret` | `publish-crates`; six qualified non-musl binary targets |
+| Python | PyPI `redact-secret`, import `redact_secret` | `publish-pypi`, qualified abi3 wheels and source distribution |
+| JavaScript | npm `@redact-secret/core` from `packages/javascript` | `publish`, after runtime dependencies |
+| JavaScript runtime dependencies | Six `@redact-secret/node-<platform>` packages and `@redact-secret/wasm` | `publish-native-dependencies` and `publish-wasm-dependency`, in the same release graph |
+
+The root npm package is private tooling. Binding Cargo crates remain private;
+their generated npm/PyPI artifacts are part of the public product. First and
+subsequent dependency publications use the same idempotent graph, replacing
+the earlier separate-cutover deferral. All version-bearing manifests,
+including the private root, are enforced in lockstep.
+
+Node support is 20/22/24; npm and CLI target Linux glibc, macOS, and Windows
+on x64/arm64. Two additional musl addons are qualified but not shipped on npm.
+Python ships eight CPython 3.10+ abi3 wheel targets including musllinux;
+browsers are qualified on Chromium, Firefox, and WebKit. JavaScript incremental
+factories report `INCREMENTAL_UNAVAILABLE`; Rust, Python, and CLI stdin support
+incremental sanitization. The [qualification declaration](../qualification.md)
+owns the exact target lists. This update records the implemented contract;
+the original decision-time body follows unchanged. It authorizes no release.
+
+
 ## Decision
 
 Branch A of `RB-9` (issue #79): the first release ships the full four-artifact
