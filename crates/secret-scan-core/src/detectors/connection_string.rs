@@ -7,6 +7,17 @@
 //! explicitly; unsupported schemes and placeholder passwords are false
 //! negatives by design. This mirrors `src/detectors/connection-string.ts`
 //! (`decision-govern-cross-language-conformance`).
+//!
+//! Also recognizes Azure Storage connection strings
+//! (`DefaultEndpointsProtocol=<http|https>;AccountName=...;AccountKey=...;
+//! EndpointSuffix=...`), a distinct semicolon-delimited key=value grammar
+//! rather than a `scheme://` authority. Fields are order-independent, as the
+//! real Azure SDK parses them, and only `AccountKey` -- the base64-encoded
+//! credential -- is selected. Requiring a recognized `EndpointSuffix` (issue
+//! #161) keeps the match anchored to a real Azure Storage cloud; a key
+//! rotated into an unrecognized custom endpoint suffix, or a connection
+//! string split across log lines, is a false negative by design, same as
+//! this file's other structural false negatives above.
 
 use crate::entropy::shannon_entropy;
 use crate::error::DetectorFailure;
@@ -311,6 +322,185 @@ fn has_valid_host_for_scheme(scheme: &str, value: &str) -> bool {
     }
 }
 
+// --- Azure Storage connection strings --------------------------------------
+//
+// `DefaultEndpointsProtocol=<http|https>;AccountName=...;AccountKey=...;
+// EndpointSuffix=...`, semicolon-delimited and order-independent. Anchored
+// on the `AccountKey=` field name (the credential to select), then expanded
+// bidirectionally to the full run of `;`-joined pairs so a field appearing
+// before the anchor is still seen.
+
+const AZURE_ACCOUNT_KEY_ANCHOR: &str = "AccountKey=";
+const AZURE_PROTOCOL_KEY: &str = "DefaultEndpointsProtocol";
+const AZURE_ACCOUNT_NAME_KEY: &str = "AccountName";
+const AZURE_ACCOUNT_KEY_KEY: &str = "AccountKey";
+const AZURE_ENDPOINT_SUFFIX_KEY: &str = "EndpointSuffix";
+
+/// Bounds the bidirectional segment scan so an unterminated adversarial
+/// value is abandoned in fixed time, independent of input length.
+const MAX_AZURE_SEGMENT_LENGTH: usize = 8_192;
+
+/// A real Azure Storage account key is 88 base64 characters (a 64-byte
+/// key); this only rules out trivially short noise, not real keys.
+const MIN_AZURE_ACCOUNT_KEY_LENGTH: usize = 24;
+
+/// Recognized `EndpointSuffix` values: public Azure and the sovereign
+/// clouds. An unrecognized suffix (a custom or future cloud) is a
+/// documented false negative, not a parse error.
+const KNOWN_AZURE_ENDPOINT_SUFFIXES: [&str; 3] = [
+    "core.windows.net",
+    "core.usgovcloudapi.net",
+    "core.chinacloudapi.cn",
+];
+
+fn is_identifier_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_'
+}
+
+/// A boundary of the whole `key=value;key=value` run: whitespace, quotes,
+/// angle brackets, or a backslash. Deliberately excludes `;`, the pair
+/// delimiter, and `/`, `+`, `=`, which are valid inside a base64 value.
+fn is_azure_segment_terminator(byte: u8) -> bool {
+    matches!(
+        byte,
+        b' ' | b'\t' | b'\n' | 0x0B | 0x0C | b'\r' | b'"' | b'\'' | b'<' | b'>' | b'\\'
+    )
+}
+
+fn find_next_literal(input: &str, literal: &str, from: usize) -> Option<usize> {
+    let bytes = input.as_bytes();
+    let needle = literal.as_bytes();
+    if from > bytes.len() {
+        return None;
+    }
+    bytes[from..]
+        .windows(needle.len())
+        .position(|window| window == needle)
+        .map(|offset| from + offset)
+}
+
+/// Expands bidirectionally from `anchor` to the full extent of the
+/// surrounding `;`-joined segment, bounded by [`MAX_AZURE_SEGMENT_LENGTH`]
+/// in each direction so an unterminated value is abandoned in fixed time.
+fn azure_segment_bounds(input: &str, anchor: usize) -> Option<(usize, usize)> {
+    let bytes = input.as_bytes();
+
+    let mut start = anchor;
+    while start > 0 && !is_azure_segment_terminator(bytes[start - 1]) {
+        if anchor - start >= MAX_AZURE_SEGMENT_LENGTH {
+            return None;
+        }
+        start -= 1;
+    }
+
+    let mut end = anchor;
+    while end < bytes.len() && !is_azure_segment_terminator(bytes[end]) {
+        if end - anchor >= MAX_AZURE_SEGMENT_LENGTH {
+            return None;
+        }
+        end += 1;
+    }
+
+    Some((start, end))
+}
+
+struct AzureField<'a> {
+    key: &'a str,
+    value: &'a str,
+    value_start: usize,
+}
+
+/// Splits `segment` (starting at absolute offset `segment_start`) into
+/// `key=value` pairs on `;`, order-independent, recording each value's
+/// absolute byte offset. A pair without `=` is skipped rather than
+/// rejecting the whole segment, so unrelated trailing fields do not block
+/// recognition.
+fn parse_azure_fields(segment: &str, segment_start: usize) -> Vec<AzureField<'_>> {
+    let mut fields = Vec::new();
+    let mut offset = 0usize;
+    for pair in segment.split(';') {
+        if let Some(equals) = pair.find('=') {
+            fields.push(AzureField {
+                key: &pair[..equals],
+                value: &pair[equals + 1..],
+                value_start: segment_start + offset + equals + 1,
+            });
+        }
+        offset += pair.len() + 1;
+    }
+    fields
+}
+
+/// A conservative structural base64 check: charset, `=` padding only in the
+/// last two positions, and a length that is both a multiple of four and
+/// long enough to rule out trivial noise. Not a decode -- this only bounds
+/// the shape, matching how the rest of this file treats malformed encoding
+/// as invalidating rather than attempting recovery.
+fn is_valid_azure_account_key(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() < MIN_AZURE_ACCOUNT_KEY_LENGTH || !bytes.len().is_multiple_of(4) {
+        return false;
+    }
+    let mut padding = 0usize;
+    for (index, &byte) in bytes.iter().enumerate() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'+' | b'/' if padding == 0 => {}
+            b'=' if index >= bytes.len().saturating_sub(2) => {
+                padding += 1;
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
+/// Recognizes an Azure Storage connection string anchored at `anchor`, the
+/// start of its `AccountKey=` field, and selects only the account key
+/// value.
+fn azure_storage_candidate(input: &str, anchor: usize) -> Option<Candidate> {
+    let (segment_start, segment_end) = azure_segment_bounds(input, anchor)?;
+    let fields = parse_azure_fields(&input[segment_start..segment_end], segment_start);
+
+    let protocol = fields
+        .iter()
+        .find(|field| field.key == AZURE_PROTOCOL_KEY)?;
+    if !protocol.value.eq_ignore_ascii_case("https") && !protocol.value.eq_ignore_ascii_case("http")
+    {
+        return None;
+    }
+
+    let account_name = fields
+        .iter()
+        .find(|field| field.key == AZURE_ACCOUNT_NAME_KEY)?;
+    if account_name.value.is_empty() {
+        return None;
+    }
+
+    let endpoint_suffix = fields
+        .iter()
+        .find(|field| field.key == AZURE_ENDPOINT_SUFFIX_KEY)?;
+    if !KNOWN_AZURE_ENDPOINT_SUFFIXES.contains(&endpoint_suffix.value) {
+        return None;
+    }
+
+    let account_key = fields
+        .iter()
+        .find(|field| field.key == AZURE_ACCOUNT_KEY_KEY)?;
+    if !is_valid_azure_account_key(account_key.value) {
+        return None;
+    }
+
+    let range = ByteRange::new(
+        account_key.value_start,
+        account_key.value_start + account_key.value.len(),
+    )?;
+    Some(
+        Candidate::new("connection_string_password", Confidence::High, range)
+            .with_specificity(Specificity::Structural)
+            .with_signals(vec!["azure-storage-account-key", "known-endpoint-suffix"]),
+    )
+}
+
 /// Recognizes the password of a credential-bearing connection authority for
 /// a bounded set of schemes.
 pub struct ConnectionStringDetector;
@@ -388,6 +578,19 @@ impl Detector for ConnectionStringDetector {
                         .with_specificity(Specificity::Structural)
                         .with_signals(signals),
                 );
+            }
+        }
+
+        let mut position = 0;
+        while let Some(anchor) = find_next_literal(input, AZURE_ACCOUNT_KEY_ANCHOR, position) {
+            position = anchor + 1;
+
+            if anchor > 0 && is_identifier_byte(input.as_bytes()[anchor - 1]) {
+                continue;
+            }
+
+            if let Some(candidate) = azure_storage_candidate(input, anchor) {
+                candidates.push(candidate);
             }
         }
 
@@ -663,6 +866,131 @@ mod tests {
     fn a_port_longer_than_five_digits_is_rejected() {
         assert_eq!(
             detect("postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost:123456/db"),
+            Vec::new()
+        );
+    }
+
+    // --- issue #161: Azure Storage connection strings ----------------------
+    //
+    // A distinct semicolon-delimited key=value grammar, not a `scheme://`
+    // authority. `conformance/fixtures/synchronous-corpus.json` carries the
+    // cross-language fixtures for the same behaviors (`connection-positive
+    // -azure-*`, `connection-boundary-azure-*`, `connection-negative-azure-*`,
+    // `connection-adversarial-azure-overlong`).
+
+    const AZURE_ACCOUNT_NAME: &str = "fixturestorageaccount";
+    /// Base64 decodes to `SYNTHETIC-REVOKED-AZURE-STORAGE-ACCOUNT-KEY-FIXTURE-0000000000`.
+    const AZURE_ACCOUNT_KEY: &str =
+        "U1lOVEhFVElDLVJFVk9LRUQtQVpVUkUtU1RPUkFHRS1BQ0NPVU5ULUtFWS1GSVhUVVJFLTAwMDAwMDAwMDA=";
+
+    #[test]
+    fn selects_only_the_account_key_in_an_azure_storage_connection_string() {
+        let input = format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey={AZURE_ACCOUNT_KEY};EndpointSuffix=core.windows.net"
+        );
+        let key_start = input.find(AZURE_ACCOUNT_KEY).unwrap();
+        let found = detect(&input);
+        assert_eq!(
+            spans(&found),
+            [(key_start, key_start + AZURE_ACCOUNT_KEY.len())]
+        );
+        assert_eq!(found[0].type_name(), "connection_string_password");
+        assert_eq!(found[0].effective_specificity(), Specificity::Structural);
+        assert_eq!(found[0].confidence(), Confidence::High);
+    }
+
+    #[test]
+    fn the_http_protocol_variant_is_also_recognized() {
+        let input = format!(
+            "DefaultEndpointsProtocol=http;AccountName={AZURE_ACCOUNT_NAME};AccountKey={AZURE_ACCOUNT_KEY};EndpointSuffix=core.windows.net"
+        );
+        assert_eq!(detect(&input).len(), 1);
+    }
+
+    #[test]
+    fn sovereign_cloud_endpoint_suffixes_are_recognized() {
+        for suffix in ["core.usgovcloudapi.net", "core.chinacloudapi.cn"] {
+            let input = format!(
+                "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey={AZURE_ACCOUNT_KEY};EndpointSuffix={suffix}"
+            );
+            assert_eq!(detect(&input).len(), 1, "{suffix}");
+        }
+    }
+
+    #[test]
+    fn azure_storage_fields_are_recognized_in_any_order() {
+        let input = format!(
+            "AccountName={AZURE_ACCOUNT_NAME};EndpointSuffix=core.windows.net;AccountKey={AZURE_ACCOUNT_KEY};DefaultEndpointsProtocol=https"
+        );
+        let key_start = input.find(AZURE_ACCOUNT_KEY).unwrap();
+        let found = detect(&input);
+        assert_eq!(
+            spans(&found),
+            [(key_start, key_start + AZURE_ACCOUNT_KEY.len())]
+        );
+    }
+
+    #[test]
+    fn an_empty_account_key_value_is_ignored() {
+        let input = format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey=;EndpointSuffix=core.windows.net"
+        );
+        assert_eq!(detect(&input), Vec::new());
+    }
+
+    #[test]
+    fn a_malformed_base64_account_key_is_ignored() {
+        let input = format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey=not-a-valid-base64-key!!;EndpointSuffix=core.windows.net"
+        );
+        assert_eq!(detect(&input), Vec::new());
+    }
+
+    #[test]
+    fn an_account_name_with_no_account_key_field_is_ignored() {
+        let input = format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};EndpointSuffix=core.windows.net"
+        );
+        assert_eq!(detect(&input), Vec::new());
+    }
+
+    #[test]
+    fn an_unrelated_semicolon_delimited_connection_string_is_ignored() {
+        let input = "Server=tcp:fixture.database.windows.net,1433;Database=fixturedb;IntegratedSecurity=true;Encrypt=true;TrustServerCertificate=false;";
+        assert_eq!(detect(input), Vec::new());
+    }
+
+    #[test]
+    fn an_unrecognized_endpoint_suffix_is_a_documented_false_negative() {
+        let input = format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey={AZURE_ACCOUNT_KEY};EndpointSuffix=storage.contoso-sovereign.example"
+        );
+        assert_eq!(detect(&input), Vec::new());
+    }
+
+    #[test]
+    fn an_account_key_split_across_lines_is_a_documented_false_negative() {
+        let input = format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey=short\n{AZURE_ACCOUNT_KEY};EndpointSuffix=core.windows.net"
+        );
+        assert_eq!(detect(&input), Vec::new());
+    }
+
+    #[test]
+    fn an_overlong_account_key_is_ignored_in_bounded_time() {
+        let input = format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey={}{AZURE_ACCOUNT_KEY};EndpointSuffix=core.windows.net",
+            "A".repeat(100_000)
+        );
+        assert_eq!(detect(&input), Vec::new());
+    }
+
+    #[test]
+    fn a_key_shaped_field_name_that_merely_ends_in_accountkey_is_ignored() {
+        assert_eq!(
+            detect(
+                "MyAccountKey=U1lOVEhFVElDLVJFVk9LRUQtQVpVUkUtU1RPUkFHRS1BQ0NPVU5ULUtFWS1GSVhUVVJFLTAwMDAwMDAwMDA="
+            ),
             Vec::new()
         );
     }
