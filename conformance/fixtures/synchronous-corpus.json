@@ -1,6 +1,6 @@
 {
   "offsetUnit": "utf8-byte",
-  "fixtureCount": 364,
+  "fixtureCount": 366,
   "fixtures": [
     {
       "id": "host-dotenv-github",
@@ -5600,6 +5600,50 @@
         }
       ],
       "note": "CRLF line endings between delimiters and body are accepted identically to LF."
+    },
+    {
+      "id": "private-key-positive-json-escaped-newlines",
+      "detector": "private-key",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "-----BEGIN PRIVATE KEY-----\\nU1lOVEhFVElDX0pTT05fRVNDQVBFRF9ORVdMSU5FX0JPRFlfRVhBTVBMRQ==\\n-----END PRIVATE KEY-----",
+      "expected": [
+        {
+          "detector": "private-key",
+          "type": "private_key",
+          "confidence": "high",
+          "specificity": "private-key",
+          "start": 0,
+          "end": 116
+        }
+      ],
+      "note": "Issue #163: a PEM body whose line breaks are literal two-character \\n JSON-string escapes (as raw file bytes, not real newline bytes) rather than real newline bytes -- the shape a JSON-escaped export produces before any JSON-string unescaping -- is still detected. The 16-byte base64-run threshold in has_encoded_body is dwarfed by any realistic key-body line length, so the literal backslash breaking the run at each escape does not create a false negative; verified, no detector change needed."
+    },
+    {
+      "id": "private-key-positive-json-service-account-export",
+      "detector": "private-key",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "json"
+      ],
+      "input": "{\"type\":\"service_account\",\"project_id\":\"synthetic-project\",\"private_key_id\":\"1234567890abcdef1234567890abcdef12345678\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nSYNTHETICJSONESCAPEDPEMBODYLINEONEABCDEFGHIJKLMNOPQRSTUVWXYZ012\\nSYNTHETICJSONESCAPEDPEMBODYLINETWOABCDEFGHIJKLMNOPQRSTUVWXYZ012\\nSYNTHETICJSONESCAPEDPEMBODYLINETHREEABCDEFGHIJKLMNOPQRSTUVWXYZ0\\n-----END PRIVATE KEY-----\\n\",\"client_email\":\"synthetic-sa@synthetic-project.iam.gserviceaccount.com\",\"client_id\":\"100000000000000000000\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\"}",
+      "expected": [
+        {
+          "detector": "private-key",
+          "type": "private_key",
+          "confidence": "high",
+          "specificity": "private-key",
+          "start": 134,
+          "end": 383
+        }
+      ],
+      "note": "Issue #163: a synthetic GCP/Firebase service-account key export -- the private_key field's PEM body carries JSON-escaped \\n line breaks, with type/private_key_id/client_email present as surrounding context. The structural PEM match alone finds the key; the service-account shape is not consulted (per the issue's acceptance criteria, it is optional corroborating evidence only, never a substitute for the structural match). False-negative risk: a body deliberately re-wrapped at under 16 bytes per escaped line could still evade the run-length check; that pathological shape does not occur in real key exports and is not covered here."
     },
     {
       "id": "private-key-boundary-plural-label",
