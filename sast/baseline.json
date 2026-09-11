@@ -49,9 +49,9 @@
       "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "31db7dfac44961cf": {
+    "b7303fc73d176e6c": {
       "classification": "false_positive",
-      "line": 309,
+      "line": 312,
       "path": "scripts/run-sast.py",
       "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
       "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
@@ -77,9 +77,9 @@
       "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "5c3cee4821f6da93": {
+    "df47445dce8a325c": {
       "classification": "false_positive",
-      "line": 384,
+      "line": 387,
       "path": "scripts/run-sast.py",
       "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
       "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
