@@ -1566,6 +1566,89 @@
       "type": "vercel_token"
     },
     {
+      "behaviorClass": "provider",
+      "detector": "npm-token",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "npm-positive-qualified"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "npm-overlap-context"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "npm-adversarial-long-suffix"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "npm-boundary-below-min",
+            "npm-boundary-case-sensitivity",
+            "npm-boundary-delimiter",
+            "npm-boundary-invalid-alphabet",
+            "npm-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "npm-negative-lookalike",
+            "npm-negative-ordinary-reference",
+            "npm-negative-placeholder"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "npm-boundary-below-min",
+            "npm-boundary-case-sensitivity",
+            "npm-boundary-delimiter",
+            "npm-boundary-invalid-alphabet",
+            "npm-boundary-short"
+          ],
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "code": "owned-elsewhere",
+            "ownedBy": "github_token:host-context"
+          },
+          "state": "supported"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for npm_access_token (npm-token), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "npm_access_token"
+    },
+    {
       "behaviorClass": "structural",
       "detector": "jwt",
       "dimensions": [
@@ -2117,6 +2200,7 @@
             "huggingface-adversarial-long-suffix",
             "jwt-adversarial-incomplete",
             "linear-adversarial-long-suffix",
+            "npm-adversarial-long-suffix",
             "openai-adversarial-long-suffix",
             "private-key-adversarial-incomplete",
             "private-key-adversarial-mismatched",
@@ -2386,6 +2470,7 @@
             "huggingface-adversarial-long-suffix",
             "jwt-adversarial-incomplete",
             "linear-adversarial-long-suffix",
+            "npm-adversarial-long-suffix",
             "openai-adversarial-long-suffix",
             "private-key-adversarial-incomplete",
             "private-key-adversarial-mismatched",

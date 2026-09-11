@@ -605,6 +605,32 @@
       "type": "vercel_token"
     },
     {
+      "detector": "npm-token",
+      "evidence": {
+        "fixtureCount": 11,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "intentionally-unsupported",
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "npm-positive-qualified"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": "not-applicable",
+      "state": "supported",
+      "type": "npm_access_token"
+    },
+    {
       "detector": "jwt",
       "evidence": {
         "fixtureCount": 11,
@@ -870,7 +896,7 @@
   "summary": {
     "intentionally-unsupported": 0,
     "not-applicable": 0,
-    "supported": 23,
+    "supported": 24,
     "unresolved": 0
   }
 }
