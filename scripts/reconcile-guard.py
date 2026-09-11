@@ -1,20 +1,12 @@
 #!/usr/bin/env python3
 """Decide whether Reconcile Release may repair a recorded manifest's commit.
 
-`reconcile-release.yml` used to compare the npm publication against
-`GITHUB_SHA` of `main` and force `refs/heads/main`, so a single later commit
-on `main` retired the repair path for any release whose tag creation had
-failed (finding `F-08` in `docs/audits/ci-release-automation-supply-chain-review.md`).
-This module verifies instead that the commit a release manifest names --
-or an explicit `--source-commit` override -- is an ancestor of `main`'s
-current tip, which includes but is not limited to being equal to that tip.
-
-Repair window: Reconcile Release can repair any commit that is an ancestor of
-`main`'s current tip (its exact tip included) for which a release manifest
-still exists, or that an operator names explicitly with the `source_commit`
-workflow input. A commit that fell out of `main`'s history (for example after
-a force-push or a rebase) is outside that window and this guard refuses it,
-regardless of what any manifest claims.
+The repair source must be an ancestor of the dispatched RC branch's current
+tip, including that exact tip. It need not have been merged into main yet.
+A manifest records the source, or an explicitly authorized --source-commit
+input supplies it. A source outside that RC history is rejected even when
+an override is provided. The workflow separately requires rc/<version> to
+match the requested version before invoking this guard.
 
 This module only decides; it never creates a tag, publishes anything, or
 queries a registry. `reconcile-release.yml` performs the tag creation itself,
@@ -48,10 +40,10 @@ def load_manifest(path: Path | None) -> dict | None:
         return None
 
 
-def is_ancestor(repo: Path, commit: str, main_ref: str) -> bool:
-    """True when `commit` is `main_ref` or one of its ancestors."""
+def is_ancestor(repo: Path, commit: str, candidate_ref: str) -> bool:
+    """True when `commit` is `candidate_ref` or one of its ancestors."""
     result = subprocess.run(
-        ["git", "-C", str(repo), "merge-base", "--is-ancestor", commit, main_ref],
+        ["git", "-C", str(repo), "merge-base", "--is-ancestor", commit, candidate_ref],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
@@ -63,7 +55,7 @@ def evaluate(
     manifest: dict | None,
     *,
     repo: Path,
-    main_ref: str,
+    candidate_ref: str,
     version: str,
     source_commit_override: str | None = None,
 ) -> GuardResult:
@@ -95,7 +87,7 @@ def evaluate(
             return GuardResult(False, None, "manifest record has no source_revision")
 
     try:
-        ancestor = is_ancestor(repo, source_revision, main_ref)
+        ancestor = is_ancestor(repo, source_revision, candidate_ref)
     except FileNotFoundError:
         return GuardResult(False, None, "git is not available to verify ancestry")
 
@@ -103,17 +95,17 @@ def evaluate(
         return GuardResult(
             False,
             None,
-            f"{source_revision} is not an ancestor of {main_ref}",
+            f"{source_revision} is not an ancestor of {candidate_ref}",
         )
 
-    return GuardResult(True, source_revision, "source_revision is an ancestor of main and may be tagged")
+    return GuardResult(True, source_revision, "source_revision is an ancestor of the RC branch and may be tagged")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--manifest", type=Path, default=None, help="path to the downloaded manifest.json, if any")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--main-ref", required=True, help="main's current tip commit or ref")
+    parser.add_argument("--candidate-ref", required=True, help="the RC branch's current tip commit or ref")
     parser.add_argument("--version", required=True)
     parser.add_argument(
         "--source-commit",
@@ -126,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     result = evaluate(
         manifest,
         repo=args.repo,
-        main_ref=args.main_ref,
+        candidate_ref=args.candidate_ref,
         version=args.version,
         source_commit_override=args.source_commit,
     )

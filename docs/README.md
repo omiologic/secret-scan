@@ -18,7 +18,7 @@ Python, Rust, and the CLI share one deterministic Rust implementation.
 | What credentials can be detected, and what can be missed? | [Detection and limits](reference/detection.md) |
 | Can I process a stream? | [Streaming](guides/streaming.md) |
 | Why did initialization or sanitization fail? | [Troubleshooting](troubleshooting.md) |
-| How do I contribute or run checks? | [Contributing](contributing.md) |
+| How do I contribute or run checks? | [Developer onboarding](onboarding.md) · [Contribution guide](../CONTRIBUTION.md) |
 
 JavaScript currently supports whole-input operations only. Rust, Python, and
 CLI standard input also support incremental sanitization. A `block` finding

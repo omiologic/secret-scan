@@ -1,9 +1,11 @@
 # Changelog
 
-This file records the candidate product contract. Candidate notes are not a
-publication record and do not authorize a release.
+This file records the released product contract and notable changes. Release
+evidence is linked from each published version.
 
-## Unreleased
+## 0.1.0-beta.1 — 2026-09-11
+
+[Publication evidence](docs/releases/0.1.0-beta.1/README.md).
 
 ### Product and packages
 
@@ -58,7 +60,7 @@ publication record and do not authorize a release.
   is authoritative. Hosts must bound whole-input resources and Python chunks.
 - Version lockstep includes the private root manifest, every Cargo member,
   JavaScript facade, and all native/Wasm manifests. The legacy-identifier gate
-  rejects unintended old identities, including in this candidate changelog.
+  rejects unintended old identities, including in this changelog.
 - The pinned OpenGrep engine and vendored rules are verified against the reviewed
   baseline. The CI gate fails on unresolved findings or unacknowledged scan
   errors independently of best-effort SARIF upload. A baseline pass is not a
@@ -67,6 +69,7 @@ publication record and do not authorize a release.
   tests precede publication. The release graph verifies all seven npm runtime
   dependencies before publishing the facade and records durable manifests for
   successful and failed runs. Reconciliation requires separate authorization.
-- These notes consolidate the unpublished development history; the former
-  dated entry was not a published release. Candidate version approval and
-  release authorization remain separate requirements.
+- This first beta consolidates the unpublished development history; the former
+  dated entry was not a published release. All packages were published from
+  the original qualified RC source; recovery verified existing content before
+  skipping it, and all seven registry-install lanes passed.

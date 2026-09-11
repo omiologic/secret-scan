@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import re
+import subprocess
+import textwrap
 import sys
 import tempfile
 import unittest
@@ -117,6 +121,66 @@ class CliTests(unittest.TestCase):
     def test_registry_state_requires_name_equals_state(self) -> None:
         with self.assertRaises(ValueError):
             RELEASE_MANIFEST._parse_registry_state(["npm"])
+
+
+class WorkflowOutputTests(unittest.TestCase):
+    """Execute the real workflow shell with only registry commands stubbed."""
+
+    def test_registry_outputs_are_single_line_json(self) -> None:
+        root = SCRIPT.parents[1]
+        workflow = (root / ".github/workflows/release.yml").read_text()
+        steps = re.split(r"^      - name: ", workflow, flags=re.M)
+        checked = 0
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            for name, body in {"curl": "printf 404", "npm": "exit 1"}.items():
+                executable = directory / name
+                executable.write_text("#!/bin/sh\n" + body + "\n")
+                executable.chmod(0o755)
+            for step in steps:
+                if not step.startswith("Report ") or 'echo "registry_state_json=$json"' not in step:
+                    continue
+                with self.subTest(step=step.splitlines()[0]):
+                    shell = step.split("        run: |\n", 1)[1]
+                    shell = re.split(r"^  [^ ]", shell, maxsplit=1, flags=re.M)[0]
+                    shell = textwrap.dedent(shell)
+                    shell = re.sub(r"\$\{\{.*?\}\}", "0.1.0-beta.1", shell)
+                    output = directory / "output"
+                    output.write_text("")
+                    subprocess.run(["bash", "-e", "-o", "pipefail", "-c", shell], cwd=root,
+                                   env={**os.environ, "PATH": f"{directory}:{os.environ['PATH']}",
+                                        "GITHUB_OUTPUT": str(output)}, check=True, capture_output=True)
+                    lines = output.read_text().splitlines()
+                    self.assertEqual(len(lines), 1)
+                    key, value = lines[0].split("=", 1)
+                    self.assertEqual(key, "registry_state_json")
+                    state = json.loads(value)
+                    self.assertTrue(state)
+                    self.assertEqual(set(state.values()), {"unpublished"})
+                    checked += 1
+        self.assertEqual(checked, 4)
+
+    def test_manifest_records_whole_product_when_publishers_are_skipped(self) -> None:
+        root = SCRIPT.parents[1]
+        workflow = (root / ".github/workflows/release.yml").read_text()
+        step = workflow.split("      - name: Build and record the manifest\n", 1)[1]
+        shell = step.split("        run: |\n", 1)[1].split("      - name:", 1)[0]
+        shell = textwrap.dedent(shell)
+        shell = re.sub(r"\$\{\{.*?\}\}", "", shell)
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / "packages").symlink_to(root / "packages", target_is_directory=True)
+            (directory / "scripts").symlink_to(root / "scripts", target_is_directory=True)
+            subprocess.run(["bash", "-e", "-o", "pipefail", "-c", shell], cwd=directory,
+                           env={**os.environ, "GITHUB_SHA": "a" * 40,
+                                "GITHUB_OUTPUT": str(directory / "output")},
+                           check=True, capture_output=True)
+            manifest = json.loads((directory / "manifest.json").read_text())
+            self.assertEqual(len(manifest["artifact_set"]), 11)
+            self.assertEqual(set(manifest["artifact_set"]), set(manifest["registry_state"]))
+            self.assertEqual(set(manifest["registry_state"].values()), {"unknown"})
+            self.assertIn("pypi:redact-secret", manifest["artifact_set"])
+            self.assertIn("crate:redact-secret-cli", manifest["artifact_set"])
 
 
 if __name__ == "__main__":

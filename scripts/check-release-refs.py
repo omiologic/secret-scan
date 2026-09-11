@@ -1,39 +1,25 @@
 #!/usr/bin/env python3
-"""Enforce that every release-capable job rejects non-`main` refs.
+"""Enforce RC-only publication, matching candidate identity, and final tag gates.
 
-Issue #78 (`RB-8`) and issue #143 both require `Release` and
-`Reconcile Release` to "reject non-`main` refs", not just to share a
-protected environment (`check-release-environment.py` already covers the
-environment-name half). Today that guard is a `run: exit 1` step each job
-author has to remember to add; nothing failed the build if a new publish job
-shipped without one. This script closes that gap statically, the same way
-`check-release-gate.py` pins the qualification `needs:` graph.
-
-Checks, in order:
-
-1. Every job in `RELEASE_JOBS` (`.github/workflows/release.yml`) contains a
-   step whose `if:` rejects `github.ref != 'refs/heads/main'`.
-2. Every job in `RECONCILE_JOBS` (`.github/workflows/reconcile-release.yml`)
-   does the same.
-
-This intentionally parses the workflow YAML with plain text and regular
-expressions, matching `check-release-environment.py` and
-`check-release-gate.py`: no third-party dependency is declared for the
-scripts in this directory.
+Every release-capable job rejects non-RC refs and validates rc/<version> against
+its product or requested version before mutation. The tag job depends on all
+publishers and clean registry-install verification. Uses dependency-free text
+parsing, consistent with the other workflow policy checks.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
 
 RELEASE_WORKFLOW = Path(".github") / "workflows" / "release.yml"
-RELEASE_JOBS = ("publish", "publish-crates", "publish-pypi")
+RELEASE_JOBS = ("publish", "publish-crates", "publish-pypi", "publish-native-dependencies", "publish-wasm-dependency", "tag-release")
 
 RECONCILE_WORKFLOW = Path(".github") / "workflows" / "reconcile-release.yml"
-RECONCILE_JOBS = ("reconcile",)
+RECONCILE_JOBS = ("reconcile", "tag-reconciled-release")
 
 # A named top-level job block: `  <job-name>:` through the line before the
 # next top-level job (or end of file). Workflow jobs are two-space indented
@@ -42,10 +28,17 @@ RECONCILE_JOBS = ("reconcile",)
 # header instead of swallowing it.
 JOB_BLOCK = re.compile(r"^  (?P<name>[A-Za-z][\w-]*):\n(?P<body>(?:[ \t]{3,}.*\n|[ \t]*\n)*)", re.M)
 
-# A step condition that rejects any ref other than `refs/heads/main`, e.g.
-# `if: github.ref != 'refs/heads/main'`. Whitespace and quote style are
-# tolerated; the comparison operands and operator are not.
-REF_GUARD = re.compile(r"""if:\s*github\.ref\s*!=\s*['"]refs/heads/main['"]""")
+# Match the explicit GitHub expression wrapper: a leading ! is YAML syntax.
+REF_GUARD = re.compile(r"if:\s*\$\{\{\s*!startsWith\(github\.ref, 'refs/heads/rc/'\)\s*\}\}")
+CANDIDATE_CHECK = 'python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF"'
+VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-beta\.(?:0|[1-9][0-9]*))?")
+TAG_NEEDS = ("publish", "publish-crates", "publish-pypi", "verify-registry-install", "verify-registry-install-browser")
+
+
+def validate_candidate_ref(ref: str, version: str) -> list[str]:
+    if not VERSION.fullmatch(version) or ref != f"refs/heads/rc/{version}":
+        return ["release requires the rc/<version> branch matching the stable or beta product version"]
+    return []
 
 
 def job_body(workflow_text: str, job_name: str) -> str | None:
@@ -55,7 +48,7 @@ def job_body(workflow_text: str, job_name: str) -> str | None:
     return None
 
 
-def rejects_non_main(job_text: str) -> bool:
+def rejects_non_rc(job_text: str) -> bool:
     return bool(REF_GUARD.search(job_text))
 
 
@@ -70,10 +63,12 @@ def _check_workflow(root: Path, workflow: Path, jobs: tuple[str, ...]) -> list[s
         if body is None:
             errors.append(f"{workflow.as_posix()}: missing job {job_name!r}")
             continue
-        if not rejects_non_main(body):
+        if not rejects_non_rc(body):
             errors.append(
-                f"{workflow.as_posix()}: job {job_name!r} does not reject non-main refs"
+                f"{workflow.as_posix()}: job {job_name!r} does not reject non-RC refs"
             )
+        if CANDIDATE_CHECK not in body:
+            errors.append(f"{workflow.as_posix()}: job {job_name!r} lacks candidate version validation")
     return errors
 
 
@@ -82,15 +77,33 @@ def validate(root: Path) -> list[str]:
     errors: list[str] = []
     errors += _check_workflow(root, RELEASE_WORKFLOW, RELEASE_JOBS)
     errors += _check_workflow(root, RECONCILE_WORKFLOW, RECONCILE_JOBS)
+    release = root / RELEASE_WORKFLOW
+    if release.is_file():
+        text = release.read_text(encoding="utf-8")
+        tag = job_body(text, "tag-release") or ""
+        for dependency in TAG_NEEDS:
+            if f"      - {dependency}\n" not in tag:
+                errors.append(f"tag-release must depend on {dependency}")
+        for match in JOB_BLOCK.finditer(text):
+            if match.group("name") != "tag-release" and "/git/tags" in match.group("body"):
+                errors.append("annotated tags must only be created by tag-release after registry installs")
     return errors
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("root", nargs="?", default=Path.cwd(), type=Path)
+    parser.add_argument("--candidate-ref", help="validate a runtime publication ref")
+    parser.add_argument("--version", help="requested reconcile version; defaults to the product manifest")
     args = parser.parse_args()
 
-    errors = validate(args.root)
+    if args.candidate_ref is not None:
+        version = args.version
+        if version is None:
+            version = json.loads((args.root / "packages/javascript/package.json").read_text())["version"]
+        errors = validate_candidate_ref(args.candidate_ref, version)
+    else:
+        errors = validate(args.root)
     for error in errors:
         print(f"ERROR {error}")
     print(f"Release ref-guard check complete: {len(errors)} error(s)")

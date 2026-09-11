@@ -1,8 +1,8 @@
 # Repair window: this workflow can repair any commit that is an ancestor of
-# main's current tip (its exact tip included) for which a Release run's
+# the RC branch's current tip (its exact tip included) for which a Release run's
 # manifest artifact (release-manifest-<version>) still exists, or that an
 # operator names explicitly with the source_commit input. A commit that fell
-# out of main's history -- for example after a force-push or a rebase -- is
+# out of the RC branch's history -- for example after a force-push or a rebase -- is
 # outside that window and reconcile-guard.py refuses it regardless of what a
 # manifest claims. See scripts/reconcile-guard.py for the guard this workflow
 # defers to, and AGENTS.md's "Release authority" section for the approval
@@ -49,6 +49,10 @@ on:
           when no manifest artifact exists for this version).
         required: false
         type: string
+      source_run:
+        description: Original Release run with qualified artifacts (required when its manifest upload failed)
+        required: false
+        type: string
       dry_run:
         description: >-
           Compute and print every artifact's reconciliation plan without
@@ -72,9 +76,11 @@ jobs:
       contents: write
       actions: read
       id-token: write
+    outputs:
+      source_revision: ${{ steps.guard.outputs.source_revision }}
     steps:
-      - name: Require main
-        if: github.ref != 'refs/heads/main'
+      - name: Require a release candidate branch
+        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}
         run: exit 1
 
       - name: Check out repository
@@ -82,6 +88,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Validate candidate branch version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF" --version "$VERSION"
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -104,7 +115,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
+          SOURCE_RUN: ${{ inputs.source_run }}
         run: |
+          if [[ -n "$SOURCE_RUN" ]]; then
+            [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]] || exit 1
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "run_id=$SOURCE_RUN" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           artifact=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=release-manifest-$VERSION&per_page=100" \
             --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last // empty')
           if [[ -n "$artifact" ]]; then
@@ -143,7 +161,7 @@ jobs:
           decision=$(python3 -B scripts/reconcile-guard.py \
             "${manifest_args[@]}" \
             --repo . \
-            --main-ref "$GITHUB_SHA" \
+            --candidate-ref "$GITHUB_SHA" \
             --version "$VERSION" \
             "${source_args[@]}")
           status=$?
@@ -156,54 +174,28 @@ jobs:
           fi
           echo "source_revision=$(jq -r '.source_revision' <<<"$decision")" >> "$GITHUB_OUTPUT"
 
-      # `packages/javascript/package.json` is the public identity actually
-      # published to npm; the private workspace `package.json` at the
-      # repository root never carries a real, publishable version and must
-      # never be read here.
-      - name: Verify npm wrapper publication and reconcile tag
+      - name: Verify original run and artifact inventory
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          REQUESTED_VERSION: ${{ inputs.version }}
+          RUN_ID: ${{ steps.locate.outputs.run_id }}
           SOURCE_REVISION: ${{ steps.guard.outputs.source_revision }}
+          VERSION: ${{ inputs.version }}
         run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" > original-run.json
+          jq -e --arg sha "$SOURCE_REVISION" '.head_sha == $sha and .path == ".github/workflows/release.yml"' original-run.json
+          gh run download "$RUN_ID" --name artifact-inventory --dir original-inventory
+          python3 - <<'PYVERIFY'
+          import json, os
+          from pathlib import Path
+          inventory = json.loads(Path('original-inventory/artifact-inventory.json').read_text())
+          assert inventory['sourceCommit'] == os.environ['SOURCE_REVISION']
+          assert inventory['productVersion'] == os.environ['VERSION']
+          assert inventory['workflowRun'] == os.environ['RUN_ID']
+          PYVERIFY
           git show "$SOURCE_REVISION:packages/javascript/package.json" > /tmp/reconcile-package.json
-          package_name=$(node -p "require('/tmp/reconcile-package.json').name")
-          package_version=$(node -p "require('/tmp/reconcile-package.json').version")
-          if [[ "$REQUESTED_VERSION" != "$package_version" ]]; then
-            echo "Requested version does not match the reconciled commit's package.json." >&2
-            exit 1
-          fi
-
-          published_version=$(npm view "$package_name@$package_version" version 2>/dev/null || true)
-          published_sha=$(npm view "$package_name@$package_version" gitHead 2>/dev/null || true)
-          if [[ "$published_version" != "$package_version" || "$published_sha" != "$SOURCE_REVISION" ]]; then
-            echo "npm publication does not match the reconciled source revision." >&2
-            exit 1
-          fi
-
-          tag_name="v$package_version"
-          if git show-ref --verify --quiet "refs/tags/$tag_name"; then
-            tag_sha=$(git rev-list -n 1 "$tag_name")
-            tag_type=$(git cat-file -t "$tag_name")
-            if [[ "$tag_sha" != "$SOURCE_REVISION" || "$tag_type" != "tag" ]]; then
-              echo "Existing tag conflicts with the verified publication." >&2
-              exit 1
-            fi
-            echo "$tag_name already reconciles the publication."
-            exit 0
-          fi
-
-          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-            echo "dry run: would create tag $tag_name at $SOURCE_REVISION."
-            exit 0
-          fi
-
-          tag_object=$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/tags" \
-            --field tag="$tag_name" --field message="Release $package_version" \
-            --field object="$SOURCE_REVISION" --field type=commit --jq .sha)
-          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-            --field ref="refs/tags/$tag_name" --field sha="$tag_object"
+          [[ "$(node -p "require('/tmp/reconcile-package.json').version")" == "$VERSION" ]]
 
       # Reconciles each of the six native `@redact-secret/node-<platform>`
       # packages and `@redact-secret/wasm` independently
@@ -240,16 +232,12 @@ jobs:
             version=$(node -p "require('./$package_dir/package.json').version")
             if [[ "$version" == *-* ]]; then tag=beta; else tag=latest; fi
 
-            if npm view "$name@$version" version >/dev/null 2>&1; then
-              echo "$name@$version is already published; nothing to reconcile."
-              return
-            fi
-
             rm -rf "reconcile-artifact/$artifact_name"
             if ! gh run download "$RUN_ID" --name "$artifact_name" --dir "reconcile-artifact/$artifact_name"; then
               echo "$name@$version is not published and its qualified artifact ($artifact_name) is no longer available (expired). A full release run is required to republish it." >&2
               exit 1
             fi
+            python3 -B scripts/verify-recovery-artifact.py --inventory original-inventory/artifact-inventory.json --artifact "$artifact_name" --directory "reconcile-artifact/$artifact_name"
             cp reconcile-artifact/"$artifact_name"/$asset_glob "$package_dir/"
 
             if [[ "${{ inputs.dry_run }}" == "true" ]]; then
@@ -300,10 +288,10 @@ jobs:
           observe() {
             local crate=$1
             local status
-            status=$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/$crate/$version")
+            status=$(curl -sS -A "redact-secret-release (https://github.com/redact-secret/redact-secret)" -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/$crate/$version")
             if [[ "$status" == "200" ]]; then
               local published_checksum local_checksum
-              published_checksum=$(curl -sS "https://crates.io/api/v1/crates/$crate/$version" | jq -r '.version.checksum')
+              published_checksum=$(curl -sS -A "redact-secret-release (https://github.com/redact-secret/redact-secret)" "https://crates.io/api/v1/crates/$crate/$version" | jq -r '.version.checksum')
               cargo package -p "$crate" --manifest-path "$manifest_path" --locked >/dev/null
               local_checksum=$(sha256sum "reconcile-source/target/package/$crate-$version.crate" | cut -d' ' -f1)
               if [[ "$published_checksum" == "$local_checksum" ]]; then
@@ -343,7 +331,7 @@ jobs:
           if [[ "$core_action" == "publish" ]]; then
             cargo publish -p redact-secret --manifest-path "$manifest_path" --locked
             for attempt in 1 2 3 4 5 6; do
-              status=$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/redact-secret/$version")
+              status=$(curl -sS -A "redact-secret-release (https://github.com/redact-secret/redact-secret)" -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/redact-secret/$version")
               [[ "$status" == "200" ]] && break
               sleep 10
             done
@@ -383,9 +371,10 @@ jobs:
           print(module.policy()['python-distribution'], module.pep440_version(cargo_version))
           ")
 
-          status=$(curl -sS -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/$name/$version/json")
+          status=$(curl -sS -A "redact-secret-release (https://github.com/redact-secret/redact-secret)" -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/$name/$version/json")
           if [[ "$status" == "200" ]]; then
-            echo "$name@$version is already published on PyPI; nothing to reconcile."
+            python3 -B scripts/verify-recovery-artifact.py --inventory original-inventory/artifact-inventory.json --pypi "$name" --version "$version"
+            echo "$name@$version matches every qualified file on PyPI; nothing to reconcile."
             echo "needs_publish=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -418,3 +407,161 @@ jobs:
         with:
           packages-dir: reconcile-dist/
           skip-existing: true
+
+      - name: Reconcile npm facade
+        shell: bash
+        env:
+          SOURCE_REVISION: ${{ steps.guard.outputs.source_revision }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          git worktree add --quiet --detach reconcile-wrapper "$SOURCE_REVISION"
+          trap 'git worktree remove --force reconcile-wrapper' EXIT
+          registry_reader="$PWD/scripts/npm-registry-metadata.mjs"
+          cd reconcile-wrapper
+          npm ci --ignore-scripts
+          npm run js:build
+          npm pack ./packages/javascript --json > packed.json
+          tarball=$(jq -r '.[0].filename' packed.json)
+          expected=$(jq -r '.[0].shasum' packed.json)
+          name=$(node -p "require('./packages/javascript/package.json').name")
+          version=$(node -p "require('./packages/javascript/package.json').version")
+          if [[ "$version" == *-* ]]; then npm_tag=beta; else npm_tag=latest; fi
+          published=$(node "$registry_reader" "$name" "$version")
+          if [[ "$published" != unpublished ]]; then
+            [[ "$published" == "$expected" ]] || { echo 'Existing npm facade conflicts with original source.' >&2; exit 1; }
+          elif [[ "$DRY_RUN" == "true" ]]; then
+            npm publish --dry-run --access public --tag "$npm_tag" "$tarball"
+          else
+            npm publish --access public --tag "$npm_tag" "$tarball"
+            node "$registry_reader" "$name" "$version" "$expected"
+          fi
+
+  verify-registry-install:
+    name: Verify registry install ${{ matrix.target }}
+    needs: reconcile
+    if: inputs.dry_run == false
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ needs.reconcile.outputs.source_revision }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use current registry verification tooling
+        shell: bash
+        run: git show "$GITHUB_SHA:scripts/verify-registry-install.mjs" > scripts/verify-registry-install.mjs
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+
+      # `consumer-harness.mjs` imports `esbuild` unconditionally (the browser
+      # lane needs it); the node lane below never calls it, but still needs
+      # it importable.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Verify the registry-backed clean install
+        run: node scripts/verify-registry-install.mjs --lane node
+
+  verify-registry-install-browser:
+    name: Verify registry install (browser)
+    needs: reconcile
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ needs.reconcile.outputs.source_revision }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use current registry verification tooling
+        shell: bash
+        run: git show "$GITHUB_SHA:scripts/verify-registry-install.mjs" > scripts/verify-registry-install.mjs
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify the registry-backed clean install
+        run: node scripts/verify-registry-install.mjs --lane browser
+
+  tag-reconciled-release:
+    name: Tag reconciled release
+    needs: [reconcile, verify-registry-install, verify-registry-install-browser]
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+    permissions:
+      contents: write
+    steps:
+      - name: Require a release candidate branch
+        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}
+        run: exit 1
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate candidate branch version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF" --version "$VERSION"
+      - name: Tag verified source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_REVISION: ${{ needs.reconcile.outputs.source_revision }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          tag_name="v$VERSION"
+          if git show-ref --verify --quiet "refs/tags/$tag_name"; then
+            [[ "$(git rev-list -n 1 "$tag_name")" == "$SOURCE_REVISION" ]]
+            [[ "$(git cat-file -t "$tag_name")" == tag ]]
+            exit 0
+          fi
+          tag_object=$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/tags" \
+            --field tag="$tag_name" --field message="Release $VERSION" \
+            --field object="$SOURCE_REVISION" --field type=commit --jq .sha)
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            --field ref="refs/tags/$tag_name" --field sha="$tag_object"

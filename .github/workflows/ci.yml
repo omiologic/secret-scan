@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - "rc/*"
   # `Artifact qualification` calls this workflow so one commit's Rust format,
   # lint, test, MSRV, conformance, and wasm32 evidence is part of the same
   # run as every artifact built from it.
