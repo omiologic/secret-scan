@@ -30,6 +30,15 @@ platform matrix, changes `compute_rules_digest`'s output; update
 this script fails closed if the on-disk ruleset and the pinned digest ever
 disagree, so an unreviewed edit to a vendored rule file cannot pass silently
 either.
+
+`--sarif-out PATH` additionally renders the same normalized report as SARIF
+2.1.0 (see `build_sarif`) for issue #156's CI upload to GitHub code
+scanning. It is a projection of this same gate, never a second source of
+truth: a finding already dispositioned as `false_positive`/`hardening` is
+carried as a SARIF suppression rather than omitted, and a `blocking` or
+unclassified finding is left unsuppressed -- exactly the findings that
+already fail this run's exit code. Whether GitHub accepts the SARIF upload
+never changes this script's own exit code.
 """
 
 from __future__ import annotations
@@ -182,6 +191,85 @@ def normalize_report(*, raw: dict, tool_version: str, rules_digest: str, source_
     }
 
 
+SARIF_SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
+SARIF_VERSION = "2.1.0"
+
+# OpenGrep's own severities, mapped onto SARIF's fixed `level` vocabulary.
+# Anything unrecognized (including "UNKNOWN") is reported, never dropped.
+SARIF_LEVEL_BY_SEVERITY = {
+    "ERROR": "error",
+    "WARNING": "warning",
+    "INFO": "note",
+}
+
+
+def build_sarif(*, report: dict, baseline: dict) -> dict:
+    """Render `report` as SARIF 2.1.0 for GitHub code scanning.
+
+    Issue #156 requires the SARIF upload to never become the sole
+    enforcement signal, so this is a projection of the same normalized
+    report `check_baseline` already gates on -- never an independent source
+    of truth. A finding already dispositioned as `false_positive` or
+    `hardening` in `sast/baseline.json` is carried as a SARIF `suppression`
+    (kind `external`, with the recorded rationale) so code scanning's UI
+    shows it as reviewed-and-dismissed rather than a fresh alert; a
+    `blocking` or not-yet-classified finding is left unsuppressed, since it
+    is exactly what already fails the run. Only the rule's own `message` is
+    ever included, matching `normalize_report` -- never a matched snippet.
+    """
+    findings_baseline = baseline.get("findings", {})
+    rule_ids = sorted({finding["rule_id"] for finding in report["findings"]})
+    rules = [{"id": rule_id, "name": rule_id} for rule_id in rule_ids]
+
+    results = []
+    for finding in report["findings"]:
+        entry = findings_baseline.get(finding["id"], {})
+        classification = entry.get("classification")
+        result: dict = {
+            "ruleId": finding["rule_id"],
+            "level": SARIF_LEVEL_BY_SEVERITY.get(finding["severity"], "warning"),
+            "message": {"text": finding["message"] or finding["rule_id"]},
+            "partialFingerprints": {"opengrepFindingId/v1": finding["id"]},
+            "locations": [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": finding["path"]},
+                        "region": {
+                            "startLine": finding["start_line"] or 1,
+                            "endLine": finding["end_line"] or finding["start_line"] or 1,
+                        },
+                    }
+                }
+            ],
+        }
+        if classification in ("false_positive", "hardening"):
+            result["suppressions"] = [
+                {
+                    "kind": "external",
+                    "justification": entry.get("rationale", "reviewed and dispositioned in sast/baseline.json"),
+                }
+            ]
+        results.append(result)
+
+    return {
+        "version": SARIF_VERSION,
+        "$schema": SARIF_SCHEMA,
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "OpenGrep",
+                        "version": report.get("tool_version", "unknown"),
+                        "informationUri": "https://github.com/opengrep/opengrep",
+                        "rules": rules,
+                    }
+                },
+                "results": results,
+            }
+        ],
+    }
+
+
 def load_baseline(path: Path) -> dict:
     if not path.is_file():
         return {"findings": {}, "known_errors": {}}
@@ -255,6 +343,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE)
     parser.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE_DIR)
     parser.add_argument("--out", type=Path, default=None, help="write the normalized report as JSON")
+    parser.add_argument(
+        "--sarif-out", type=Path, default=None, help="write the report as SARIF 2.1.0 for code scanning upload"
+    )
     parser.add_argument("--timeout", type=int, default=30, help="opengrep --timeout, seconds per rule per file")
     parser.add_argument("--binary", type=Path, default=None, help="skip install/verify, use this opengrep binary")
     parser.add_argument("target", nargs="*", help="paths to scan (default: the whole repo root)")
@@ -324,6 +415,12 @@ def main(argv: list[str] | None = None) -> int:
         args.out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     baseline = load_baseline(args.baseline)
+
+    if args.sarif_out is not None:
+        sarif = build_sarif(report=report, baseline=baseline)
+        args.sarif_out.parent.mkdir(parents=True, exist_ok=True)
+        args.sarif_out.write_text(json.dumps(sarif, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
     problems = check_baseline(report, baseline)
     for problem in problems:
         print(f"ERROR {problem}", file=sys.stderr)

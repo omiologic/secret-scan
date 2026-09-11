@@ -36,10 +36,37 @@ From a clean checkout this:
    never passes -- baselining a real defect away would defeat the point of
    classifying it.
 
-`--out PATH` also writes the normalized report as JSON. `--binary PATH`
-skips install/verify and scans with an already-verified binary (useful for
-local iteration; CI never uses it). Both runs of the two-clean-checkouts
-verification described in issue #155 use the same command with no flags.
+`--out PATH` also writes the normalized report as JSON. `--sarif-out PATH`
+additionally writes the same findings as SARIF 2.1.0, for issue #156's
+upload to GitHub code scanning -- a projection of the same baseline gate,
+never a second source of truth: a `false_positive`/`hardening` finding is
+carried as a SARIF suppression (with the recorded rationale) rather than
+omitted, and a `blocking` or not-yet-classified finding is left
+unsuppressed, matching exactly what already fails this command's exit code.
+`--binary PATH` skips install/verify and scans with an already-verified
+binary (useful for local iteration; CI never uses it). Both runs of the
+two-clean-checkouts verification described in issue #155 use the same
+command with no flags.
+
+## CI enforcement (issue #156)
+
+`.github/workflows/sast.yml` runs `python3 -B scripts/run-sast.py --out ... --sarif-out ...`
+on every pull request and every push to `main`, with least-privilege
+permissions (`contents: read`, plus `security-events: write` solely for the
+SARIF upload step) and commit-pinned actions. The job is bounded to 20
+minutes (`timeout-minutes`), matching this command's own bounded per-file
+`--timeout`. The scan step's real result (`steps.scan.outcome`, which
+`continue-on-error` does not mask) is the only enforcement signal: it is
+checked in an explicit final "Enforce scan result" step so that the JSON
+report, the SARIF report, and the best-effort code-scanning upload all still
+run `if: always()` beforehand. Code-scanning upload availability is
+therefore never the gate -- a private repository without Advanced Security,
+or a fork pull request's restricted token, degrades that one step to a
+no-op without changing whether the job passes or fails. A "Record OpenGrep
+evidence" step writes the run's source revision, rules digest, tool
+version, and finding/error counts to the job summary, which is the exact
+run URL and rule digest issue #156 asks to be recorded for issue #145 at
+the final release candidate revision.
 
 ## Reproducing the initial reviewed baseline
 

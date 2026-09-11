@@ -49,9 +49,9 @@
       "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "29da2f4e39475b91": {
+    "31db7dfac44961cf": {
       "classification": "false_positive",
-      "line": 221,
+      "line": 309,
       "path": "scripts/run-sast.py",
       "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
       "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
@@ -76,6 +76,13 @@
       "path": "conformance/schema.ts",
       "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "5c3cee4821f6da93": {
+      "classification": "false_positive",
+      "line": 384,
+      "path": "scripts/run-sast.py",
+      "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
+      "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
     },
     "638af74061133716": {
       "classification": "false_positive",
@@ -125,13 +132,6 @@
       "path": "scripts/verify-release-governance.py",
       "rationale": "The URL is built from a fixed, hardcoded registry host (pypi.org, crates.io, or registry.npmjs.org) with only a package/crate name path-appended; the host is never attacker-influenced, so this cannot be redirected to an untrusted origin.",
       "rule_id": "sast.rules.python.lang.security.audit.dynamic-urllib-use-detected"
-    },
-    "b1a7317ab9f842fe": {
-      "classification": "false_positive",
-      "line": 293,
-      "path": "scripts/run-sast.py",
-      "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
-      "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
     },
     "b48cb559dc871d68": {
       "classification": "false_positive",
