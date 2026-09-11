@@ -27,7 +27,8 @@ Checks, in order:
    the distribution is typed under PEP 561.
 6. Wheel matrix: the workflow builds a wheel for exactly the targets in
    ``python-wheel-targets``, and every one of them maps to a platform tag this
-   repository knows how to qualify.
+   repository knows how to qualify. Its required ``Wheel matrix`` check runs
+   on every pull request, without a path filter that can leave merges blocked.
 
 Run ``--recheck-pypi-name`` to also query PyPI for the product name and the
 selected distribution name; that is the only check that uses the network and
@@ -63,6 +64,11 @@ REQUIRES_PYTHON = re.compile(r"^>=3\.(\d+)$")
 
 # Every `target:` key in the wheel workflow's build matrix.
 WORKFLOW_TARGET = re.compile(r"^\s*(?:-\s+)?target:\s*(\S+)\s*$", re.M)
+ON_BLOCK = re.compile(r"^on:\s*\n(?P<body>(?:[ \t]{2,}.*\n|[ \t]*\n)*)", re.M)
+PULL_REQUEST_BLOCK = re.compile(
+    r"^  pull_request:\s*(?:\{\})?\s*\n(?P<body>(?:[ \t]{4,}.*\n|[ \t]*\n)*)",
+    re.M,
+)
 
 # A single wheel platform tag each supported target may produce.
 # `qualify-python-wheel.py` reads this table too, so a target and the tag it is
@@ -283,7 +289,18 @@ def check_wheel_matrix(root: Path, policy: dict) -> list[str]:
     workflow = root / WHEEL_WORKFLOW
     if not workflow.is_file():
         return errors + [f"{WHEEL_WORKFLOW.as_posix()}: missing wheel workflow"]
-    built = set(WORKFLOW_TARGET.findall(workflow.read_text(encoding="utf-8")))
+    workflow_text = workflow.read_text(encoding="utf-8")
+    trigger = ON_BLOCK.search(workflow_text)
+    pull_request = PULL_REQUEST_BLOCK.search(trigger.group("body")) if trigger else None
+    if pull_request is None:
+        errors.append(f"{WHEEL_WORKFLOW.as_posix()}: must trigger on every pull_request")
+    elif re.search(r"^\s+paths(?:-ignore)?:", pull_request.group("body"), re.M):
+        errors.append(
+            f"{WHEEL_WORKFLOW.as_posix()}: pull_request trigger must not use path filters; "
+            "Wheel matrix is a required check"
+        )
+
+    built = set(WORKFLOW_TARGET.findall(workflow_text))
     missing = sorted(set(declared) - built)
     extra = sorted(built - set(declared))
     if missing:
