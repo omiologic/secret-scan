@@ -49,35 +49,32 @@ example `rc/0.1.0-beta.1`.
 ```mermaid
 flowchart TD
     work["Working branch"] -->|Pull request| main["main"]
-    main -->|Create stabilization branch| candidate["rc/0.1.0-beta.1"]
+    main -->|Create release candidate branch| candidate["rc/0.1.0-beta.1"]
     fix["Release-fix branch"] -->|Pull request targeting RC branch| candidate
-    candidate --> checks["Freeze candidate; pass checks and dry-runs"]
-    checks --> preparation["release/v0-1-0-beta-1"]
-    preparation -->|Reviewed pull request| main
-    main --> qualified["Qualify the resulting main commit; review API and changelog"]
-    qualified --> approval["Explicit release approval"]
-    approval --> publish["Manually dispatch Release from main"]
+    candidate --> checks["Freeze commit; pass CI and release dry-runs"]
+    checks --> publish["Manually dispatch publication from RC branch"]
     publish --> verify["Verify published packages with clean installs"]
-    verify --> tag["Workflow creates annotated v0.1.0-beta.1 tag"]
+    verify --> tag["Tag the qualified commit: v0.1.0-beta.1"]
+    tag --> backport["Open a PR to merge release changes back into main"]
+    backport --> main
 ```
 
-- Keep candidate fixes and release notes on `rc/<version>`. Target release-fix
-  PRs at that branch; keep unrelated development on `main`.
-- Once the candidate is stabilized and its version is approved, create
-  `release/v{version-slug}` from the candidate, for example
-  `release/v0-1-0-beta-1`, and merge its preparation changes into `main` through
-  a reviewed PR. Retain the RC branch as the stabilization record.
-- Publication and recovery run from `main`, as required by
-  [release authority](AGENTS.md#release-authority), workflow guards, and the
-  protected release environment. RC branches do not publish directly.
-- A merge changes the source revision. Qualify the resulting `main` commit
-  before final release approval; RC checks do not qualify a later merge commit.
-  Freeze the approved source through publication. Any source change requires
-  fresh qualification and review.
-- PR merges do not publish packages or create tags. After explicit release
-  approval, manually dispatch [Release](.github/workflows/release.yml) from
-  `main`. It qualifies that revision, publishes the product, verifies registry
-  installs, and creates the annotated version tag only after verification.
+- Keep version preparation, release notes, and candidate fixes on `rc/<version>`.
+  Target release-fix PRs at that branch; keep unrelated development on `main`.
+- There is no intermediate `release/v*` branch. Each release uses its own RC
+  branch, whose version must exactly match the product manifests.
+- PR merges do not publish packages or create tags. After qualification and
+  explicit release approval, manually dispatch [Release](.github/workflows/release.yml)
+  from the RC branch. The protected `release` environment permits RC branches.
+- Freeze the candidate commit during qualification and publication. Any source
+  change requires fresh qualification. The workflow creates the immutable,
+  annotated version tag on the qualified commit only after publication and
+  registry-install verification succeed.
+- After publication, merge release changes back into `main` through a reviewed
+  PR and retain the RC branch as the preparation and recovery record.
+- [Reconcile Release](.github/workflows/reconcile-release.yml) requires separate
+  authorization and runs from the matching RC branch. Its source must remain
+  in that branch's history; merging into `main` is not a repair prerequisite.
 
 ## Releases
 
@@ -99,8 +96,7 @@ a publication record or permission to publish.
 
 Before requesting final release approval:
 
-- Complete RC stabilization and the reviewed `release/v0-1-0-beta-1` PR into
-  `main` using the branch path above.
+- Complete stabilization on `rc/0.1.0-beta.1` using the branch path above.
 - Resolve or explicitly disposition the residual findings in the
   [latest readiness audit](docs/audits/repeated-release-readiness-audit.md#blocking-residual-findings-and-exact-exits):
   partial-publication recovery, complete failed-run manifests, review and

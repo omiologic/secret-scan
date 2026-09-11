@@ -71,7 +71,7 @@ BROWSER_QUALIFIER = Path("scripts") / "qualify-browser-artifact.mjs"
 # Trusted Publishing, which mints a short-lived OIDC token instead of holding
 # a long-lived API token as a secret. Every other job is read-only.
 WRITE_SCOPE_ALLOWLIST = {
-    ("release.yml", "publish", "contents"),
+    ("release.yml", "tag-release", "contents"),
     ("release.yml", "publish-pypi", "id-token"),
     ("reconcile-release.yml", "reconcile", "contents"),
     ("reconcile-release.yml", "reconcile", "id-token"),

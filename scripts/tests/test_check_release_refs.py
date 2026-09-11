@@ -15,9 +15,10 @@ sys.modules[SPEC.name] = CHECK
 SPEC.loader.exec_module(CHECK)
 
 GUARD_STEP = (
-    "      - name: Require the default branch\n"
-    "        if: github.ref != 'refs/heads/main'\n"
+    "      - name: Require a release candidate branch\n"
+    "        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}\n"
     "        run: exit 1\n"
+    '      - run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF"\n'
 )
 
 
@@ -31,7 +32,8 @@ def release_workflow(jobs: dict[str, bool]) -> str:
         body += (
             f"  {job_name}:\n"
             "    runs-on: ubuntu-latest\n"
-            "    steps:\n"
+            + ("    needs:\n" + "".join(f"      - {dep}\n" for dep in CHECK.TAG_NEEDS) if job_name == "tag-release" else "")
+            + "    steps:\n"
             + (GUARD_STEP if guarded else UNGUARDED_STEP)
         )
     return body
@@ -52,7 +54,7 @@ def reconcile_workflow(*, guarded: bool = True, present: bool = True) -> str:
 class Repository:
     def __init__(self, root: Path) -> None:
         self.root = root
-        self.release_jobs = {"publish": True, "publish-crates": True, "publish-pypi": True}
+        self.release_jobs = {job: True for job in CHECK.RELEASE_JOBS}
         self.reconcile_guarded = True
         self.release_present = True
         self.reconcile_present = True
@@ -89,7 +91,7 @@ class ValidateTests(unittest.TestCase):
 
         errors = self.run_validate(mutate)
         self.assertTrue(
-            any("publish" in error and "does not reject non-main refs" in error for error in errors)
+            any("publish" in error and "does not reject non-RC refs" in error for error in errors)
         )
 
     def test_publish_crates_without_guard_fails(self) -> None:
@@ -98,7 +100,7 @@ class ValidateTests(unittest.TestCase):
 
         errors = self.run_validate(mutate)
         self.assertTrue(
-            any("publish-crates" in error and "does not reject non-main refs" in error for error in errors)
+            any("publish-crates" in error and "does not reject non-RC refs" in error for error in errors)
         )
 
     def test_reconcile_without_guard_fails(self) -> None:
@@ -107,7 +109,7 @@ class ValidateTests(unittest.TestCase):
 
         errors = self.run_validate(mutate)
         self.assertTrue(
-            any("reconcile" in error and "does not reject non-main refs" in error for error in errors)
+            any("reconcile" in error and "does not reject non-RC refs" in error for error in errors)
         )
 
     def test_missing_reconcile_job_fails(self) -> None:
@@ -124,18 +126,57 @@ class ValidateTests(unittest.TestCase):
         errors = self.run_validate(mutate)
         self.assertTrue(any("release.yml" in error and "missing workflow" in error for error in errors))
 
-    def test_double_quoted_guard_passes(self) -> None:
+    def test_each_publisher_and_tagger_requires_a_guard(self) -> None:
+        for job in CHECK.RELEASE_JOBS:
+            with self.subTest(job=job):
+                errors = self.run_validate(lambda repo: repo.release_jobs.update({job: False}))
+                self.assertTrue(any(job in error and "non-RC refs" in error for error in errors))
+
+    def test_tag_must_wait_for_each_registry_and_install_check(self) -> None:
+        for dependency in CHECK.TAG_NEEDS:
+            with self.subTest(dependency=dependency), tempfile.TemporaryDirectory() as tmp:
+                repo = Repository(Path(tmp))
+                repo.build()
+                path = repo.root / ".github/workflows/release.yml"
+                path.write_text(path.read_text().replace(f"      - {dependency}\n", ""))
+                self.assertIn(f"tag-release must depend on {dependency}", CHECK.validate(repo.root))
+
+    def test_missing_version_check_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = Repository(Path(tmp))
-            repo.release_jobs = {"publish": True, "publish-crates": True, "publish-pypi": True}
             repo.build()
-            text = (repo.root / ".github/workflows/release.yml").read_text(encoding="utf-8")
-            text = text.replace(
-                "if: github.ref != 'refs/heads/main'",
-                'if: github.ref != "refs/heads/main"',
-            )
-            (repo.root / ".github/workflows/release.yml").write_text(text, encoding="utf-8")
-            self.assertEqual(CHECK.validate(repo.root), [])
+            path = repo.root / ".github/workflows/release.yml"
+            path.write_text(path.read_text().replace(CHECK.CANDIDATE_CHECK, "echo skipped", 1))
+            self.assertTrue(any("candidate version validation" in error for error in CHECK.validate(repo.root)))
+
+    def test_main_only_guard_is_rejected(self) -> None:
+        self.assertFalse(CHECK.rejects_non_rc("if: github.ref != 'refs/heads/main'"))
+
+    def test_tag_creation_in_publish_job_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Repository(Path(tmp))
+            repo.build()
+            path = repo.root / ".github/workflows/release.yml"
+            path.write_text(path.read_text().replace("    steps:\n", '    steps:\n      - run: gh api /git/tags\n', 1))
+            self.assertTrue(any("only be created by tag-release" in error for error in CHECK.validate(repo.root)))
+
+
+class CandidateIdentityTests(unittest.TestCase):
+    def test_stable_and_beta_candidates_match(self) -> None:
+        for version in ("0.1.0-beta.1", "1.0.0"):
+            self.assertEqual(CHECK.validate_candidate_ref(f"refs/heads/rc/{version}", version), [])
+
+    def test_wrong_refs_versions_and_channels_fail(self) -> None:
+        for ref, version in (
+            ("refs/heads/main", "0.1.0-beta.1"),
+            ("refs/tags/rc/0.1.0-beta.1", "0.1.0-beta.1"),
+            ("refs/heads/rc/0.1.0-beta.2", "0.1.0-beta.1"),
+            ("refs/heads/rc/0.1.0-beta.1/extra", "0.1.0-beta.1"),
+            ("refs/heads/rc/1.0.0-alpha.1", "1.0.0-alpha.1"),
+            ("refs/heads/rc/01.0.0", "01.0.0"),
+        ):
+            with self.subTest(ref=ref, version=version):
+                self.assertTrue(CHECK.validate_candidate_ref(ref, version))
 
 
 if __name__ == "__main__":

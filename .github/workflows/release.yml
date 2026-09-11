@@ -102,16 +102,19 @@ jobs:
             platform: win32-x64-msvc
 
     steps:
-      - name: Require the default branch
-        if: github.ref != 'refs/heads/main'
+      - name: Require a release candidate branch
+        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}
         run: |
-          echo "Releases must run from main." >&2
+          echo "Releases must run from an rc/<version> branch." >&2
           exit 1
 
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+
+      - name: Validate candidate branch version
+        run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF"
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -185,16 +188,19 @@ jobs:
       registry_state_json: ${{ steps.state.outputs.registry_state_json }}
 
     steps:
-      - name: Require the default branch
-        if: github.ref != 'refs/heads/main'
+      - name: Require a release candidate branch
+        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}
         run: |
-          echo "Releases must run from main." >&2
+          echo "Releases must run from an rc/<version> branch." >&2
           exit 1
 
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+
+      - name: Validate candidate branch version
+        run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF"
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -254,15 +260,16 @@ jobs:
     environment:
       name: release
     permissions:
-      contents: write
+      contents: read
     outputs:
+      package_version: ${{ steps.release.outputs.package_version }}
       registry_state_json: ${{ steps.state.outputs.registry_state_json }}
 
     steps:
-      - name: Require the default branch
-        if: github.ref != 'refs/heads/main'
+      - name: Require a release candidate branch
+        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}
         run: |
-          echo "Releases must run from main." >&2
+          echo "Releases must run from an rc/<version> branch." >&2
           exit 1
 
       - name: Check out repository
@@ -270,6 +277,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Validate candidate branch version
+        run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF"
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -350,27 +360,6 @@ jobs:
           echo "The published version could not be verified from npm." >&2
           exit 1
 
-      - name: Create annotated Git tag
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ steps.release.outputs.tag_name }}
-          PACKAGE_VERSION: ${{ steps.release.outputs.package_version }}
-        run: |
-          tag_object=$(gh api \
-            --method POST \
-            "repos/$GITHUB_REPOSITORY/git/tags" \
-            --field tag="$TAG_NAME" \
-            --field message="Release $PACKAGE_VERSION" \
-            --field object="$GITHUB_SHA" \
-            --field type=commit \
-            --jq .sha)
-          gh api \
-            --method POST \
-            "repos/$GITHUB_REPOSITORY/git/refs" \
-            --field ref="refs/tags/$TAG_NAME" \
-            --field sha="$tag_object"
-
       # `if: always()` so a partial or failed release still reports what it
       # observed; `record-manifest` is what actually writes the manifest now
       # that more than one registry is involved.
@@ -404,16 +393,19 @@ jobs:
       registry_state_json: ${{ steps.state.outputs.registry_state_json }}
 
     steps:
-      - name: Require the default branch
-        if: github.ref != 'refs/heads/main'
+      - name: Require a release candidate branch
+        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}
         run: |
-          echo "Releases must run from main." >&2
+          echo "Releases must run from an rc/<version> branch." >&2
           exit 1
 
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+
+      - name: Validate candidate branch version
+        run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF"
 
       - name: Set up stable Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
@@ -503,16 +495,19 @@ jobs:
       registry_state_json: ${{ steps.state.outputs.registry_state_json }}
 
     steps:
-      - name: Require the default branch
-        if: github.ref != 'refs/heads/main'
+      - name: Require a release candidate branch
+        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}
         run: |
-          echo "Releases must run from main." >&2
+          echo "Releases must run from an rc/<version> branch." >&2
           exit 1
 
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+
+      - name: Validate candidate branch version
+        run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF"
 
       - name: Download qualified wheels and source distribution
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -643,6 +638,53 @@ jobs:
 
       - name: Verify the registry-backed clean install
         run: node scripts/verify-registry-install.mjs --lane browser
+
+  tag-release:
+    name: Tag verified release
+    needs:
+      - publish
+      - publish-crates
+      - publish-pypi
+      - verify-registry-install
+      - verify-registry-install-browser
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+    permissions:
+      contents: write
+    steps:
+      - name: Require a release candidate branch
+        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}
+        run: exit 1
+
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Validate candidate branch version
+        run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF"
+
+      - name: Create annotated Git tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_VERSION: ${{ needs.publish.outputs.package_version }}
+        run: |
+          TAG_NAME="v$PACKAGE_VERSION"
+          tag_object=$(gh api \
+            --method POST \
+            "repos/$GITHUB_REPOSITORY/git/tags" \
+            --field tag="$TAG_NAME" \
+            --field message="Release $PACKAGE_VERSION" \
+            --field object="$GITHUB_SHA" \
+            --field type=commit \
+            --jq .sha)
+          gh api \
+            --method POST \
+            "repos/$GITHUB_REPOSITORY/git/refs" \
+            --field ref="refs/tags/$TAG_NAME" \
+            --field sha="$tag_object"
 
   # Runs even when a publish job above failed, so a partial release still
   # leaves a durable record of what it attempted

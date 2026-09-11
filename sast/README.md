@@ -51,7 +51,7 @@ command with no flags.
 ## CI enforcement (issue #156)
 
 `.github/workflows/sast.yml` runs `python3 -B scripts/run-sast.py --out ... --sarif-out ...`
-on every pull request and every push to `main`, with least-privilege
+on every pull request and every push to `main` or `rc/*`, with least-privilege
 permissions (`contents: read`, plus `security-events: write` solely for the
 SARIF upload step) and commit-pinned actions. The job is bounded to 20
 minutes (`timeout-minutes`), matching this command's own bounded per-file

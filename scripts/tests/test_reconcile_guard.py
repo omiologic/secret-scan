@@ -25,11 +25,9 @@ VERSION = "0.1.0-beta.1"
 class ReconcileGuardTests(unittest.TestCase):
     """Exercises the guard against a real, deterministic git history.
 
-    `main` carries `base` -> `ancestor` -> `tip`. `off-main` branches from
-    `base` and carries a commit `main` never merged, standing in for a commit
-    that a force-push or a rebase dropped out of `main`'s history. None of
-    these tests creates a tag or publishes anything -- `evaluate` only
-    decides; `reconcile-release.yml` is the only thing that tags.
+    Main stops at base. The RC adds ancestor -> tip before being merged back.
+    A sibling RC carries a commit outside the candidate's recovery history.
+    No test creates a tag or publishes anything.
     """
 
     def setUp(self) -> None:
@@ -40,11 +38,12 @@ class ReconcileGuardTests(unittest.TestCase):
         self._git("config", "user.email", "reconcile-guard-tests@example.invalid")
         self._git("config", "user.name", "reconcile-guard-tests")
         self.base = self._commit("base.txt", "base")
+        self._git("checkout", "-q", "-b", f"rc/{VERSION}")
         self.ancestor = self._commit("ancestor.txt", "ancestor")
         self.tip = self._commit("tip.txt", "tip")
-        self._git("checkout", "-q", "-b", "off-main", self.base)
-        self.off_main = self._commit("off.txt", "off-main")
-        self._git("checkout", "-q", "main")
+        self._git("checkout", "-q", "-b", "rc/9.9.9", self.base)
+        self.off_candidate = self._commit("off.txt", "other candidate")
+        self._git("checkout", "-q", f"rc/{VERSION}")
 
     def _git(self, *args: str) -> None:
         subprocess.run(["git", "-C", str(self.repo), *args], check=True, capture_output=True)
@@ -79,7 +78,7 @@ class ReconcileGuardTests(unittest.TestCase):
         result = RECONCILE_GUARD.evaluate(
             RECONCILE_GUARD.load_manifest(manifest),
             repo=self.repo,
-            main_ref=self.tip,
+            candidate_ref=f"refs/heads/rc/{VERSION}",
             version=VERSION,
         )
         self.assertTrue(result.ok)
@@ -87,13 +86,13 @@ class ReconcileGuardTests(unittest.TestCase):
         self.assertEqual(self._tags(), [])
 
     def test_ancestor_check_still_accepts_the_exact_tip(self) -> None:
-        # Ancestor-of-main includes equal-to-tip, so this only widens the
+        # Ancestor-of-candidate includes equal-to-tip, so this only widens the
         # repair window (F-08) -- it never narrows the case that already worked.
         manifest = self._manifest_path({"version": VERSION, "source_revision": self.tip})
         result = RECONCILE_GUARD.evaluate(
             RECONCILE_GUARD.load_manifest(manifest),
             repo=self.repo,
-            main_ref=self.tip,
+            candidate_ref=f"refs/heads/rc/{VERSION}",
             version=VERSION,
         )
         self.assertTrue(result.ok)
@@ -102,11 +101,11 @@ class ReconcileGuardTests(unittest.TestCase):
     # -- fixture 2: a non-ancestor commit ----------------------------------
 
     def test_non_ancestor_commit_is_rejected(self) -> None:
-        manifest = self._manifest_path({"version": VERSION, "source_revision": self.off_main})
+        manifest = self._manifest_path({"version": VERSION, "source_revision": self.off_candidate})
         result = RECONCILE_GUARD.evaluate(
             RECONCILE_GUARD.load_manifest(manifest),
             repo=self.repo,
-            main_ref=self.tip,
+            candidate_ref=f"refs/heads/rc/{VERSION}",
             version=VERSION,
         )
         self.assertFalse(result.ok)
@@ -121,7 +120,7 @@ class ReconcileGuardTests(unittest.TestCase):
         result = RECONCILE_GUARD.evaluate(
             RECONCILE_GUARD.load_manifest(missing),
             repo=self.repo,
-            main_ref=self.tip,
+            candidate_ref=f"refs/heads/rc/{VERSION}",
             version=VERSION,
         )
         self.assertFalse(result.ok)
@@ -136,7 +135,7 @@ class ReconcileGuardTests(unittest.TestCase):
         result = RECONCILE_GUARD.evaluate(
             RECONCILE_GUARD.load_manifest(manifest),
             repo=self.repo,
-            main_ref=self.tip,
+            candidate_ref=f"refs/heads/rc/{VERSION}",
             version=VERSION,
         )
         self.assertFalse(result.ok)
@@ -146,7 +145,7 @@ class ReconcileGuardTests(unittest.TestCase):
         result = RECONCILE_GUARD.evaluate(
             None,
             repo=self.repo,
-            main_ref=self.tip,
+            candidate_ref=f"refs/heads/rc/{VERSION}",
             version=VERSION,
             source_commit_override=self.ancestor,
         )
@@ -158,9 +157,9 @@ class ReconcileGuardTests(unittest.TestCase):
         result = RECONCILE_GUARD.evaluate(
             None,
             repo=self.repo,
-            main_ref=self.tip,
+            candidate_ref=f"refs/heads/rc/{VERSION}",
             version=VERSION,
-            source_commit_override=self.off_main,
+            source_commit_override=self.off_candidate,
         )
         self.assertFalse(result.ok)
         self.assertEqual(self._tags(), [])
@@ -177,7 +176,7 @@ class ReconcileGuardTests(unittest.TestCase):
                     str(manifest),
                     "--repo",
                     str(self.repo),
-                    "--main-ref",
+                    "--candidate-ref",
                     self.tip,
                     "--version",
                     VERSION,
@@ -193,7 +192,7 @@ class ReconcileGuardTests(unittest.TestCase):
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer):
             status = RECONCILE_GUARD.main(
-                ["--repo", str(self.repo), "--main-ref", self.tip, "--version", VERSION]
+                ["--repo", str(self.repo), "--candidate-ref", self.tip, "--version", VERSION]
             )
         self.assertEqual(status, 1)
         payload = json.loads(buffer.getvalue())

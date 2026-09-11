@@ -1,8 +1,8 @@
 # Repair window: this workflow can repair any commit that is an ancestor of
-# main's current tip (its exact tip included) for which a Release run's
+# the RC branch's current tip (its exact tip included) for which a Release run's
 # manifest artifact (release-manifest-<version>) still exists, or that an
 # operator names explicitly with the source_commit input. A commit that fell
-# out of main's history -- for example after a force-push or a rebase -- is
+# out of the RC branch's history -- for example after a force-push or a rebase -- is
 # outside that window and reconcile-guard.py refuses it regardless of what a
 # manifest claims. See scripts/reconcile-guard.py for the guard this workflow
 # defers to, and AGENTS.md's "Release authority" section for the approval
@@ -73,8 +73,8 @@ jobs:
       actions: read
       id-token: write
     steps:
-      - name: Require main
-        if: github.ref != 'refs/heads/main'
+      - name: Require a release candidate branch
+        if: ${{ !startsWith(github.ref, 'refs/heads/rc/') }}
         run: exit 1
 
       - name: Check out repository
@@ -82,6 +82,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Validate candidate branch version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python3 -B scripts/check-release-refs.py --candidate-ref "$GITHUB_REF" --version "$VERSION"
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -143,7 +148,7 @@ jobs:
           decision=$(python3 -B scripts/reconcile-guard.py \
             "${manifest_args[@]}" \
             --repo . \
-            --main-ref "$GITHUB_SHA" \
+            --candidate-ref "$GITHUB_SHA" \
             --version "$VERSION" \
             "${source_args[@]}")
           status=$?
