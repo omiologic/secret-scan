@@ -47,17 +47,7 @@ fn is_boundary_identifier_char(byte: u8) -> bool {
 fn is_uri_terminator(byte: u8) -> bool {
     matches!(
         byte,
-        b' ' | b'\t'
-            | b'\n'
-            | 0x0B
-            | 0x0C
-            | b'\r'
-            | b'"'
-            | b'\''
-            | b'<'
-            | b'>'
-            | b'\\'
-            | b'#'
+        b' ' | b'\t' | b'\n' | 0x0B | 0x0C | b'\r' | b'"' | b'\'' | b'<' | b'>' | b'\\' | b'#'
     )
 }
 
@@ -76,7 +66,12 @@ fn is_base32_char(byte: u8) -> bool {
 /// Scans forward from `start` until a byte matching `is_stop` or the end of
 /// input, bounded by `max_len`. Returns `None` when the bound is exceeded
 /// before a stop byte or the end of input is reached.
-fn scan_bounded(input: &str, start: usize, max_len: usize, is_stop: fn(u8) -> bool) -> Option<usize> {
+fn scan_bounded(
+    input: &str,
+    start: usize,
+    max_len: usize,
+    is_stop: fn(u8) -> bool,
+) -> Option<usize> {
     let bytes = input.as_bytes();
     let mut end = start;
     while end < bytes.len() && !is_stop(bytes[end]) {
@@ -150,11 +145,13 @@ impl Detector for OtpauthDetector {
         let mut position = 0usize;
 
         while position <= bytes.len() {
-            let Some((prefix_start, prefix_end, signal)) = PREFIXES.iter().find_map(|&(prefix, signal)| {
-                let end = position + prefix.len();
-                (end <= bytes.len() && bytes[position..end] == *prefix.as_bytes())
-                    .then_some((position, end, signal))
-            }) else {
+            let Some((prefix_start, prefix_end, signal)) =
+                PREFIXES.iter().find_map(|&(prefix, signal)| {
+                    let end = position + prefix.len();
+                    (end <= bytes.len() && bytes[position..end] == *prefix.as_bytes())
+                        .then_some((position, end, signal))
+                })
+            else {
                 position += super::text::char_at(input, position).map_or(1, char::len_utf8);
                 continue;
             };
