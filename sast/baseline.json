@@ -1,0 +1,305 @@
+{
+  "findings": {
+    "02cde1c79eaa60d5": {
+      "classification": "false_positive",
+      "line": 336,
+      "path": "scripts/check-python-package.py",
+      "rationale": "The URL is built from a fixed, hardcoded registry host (pypi.org, crates.io, or registry.npmjs.org) with only a package/crate name path-appended; the host is never attacker-influenced, so this cannot be redirected to an untrusted origin.",
+      "rule_id": "sast.rules.python.lang.security.audit.dynamic-urllib-use-detected"
+    },
+    "08675bcb8e6608d2": {
+      "classification": "false_positive",
+      "line": 430,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "090a52ed2485e735": {
+      "classification": "false_positive",
+      "line": 241,
+      "path": "scripts/browser-harness.mjs",
+      "rationale": "The template string builds a `<SECRET_N>` / `<TYPE_N>` redaction placeholder label for test-fixture comparison or CLI output text; it is never assigned to `innerHTML`, rendered into a DOM, or otherwise interpreted as markup, so the XSS this rule guards against cannot occur here.",
+      "rule_id": "sast.rules.javascript.lang.security.html-in-template-string"
+    },
+    "0c880b57b357d1bb": {
+      "classification": "false_positive",
+      "line": 523,
+      "path": "scripts/check-rust-workspace.py",
+      "rationale": "The URL is built from a fixed, hardcoded registry host (pypi.org, crates.io, or registry.npmjs.org) with only a package/crate name path-appended; the host is never attacker-influenced, so this cannot be redirected to an untrusted origin.",
+      "rule_id": "sast.rules.python.lang.security.audit.dynamic-urllib-use-detected"
+    },
+    "1e1300c67c36372d": {
+      "classification": "false_positive",
+      "line": 22,
+      "path": "packages/javascript/src/formatters.ts",
+      "rationale": "The template string builds a `<SECRET_N>` / `<TYPE_N>` redaction placeholder label for test-fixture comparison or CLI output text; it is never assigned to `innerHTML`, rendered into a DOM, or otherwise interpreted as markup, so the XSS this rule guards against cannot occur here.",
+      "rule_id": "sast.rules.javascript.lang.security.html-in-template-string"
+    },
+    "22f2bb62f9acadd4": {
+      "classification": "false_positive",
+      "line": 285,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "24e8db64636972d7": {
+      "classification": "false_positive",
+      "line": 354,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "29da2f4e39475b91": {
+      "classification": "false_positive",
+      "line": 221,
+      "path": "scripts/run-sast.py",
+      "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
+      "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
+    },
+    "31fc2ae115215156": {
+      "classification": "false_positive",
+      "line": 586,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "43db5c0804ad2c58": {
+      "classification": "false_positive",
+      "line": 280,
+      "path": "scripts/qualify-cli-binary.mjs",
+      "rationale": "The template string builds a `<SECRET_N>` / `<TYPE_N>` redaction placeholder label for test-fixture comparison or CLI output text; it is never assigned to `innerHTML`, rendered into a DOM, or otherwise interpreted as markup, so the XSS this rule guards against cannot occur here.",
+      "rule_id": "sast.rules.javascript.lang.security.html-in-template-string"
+    },
+    "49ee517623249dd4": {
+      "classification": "false_positive",
+      "line": 553,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "638af74061133716": {
+      "classification": "false_positive",
+      "line": 303,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "7a42fd3bd154ca27": {
+      "classification": "false_positive",
+      "line": 878,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "856c95923ce13904": {
+      "classification": "false_positive",
+      "line": 305,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "8a43d95927506619": {
+      "classification": "false_positive",
+      "line": 877,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "96f6bae29f028134": {
+      "classification": "false_positive",
+      "line": 162,
+      "path": "scripts/browser-package-harness.mjs",
+      "rationale": "The template string builds a `<SECRET_N>` / `<TYPE_N>` redaction placeholder label for test-fixture comparison or CLI output text; it is never assigned to `innerHTML`, rendered into a DOM, or otherwise interpreted as markup, so the XSS this rule guards against cannot occur here.",
+      "rule_id": "sast.rules.javascript.lang.security.html-in-template-string"
+    },
+    "aec2b8ae9020368d": {
+      "classification": "false_positive",
+      "line": 394,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "b0d617d9f421f686": {
+      "classification": "false_positive",
+      "line": 113,
+      "path": "scripts/verify-release-governance.py",
+      "rationale": "The URL is built from a fixed, hardcoded registry host (pypi.org, crates.io, or registry.npmjs.org) with only a package/crate name path-appended; the host is never attacker-influenced, so this cannot be redirected to an untrusted origin.",
+      "rule_id": "sast.rules.python.lang.security.audit.dynamic-urllib-use-detected"
+    },
+    "b1a7317ab9f842fe": {
+      "classification": "false_positive",
+      "line": 293,
+      "path": "scripts/run-sast.py",
+      "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
+      "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
+    },
+    "b48cb559dc871d68": {
+      "classification": "false_positive",
+      "line": 353,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "b544574e5c73c44d": {
+      "classification": "false_positive",
+      "line": 85,
+      "path": "scripts/install-opengrep.py",
+      "rationale": "The URL is built from a fixed, hardcoded registry host (pypi.org, crates.io, or registry.npmjs.org) with only a package/crate name path-appended; the host is never attacker-influenced, so this cannot be redirected to an untrusted origin.",
+      "rule_id": "sast.rules.python.lang.security.audit.dynamic-urllib-use-detected"
+    },
+    "b9a4504f44a95b0b": {
+      "classification": "false_positive",
+      "line": 304,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "ba28dfbc29b2211c": {
+      "classification": "false_positive",
+      "line": 525,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "c033a11f58a39bcb": {
+      "classification": "false_positive",
+      "line": 277,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "c91a0ea10933026c": {
+      "classification": "false_positive",
+      "line": 90,
+      "path": "scripts/install-opengrep.py",
+      "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
+      "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
+    },
+    "e7acd9e8d80c2913": {
+      "classification": "false_positive",
+      "line": 330,
+      "path": "scripts/qualify-python-wheel.py",
+      "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
+      "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
+    },
+    "f8422aff92572097": {
+      "classification": "false_positive",
+      "line": 136,
+      "path": "scripts/qualify-node-addon.mjs",
+      "rationale": "The template string builds a `<SECRET_N>` / `<TYPE_N>` redaction placeholder label for test-fixture comparison or CLI output text; it is never assigned to `innerHTML`, rendered into a DOM, or otherwise interpreted as markup, so the XSS this rule guards against cannot occur here.",
+      "rule_id": "sast.rules.javascript.lang.security.html-in-template-string"
+    },
+    "f8dbf3e31005bcd2": {
+      "classification": "false_positive",
+      "line": 393,
+      "path": "conformance/schema.ts",
+      "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
+      "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
+    },
+    "fc19e3365b5260b7": {
+      "classification": "false_positive",
+      "line": 70,
+      "path": "crates/secret-scan-cli/src/main.rs",
+      "rationale": "The flagged call is `env::args_os().skip(1)`: argv[0] is explicitly discarded before the remaining arguments are used as scan-target paths, so the exact property this audit rule warns about (relying on argv[0] for a security decision) does not apply.",
+      "rule_id": "sast.rules.rust.lang.security.args-os"
+    }
+  },
+  "known_errors": {
+    "1910ef602dbe5d21": {
+      "line": 202,
+      "path": ".github/workflows/python-wheels.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "46be0cbbc827f3e4": {
+      "line": 126,
+      "path": ".github/workflows/release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "4fbd3042f39fc946": {
+      "line": 555,
+      "path": ".github/workflows/release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "58db1f41a5f32d57": {
+      "line": 240,
+      "path": ".github/workflows/artifact-qualification.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "69796645ea40e01f": {
+      "line": 29,
+      "path": "packages/javascript/src/native.ts",
+      "rationale": "OpenGrep 1.30.0's TypeScript parser does not yet support the `unique symbol` type annotation; this is a parser limitation in the pinned tool version, not a defect in this file. Tracked for re-check on the next reviewed OpenGrep version bump.",
+      "type": "PartialParsing"
+    },
+    "89865c31cebf859b": {
+      "line": 141,
+      "path": ".github/workflows/release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "8de64750f2db6afc": {
+      "line": 196,
+      "path": ".github/workflows/reconcile-release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "902c789568df85af": {
+      "line": 144,
+      "path": ".github/workflows/release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "990e9b8d9ba60922": {
+      "line": 400,
+      "path": ".github/workflows/reconcile-release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "a8dbe64c131041c0": {
+      "line": 254,
+      "path": ".github/workflows/reconcile-release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "ad916cdd569d2240": {
+      "line": 474,
+      "path": ".github/workflows/release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "b63e833736236849": {
+      "line": 337,
+      "path": ".github/workflows/reconcile-release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "d3412fa11bb7f8e7": {
+      "line": 343,
+      "path": ".github/workflows/release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "ddae8eddf7def90b": {
+      "line": 455,
+      "path": ".github/workflows/release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "edfc722d378b9073": {
+      "line": 155,
+      "path": ".github/workflows/release.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "faf0504b069b8fcd": {
+      "line": 212,
+      "path": ".github/workflows/python-wheels.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    }
+  }
+}

@@ -19,7 +19,7 @@
     "browser:qualify": "node scripts/qualify-browser-artifact.mjs",
     "addon:qualify": "node scripts/qualify-node-addon.mjs",
     "cli:qualify": "node scripts/qualify-cli-binary.mjs",
-    "ci": "npm run decisions:validate && npm run legacy-identifiers:check && npm run python:check && npm run artifacts:check && npm run coverage:check && npm run release-manifest:test && npm run reconcile-guard:test && npm run reconcile-artifact-plan:test && npm run release-environment:check && npm run release-gate:check && npm run release-refs:check && npm run js:typecheck && npm run js:test",
+    "ci": "npm run decisions:validate && npm run legacy-identifiers:check && npm run python:check && npm run artifacts:check && npm run coverage:check && npm run release-manifest:test && npm run reconcile-guard:test && npm run reconcile-artifact-plan:test && npm run release-environment:check && npm run release-gate:check && npm run release-refs:check && npm run sast:test && npm run js:typecheck && npm run js:test",
     "decisions:validate": "python3 -B -m unittest discover -s scripts/tests -p 'test_validate_decisions.py' && python3 -B scripts/validate-decisions.py",
     "legacy-identifiers:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_legacy_identifiers.py' && python3 -B scripts/check-legacy-identifiers.py",
     "python:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_python_package.py' && python3 -B scripts/check-python-package.py",
@@ -33,6 +33,8 @@
     "release-gate:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_release_gate.py' && python3 -B scripts/check-release-gate.py",
     "release-refs:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_check_release_refs.py' && python3 -B scripts/check-release-refs.py",
     "registry-preflight:check": "python3 -B -m unittest discover -s scripts/tests -p 'test_verify_release_governance.py' && python3 -B scripts/verify-release-governance.py --repo redact-secret/redact-secret --check-repo --environment \"\" --branch \"\" --npm @redact-secret/core --npm @redact-secret/wasm --npm @redact-secret/node-darwin-arm64 --npm @redact-secret/node-darwin-x64 --npm @redact-secret/node-linux-arm64-gnu --npm @redact-secret/node-linux-x64-gnu --npm @redact-secret/node-win32-arm64-msvc --npm @redact-secret/node-win32-x64-msvc --crate redact-secret --crate redact-secret-cli --pypi redact-secret",
+    "sast:test": "python3 -B -m unittest discover -s scripts/tests -p 'test_install_opengrep.py' && python3 -B -m unittest discover -s scripts/tests -p 'test_run_sast.py'",
+    "sast:scan": "python3 -B scripts/run-sast.py",
     "release:check": "npm run ci && npm run registry-preflight:check && npm pack --dry-run ./packages/javascript",
     "release": "npm publish --access public ./packages/javascript"
   },
