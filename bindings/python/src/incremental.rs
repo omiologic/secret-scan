@@ -53,8 +53,10 @@ use crate::{
 /// ask about. The core never retains more than `max_buffered_bytes` of
 /// unresolved input, so once a call returns, no later finding can start
 /// before `total_bytes - max_buffered_bytes`; everything below that is
-/// collapsed into a running count. Memory is therefore bounded by the
-/// session's declared buffer limit rather than by its total input.
+/// collapsed into a running count. During `observe`, the index also includes
+/// the entire incoming chunk until result conversion completes. Pruning bounds
+/// live offsets between calls, but `VecDeque` can retain its peak allocation
+/// until `clear`; the buffer limit alone is not a bound on index memory.
 pub(crate) struct CodePointIndex {
     /// Absolute byte offsets, ascending, of continuation bytes at or above
     /// `floor`.

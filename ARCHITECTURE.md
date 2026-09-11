@@ -233,6 +233,10 @@ For accepted input within the declared limits, concatenated incremental output
 and findings must equal a whole-input scan over the same logical string,
 regardless of chunk partitioning.
 
+The JavaScript adapter contracts exist, but neither current Node nor browser
+artifact builds a session: their factories return `INCREMENTAL_UNAVAILABLE`.
+Rust, Python, and CLI standard input expose working incremental sanitization.
+
 Byte-stream adapters own one fatal, stateful UTF-8 decoder so a multibyte scalar
 may cross chunks without becoming a detection boundary. Node adapters integrate
 with `Transform`; browser adapters integrate with `TransformStream`. Bindings
@@ -392,8 +396,8 @@ least-privilege workflow permissions and commit-pinned third-party actions.
 See [docs/qualification.md](./docs/qualification.md), which also records the
 one deliberate asymmetry: neither JavaScript artifact builds a streaming
 session, so `createIncrementalSanitizer` reports `INCREMENTAL_UNAVAILABLE` on
-both runtimes while the Python binding offers it, and the CLI ships no musl
-variant while the N-API addon does.
+both runtimes while the Python binding offers it, and neither the CLI nor npm
+ships a musl variant. The musl N-API addons are built and qualified only.
 
 Release readiness does not authorize selecting a version, tagging, publishing,
 deploying, or archiving another repository. Those actions require the separate

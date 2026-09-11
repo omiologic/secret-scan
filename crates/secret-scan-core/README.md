@@ -6,7 +6,7 @@ translates to it rather than reimplementing detector behavior.
 
 Path: `crates/secret-scan-core`. Registry name: `redact-secret` (library
 `redact_secret`); see
-[docs/rust-workspace.md](../../docs/rust-workspace.md#registry-names).
+[workspace documentation](https://github.com/redact-secret/redact-secret/blob/main/docs/rust-workspace.md#registry-names).
 
 ## Boundary
 
@@ -91,6 +91,5 @@ reviewed manifest change.
   that emits only text whose detection window is closed and accepts input
   independently of how a caller partitions it into chunks.
 
-Until the Rust core passes the shared conformance corpus, the TypeScript
-implementation in `src/` remains the behavioral oracle
-(`decision-govern-cross-language-conformance`).
+The Rust core runs the canonical `conformance/fixtures/` corpus. The former
+TypeScript implementation has been removed; there is no second detector core.

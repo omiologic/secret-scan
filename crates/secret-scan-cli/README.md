@@ -41,6 +41,12 @@ whole report: the core numbers each scan from `finding-1` and a multi-file
 check runs one scan per file, so the report renumbers run-wide rather than
 handing a consumer colliding keys.
 
+Text reports and stderr diagnostics escape source-path backslashes and
+non-printing characters (for example, a newline becomes `\n`) so a filename
+cannot inject another record or terminal control sequence. JSON retains the
+original source identity through JSON string escaping; use it for automation.
+Paths are caller-supplied labels: do not put credentials in filenames.
+
 ## Redact mode
 
 `--redact` reads standard input, or exactly one path, and writes the sanitized

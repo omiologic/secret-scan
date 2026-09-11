@@ -12,26 +12,16 @@ reimplementing it.
 > Client-side scanning is preventive UX. Server-side scanning is the
 > authoritative enforcement boundary.
 
-## Migration and release status
+## Start here
 
-The repository has completed its migration from a TypeScript implementation to
-the [Rust-core monorepo architecture](./ARCHITECTURE.md). Progress was tracked
-by [issue #3](https://github.com/redact-secret/redact-secret/issues/3) and its linked
-sub-issues.
+Read the [documentation](./docs/README.md) for installation, language guides,
+policy, detection limits, and troubleshooting. The current checkout uses one
+Rust core through runtime-specific bindings; its executable behavior contract
+lives in [conformance](./conformance/README.md).
 
-The published `@redact-secret/core` npm package is `packages/javascript`,
-which loads the Rust core through Node N-API or browser WebAssembly and never
-reimplements detector, policy, or redaction behavior. The TypeScript detector
-core that previously served as the behavioral oracle has been removed; the
-canonical behavioral contract is the fixture corpus under
-[`conformance/fixtures/`](./conformance/README.md).
-
-No release is authorized by the version values currently present in development
-manifests. Installation from npm, PyPI, crates.io, or binary distribution
-channels applies only after a separately approved release.
-
-For repository development, run `npm ci` followed by the checks in
-[Development](#development).
+Registry installation instructions apply to an approved published release.
+Development manifest versions alone do not establish availability. To try this
+checkout before publication, use the [source setup](./docs/getting-started.md).
 
 ## Architecture at a glance
 
@@ -159,33 +149,13 @@ chunk boundary. The bounded incremental API retains unresolved plaintext until
 a detector window closes, finalization supplies the end-of-input boundary, or a
 declared limit fails.
 
-```ts
-import {
-  createIncrementalSanitizer,
-  initialize,
-} from "@redact-secret/core";
+**Current support:** Rust, Python, and CLI standard input support incremental
+sanitization. The Node and browser artifacts do not: JavaScript session and
+stream factories fail with `INCREMENTAL_UNAVAILABLE`. Use bounded whole-input
+operations in JavaScript. See [streaming](./docs/guides/streaming.md).
 
-await initialize();
-
-const session = createIncrementalSanitizer({
-  limits: {
-    maxInputCodeUnits: 1_000_000,
-    maxBufferedCodeUnits: 32_896,
-    maxTokenCodeUnits: 8_192,
-    maxMultilineCodeUnits: 32_768,
-  },
-});
-
-const first = session.append("api_key=SYNTHETIC_REVOKED_");
-const second = session.append("INCREMENTAL_VALUE\nordinary text");
-const final = session.finalize();
-
-const safeText = first.text + second.text + final.text;
-// api_key=<SECRET_1>\nordinary text
-```
-
-The same session is available to Python, where limits are UTF-8 byte counts and
-findings carry absolute Unicode code point offsets into the joined input:
+Python limits count UTF-8 bytes, while findings carry absolute Unicode code
+point offsets into the joined input:
 
 ```python
 import redact_secret

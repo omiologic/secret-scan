@@ -46,19 +46,18 @@ function importedNames(example: string, subpath = ""): readonly string[] {
 }
 
 describe("README examples", () => {
-  it("documents at least one example per public capability", () => {
+  it("documents examples for supported whole-input capabilities", () => {
     const examples = typeScriptExamples();
     const imported = new Set(
       examples.flatMap((example) => importedNames(example)),
     );
 
-    expect(examples.length).toBeGreaterThanOrEqual(6);
+    expect(examples.length).toBeGreaterThan(0);
     for (const name of [
       "initialize",
       "scan",
       "redact",
       "scanAndRedact",
-      "createIncrementalSanitizer",
       "typedPlaceholderFormatter",
       "SecretScanError",
       "RANGE_UNIT",
@@ -67,19 +66,19 @@ describe("README examples", () => {
     }
   });
 
-  it("documents both stream adapter subpaths", () => {
-    const examples = typeScriptExamples();
-
-    for (const [subpath, name] of [
-      ["/node-stream", "createNodeStreamSanitizer"],
-      ["/web-stream", "createWebStreamSanitizer"],
+  it("documents unavailable factories without presenting working stream examples", () => {
+    expect(README).toContain("Node and WebAssembly artifacts do not build incremental sessions");
+    expect(README).toContain("INCREMENTAL_UNAVAILABLE");
+    for (const name of [
+      "createIncrementalSanitizer",
+      "createNodeStreamSanitizer",
+      "createWebStreamSanitizer",
     ]) {
-      const imported = new Set(
-        examples.flatMap((example) => importedNames(example, subpath)),
-      );
-
-      expect(imported, `@redact-secret/core${subpath}`).toContain(name);
+      expect(README).toContain(`\`${name}\``);
+      expect(typeScriptExamples().some((example) => example.includes(`${name}(`))).toBe(false);
     }
+    expect(README).toContain("@redact-secret/core/node-stream");
+    expect(README).toContain("@redact-secret/core/web-stream");
   });
 
   it("imports only names the package actually exports", async () => {

@@ -136,8 +136,8 @@ fn ordered_and_disjoint<'a>(
 /// pass their span through unchanged; `redact` and `block` findings have
 /// their span replaced by `formatter`'s output.
 ///
-/// `findings` need not be pre-sorted or non-overlapping; this function
-/// establishes both before producing output.
+/// `findings` need not be pre-sorted. This function sorts them and rejects
+/// overlapping ranges before producing output; it does not resolve overlaps.
 ///
 /// # Examples
 ///

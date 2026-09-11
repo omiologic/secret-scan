@@ -546,16 +546,19 @@ fn an_ordinary_long_line_behaves_the_same_streamed_or_by_path() {
     );
     let path = scratch.write("bundle.js", &contents);
 
-    let streamed = run_args(&[], contents.as_bytes());
-    let by_path = run(&[&path], b"");
+    let streamed = run_args(&["--json"], contents.as_bytes());
+    let by_path = run(&[Path::new("--json"), &path], b"");
 
     assert_eq!(streamed.code, 1, "a long line must not fail a streamed run");
     assert_eq!(by_path.code, 1);
+    // Compare the structured findings, not rendered source labels: text
+    // reports escape Windows backslashes and other non-printing characters.
+    let streamed_report: serde_json::Value = serde_json::from_str(&streamed.stdout).unwrap();
+    let path_report: serde_json::Value = serde_json::from_str(&by_path.stdout).unwrap();
+    assert_eq!(streamed_report["findingCount"], 1);
+    assert_eq!(path_report["findingCount"], 1);
     assert_eq!(
-        streamed.stdout.replace("<stdin>", "SOURCE"),
-        by_path
-            .stdout
-            .replace(&path.to_string_lossy().into_owned(), "SOURCE"),
+        streamed_report["sources"][0]["findings"], path_report["sources"][0]["findings"],
         "the two paths must report the same finding at the same offsets",
     );
 

@@ -119,11 +119,12 @@ impl Report {
 
     fn render_text(&self, out: &mut dyn Write, diagnostics: &mut dyn Write) -> io::Result<()> {
         for source in &self.sources {
+            let identity = text_identity(&source.identity);
             for finding in &source.findings {
                 writeln!(
                     out,
                     "{}:{}-{} {} detector={} confidence={} action={} id={}",
-                    source.identity,
+                    identity,
                     finding.start,
                     finding.end,
                     finding.type_name,
@@ -249,7 +250,7 @@ impl Report {
             writeln!(
                 diagnostics,
                 "redact-secret: {}: {}: {}",
-                failure.identity,
+                text_identity(&failure.identity),
                 failure.failure.code(),
                 failure.failure.message(),
             )
@@ -257,6 +258,12 @@ impl Report {
         }
         Ok(())
     }
+}
+
+/// Keeps host-supplied paths on one line without terminal control sequences.
+/// Escape backslashes too, so a literal `\n` differs from an actual newline.
+fn text_identity(identity: &str) -> String {
+    identity.chars().flat_map(char::escape_debug).collect()
 }
 
 /// The comma a JSON array needs after every element but its last.
@@ -431,5 +438,31 @@ mod tests {
             String::from_utf8(diagnostics).unwrap(),
             "redact-secret: b.bin: INPUT_LIMIT_EXCEEDED: Incremental sanitizer input limit exceeded.\n"
         );
+    }
+
+    #[test]
+    fn text_sources_cannot_inject_records_or_terminal_controls() {
+        let identity = "한글\\n\n\r\t\u{1b}[31m\u{85}\u{2028}\u{2029}.env";
+        let mut report = Report::new();
+        report.push_source(identity.to_owned(), vec![finding("finding-1", 8, 48)]);
+        report.push_failure(identity.to_owned(), Failure::NotUtf8);
+        let (mut out, mut diagnostics) = (Vec::new(), Vec::new());
+        report.write_text(&mut out, &mut diagnostics).unwrap();
+        report.write_diagnostics(&mut diagnostics).unwrap();
+        let out = String::from_utf8(out).unwrap();
+        let diagnostics = String::from_utf8(diagnostics).unwrap();
+        assert_eq!(out.lines().count(), 1);
+        assert_eq!(diagnostics.lines().count(), 2);
+        let escaped = r"한글\\n\n\r\t\u{1b}[31m\u{85}\u{2028}\u{2029}.env";
+        assert!(out.starts_with(escaped));
+        assert!(diagnostics.contains(&format!("redact-secret: {escaped}: NOT_UTF8:")));
+        for rendered in [&out, &diagnostics] {
+            assert!(!rendered.contains(['\r', '\t', '\u{1b}', '\u{85}', '\u{2028}', '\u{2029}']));
+        }
+        let mut json = Vec::new();
+        report.write_json(&mut json).unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&json).unwrap();
+        assert_eq!(parsed["sources"][0]["source"], identity);
+        assert_eq!(parsed["failures"][0]["source"], identity);
     }
 }
