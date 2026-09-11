@@ -75,6 +75,11 @@ WRITE_SCOPE_ALLOWLIST = {
     ("release.yml", "publish-pypi", "id-token"),
     ("reconcile-release.yml", "reconcile", "contents"),
     ("reconcile-release.yml", "reconcile", "id-token"),
+    # Issue #156: scoped solely to the best-effort SARIF upload step; the
+    # gate itself (the scan's own exit code) needs no more than contents:
+    # read, and code-scanning upload availability is never the enforcement
+    # signal.
+    ("sast.yml", "opengrep", "security-events"),
 }
 
 # A named top-level job block: `  <job-name>:` through the line before the
