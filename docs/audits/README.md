@@ -18,6 +18,7 @@ and its [cross-platform qualification follow-up](release-qualification-follow-up
 | CI and supply chain | [Automation review](ci-release-automation-supply-chain-review.md) |
 | Remediation classification | [Release gaps](release-gap-disposition.md), [deferred quality](deferred-quality-backlog.md) |
 | Earlier release readiness | [Readiness audit](release-readiness-audit.md) |
+| Independent repeat audit (#145) | [Revision-bound verdict and residual findings](repeated-release-readiness-audit.md) |
 | Detection assurance | [Closeout](detection-assurance-closeout-audit.md), [residual evidence](detection-assurance-residual-evidence-backlog.md) |
 | Repository transfer | [Transfer evidence](repository-transfer-evidence.md) |
 | Release authority and publishers | [Recorded evidence](release-approval-and-registry-publisher-evidence.md) |
