@@ -1,6 +1,6 @@
-# Contributing and local validation
+# Developer onboarding and local validation
 
-[Documentation home](README.md)
+[Documentation home](README.md) · [Contribution guide](../CONTRIBUTION.md)
 
 Read [architecture](../ARCHITECTURE.md), [conventions](../CONVENTIONS.md),
 [decisions](decisions/DECISIONS.md), and [workspace policy](rust-workspace.md)
@@ -45,7 +45,7 @@ are preserved for traceability.
 
 ## Release boundary
 
-Review changes to the public API and [Unreleased changelog](../CHANGELOG.md).
+Review changes to the public API and [candidate changelog](../CHANGELOG.md).
 Local green tests are not cross-platform qualification or registry verification.
 Release approval, version selection, tagging, publication, and deployment follow
 [the repository's release authority](../AGENTS.md); editing or reviewing the

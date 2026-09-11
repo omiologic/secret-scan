@@ -3,7 +3,7 @@
 This file records the candidate product contract. Candidate notes are not a
 publication record and do not authorize a release.
 
-## Unreleased
+## 0.1.0-beta.1 (unreleased candidate)
 
 ### Product and packages
 
