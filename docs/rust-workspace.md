@@ -33,7 +33,8 @@ yet applied, in
 `packages/javascript` is the only tracked manifest that declares the package
 name `@redact-secret/core`; it is what `npm publish` publishes. The
 repository root `package.json` is private tooling for this monorepo and
-declares no package name of its own. This was not always true: until
+is named `redact-secret-workspace` and is not a published product. This was not
+always true: until
 `RB-2` (issue #72) cut the published artifact over, the repository-root
 TypeScript implementation (`src/`, `test/`) was a second manifest under the
 same name and the released package.
@@ -63,10 +64,10 @@ wrapper's own `publish` job declares both in `needs:`
 eligible ahead of them. `scripts/publish-dependency-package.mjs` is
 idempotent by registry state rather than by a cutover-vs-routine switch: the
 first dispatch, with nothing published yet, publishes all seven packages;
-every routine dispatch after it finds them already published, verifies the
-registry's content still matches this revision's, and skips republishing
-(npm versions are immutable). One dispatch of `Release`, gated on the
-release approval `AGENTS.md` mandates, is both the first cutover and every
+a retry for the same version verifies matching registry content and skips
+republishing it (npm versions are immutable). A new product version publishes
+new dependency versions in the same graph. One dispatch of `Release`, gated on
+the release approval `AGENTS.md` mandates, is both the first cutover and every
 release after it -- there is no separate "publish only the wrapper" path.
 
 ## Policies
@@ -91,7 +92,7 @@ other warning-level lints also fail the build there.
 `cargo test --workspace --locked` runs on Linux, macOS, and Windows. Tests
 must be deterministic and must not embed real credentials; the same fixture
 rules as the TypeScript suite apply. Cross-language behavior is exercised by
-the conformance corpus once it exists, not by per-binding copies.
+the canonical conformance corpus, not by per-binding copies.
 
 ### Dependency
 
@@ -205,7 +206,7 @@ each `LOCKSTEP_MANIFESTS` entry individually and asserts the check reports it.
 `bindings/python/pyproject.toml` declares `version = "dynamic"` and takes its
 version from `bindings/python/Cargo.toml` at build time, so it needs no entry
 of its own — it is covered by the Cargo member check. The repository root
-`package.json` is private tooling, declares no package name, and is not
+`package.json` is private tooling named `redact-secret-workspace` and is not
 version-locked to the product: `RB-2` (issue #72) removed it from
 `LOCKSTEP_MANIFESTS` when it cut the published npm artifact over to
 `packages/javascript`, the only manifest that still declares

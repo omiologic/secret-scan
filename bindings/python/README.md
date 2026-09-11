@@ -130,8 +130,10 @@ Python package lives under `python/redact_secret/`.
   states, and the incremental policy callback. Its `CodePointIndex` converts
   the core's absolute UTF-8 byte offsets to the absolute code point offsets a
   session reports, by recording only where the input's UTF-8 continuation bytes
-  fall - never the characters themselves - within a window bounded by the
-  session's own `max_buffered_bytes`.
+  fall, never the characters themselves. Between successful calls it prunes
+  offsets outside `max_buffered_bytes`; while processing a call it also indexes
+  the incoming chunk, and its allocation can retain that peak capacity until
+  the session ends. Bound host chunk sizes as well as session limits.
 - `python/redact_secret/__init__.py` re-exports the native module's public
   surface; `python/redact_secret/_native.pyi` and `py.typed` mark the package as
   typed.

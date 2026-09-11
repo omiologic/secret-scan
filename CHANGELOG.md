@@ -7,6 +7,9 @@ select or authorize a release.
 
 ### Added
 
+- A consumer documentation hub under `docs/`, with source setup, language
+  guides, policy and range contracts, streaming limits, and troubleshooting.
+
 - A cross-platform qualification matrix (#33). The new `Artifact qualification`
   workflow builds and proves every supported artifact from one commit and
   publishes nothing: it calls `CI` and `Python wheels` for the Rust workspace
@@ -311,6 +314,13 @@ select or authorize a release.
   `scripts/migrate-incremental-corpus.ts`) was removed with it.
 
 ### Fixed
+
+- CLI text reports and diagnostics escape control characters and backslashes
+  in source paths, preventing forged report lines and terminal control output.
+  JSON source identities still round-trip without changing the path.
+- Corrected JavaScript streaming availability and supported Node versions,
+  musl publication claims, obsolete TypeScript-oracle references, and the Rust
+  redaction documentation: overlapping caller ranges are rejected.
 
 - Every job in `Package Release Rehearsal` now declares its own permissions
   rather than inheriting the workflow default.

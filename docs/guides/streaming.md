@@ -1,0 +1,72 @@
+# Incremental sanitization and streams
+
+[Documentation home](../README.md)
+
+| Surface | Current incremental support |
+| --- | --- |
+| Rust | `IncrementalSanitizer` |
+| Python | `IncrementalSanitizer` |
+| CLI | Standard input |
+| JavaScript Node and browser artifacts | Unavailable; factories return `INCREMENTAL_UNAVAILABLE` |
+
+A secret may cross any chunk boundary. Scanning each chunk independently can
+leak it. A session retains unresolved text until its detection window closes,
+then emits text and findings. An append may legitimately return empty text.
+
+## Python example
+
+```python
+import redact_secret
+
+max_token = 8_192
+max_multiline = 32_768
+limits = redact_secret.IncrementalLimits(
+    max_input_bytes=1_000_000,
+    max_buffered_bytes=redact_secret.IncrementalLimits.minimum_buffered_bytes(
+        max_token, max_multiline
+    ),
+    max_token_bytes=max_token,
+    max_multiline_bytes=max_multiline,
+)
+with redact_secret.IncrementalSanitizer(limits) as session:
+    first = session.append("api_key=SYNTHETIC_REVOKED_")
+    second = session.append("INCREMENTAL_VALUE\nordinary text")
+    final = session.finalize()
+
+safe_text = first.text + second.text + final.text
+assert safe_text == "api_key=<SECRET_1>\nordinary text"
+```
+
+The four limits cover total accepted input, retained unresolved input, an open
+single-line construct, and an open multiline construct. Rust and Python count
+UTF-8 bytes; Python findings still count code points. Use the minimum-buffer
+helper rather than copying private lookaround arithmetic. The token bound
+applies to unresolved logical lines, not just credential length, so long
+minified or unbroken ordinary text can exceed it.
+
+Python also temporarily indexes Unicode continuation-byte positions for the
+whole incoming chunk before pruning. The index can keep its peak allocated
+capacity until session cleanup. Bound incoming chunk sizes; `max_buffered_bytes`
+alone does not cap all binding memory.
+
+## Lifecycle and failure
+
+A session starts `accepting` and becomes terminally `finalized`, `aborted`, or
+`failed`. Call `finalize()` once to supply end-of-input and emit retained text.
+`abort()` discards retained text. Leaving the Python context manager aborts an
+unfinished session. Lifecycle misuse and limit or callback failures drop
+retained plaintext and use fixed errors.
+
+Concatenate every append result and the final result in order. For accepted
+input within the limits, output and findings must match whole-input operation
+on the same logical string. Findings use absolute original-input positions;
+placeholder numbering continues across emissions.
+
+If reading bytes, use one strict stateful UTF-8 decoder across chunks, and flush
+it at EOF. A UTF-8 code point can cross a byte boundary. Python session `append`
+accepts text, not bytes; the host owns decoding, cancellation, and backpressure.
+
+Previously emitted text cannot be recalled after a later failure. Require
+successful finalization before committing output when your application needs
+all-or-nothing processing. Discarding retained text is not a guarantee of secure
+memory zeroization or erasure of caller-owned input.
