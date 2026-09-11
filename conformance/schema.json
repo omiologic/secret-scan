@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/omiologic/secret-scan/conformance/schema.json",
+  "$id": "https://github.com/redact-secret/redact-secret/conformance/schema.json",
   "title": "Canonical conformance fixture corpus",
   "description": "Language-neutral fixture schema for decision-govern-cross-language-conformance. Expected ranges (`expected[].start`/`end`) are UTF-8 byte offsets into `input` encoded as UTF-8, not UTF-16 code units and not Unicode scalar counts. Structural constraints this document cannot express — no overlapping expectations, ranges within input bounds, and detector-per-fixture consistency rules — are enforced by the accompanying validator (conformance/schema.ts and equivalent tooling in other languages) and MUST be checked in addition to this schema.",
   "type": "object",

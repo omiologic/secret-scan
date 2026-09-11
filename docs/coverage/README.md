@@ -1,7 +1,7 @@
 # Detector/finding-type/policy/consumer coverage baseline
 
-The deterministic baseline issue [#101](https://github.com/omiologic/secret-scan/issues/101)
-(tracking-key `dacd-f1-t1`, under Epic [#96](https://github.com/omiologic/secret-scan/issues/96))
+The deterministic baseline issue [#101](https://github.com/redact-secret/redact-secret/issues/101)
+(tracking-key `dacd-f1-t1`, under Epic [#96](https://github.com/redact-secret/redact-secret/issues/96))
 asks for: one inventory row per built-in detector and emitted finding type,
 each distinguished as `supported`, `intentionally-unsupported`,
 `not-applicable`, or `unresolved`, without treating a raw fixture count as
@@ -44,7 +44,7 @@ sufficient coverage evidence.
   (`coverage-declarations.json`'s `pending` dimension cells, below) are
   tracked as
   [`docs/audits/detection-assurance-residual-evidence-backlog.md`](../audits/detection-assurance-residual-evidence-backlog.md)
-  by issue [#136](https://github.com/omiologic/secret-scan/issues/136).
+  by issue [#136](https://github.com/redact-secret/redact-secret/issues/136).
 
 Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_coverage_inventory.py'`.
 
@@ -54,7 +54,7 @@ Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_cover
   cross-cutting `incremental` surface, and each declared consumer, with every
   evidence dimension resolved to `supported`, `not-applicable`, or `pending`
   per `evidence-requirements.md`'s requirement matrix and bounded exception
-  codes (issue [#103](https://github.com/omiologic/secret-scan/issues/103),
+  codes (issue [#103](https://github.com/redact-secret/redact-secret/issues/103),
   tracking-key `dacd-f1-t3`). Produced deterministically by
   [`scripts/generate-coverage-declarations.py`](../../scripts/generate-coverage-declarations.py)
   from `detector-inventory.json` and the canonical corpus — the same "migrate
@@ -79,7 +79,7 @@ Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_cover
   to prove the migration is deterministic).
 
 - [`coverage-report.md`](./coverage-report.md) — the reviewable coverage
-  report (issue [#104](https://github.com/omiologic/secret-scan/issues/104),
+  report (issue [#104](https://github.com/redact-secret/redact-secret/issues/104),
   tracking-key `dacd-f1-t4`): the two machine-oriented documents above,
   summarized by detector, finding type, scheme, evidence dimension, and
   unresolved/pending state, for a human reviewer to scan in one pass.
@@ -133,12 +133,12 @@ resolve honestly, and that model encoded as data:
 
 - [`evidence-requirements.md`](./evidence-requirements.md) — the minimum
   evidence dimensions per behavior class and the bounded-rationale exception
-  rule (issue [#102](https://github.com/omiologic/secret-scan/issues/102)),
+  rule (issue [#102](https://github.com/redact-secret/redact-secret/issues/102)),
   applied against every row of `detector-inventory.json` and `consumers`.
 - [`host-context-classes.md`](./host-context-classes.md) — the lexical
   classification `evidence-requirements.md` §3 relies on to avoid a
   detector-by-context Cartesian product (issue
-  [#110](https://github.com/omiologic/secret-scan/issues/110)): the five
+  [#110](https://github.com/redact-secret/redact-secret/issues/110)): the five
   representative classes, their justification against quoting, escaping,
   comments, assignment separators, headers, URLs, prose, and structured-data
   boundaries, each class's named representative context(s), and the
@@ -149,7 +149,7 @@ resolve honestly, and that model encoded as data:
 - `coverage-report.md` and "Coverage drift is a CI failure" (above) — that
   baseline and model, summarized for review and enforced in CI (issue #104).
 - [`docs/audits/detection-assurance-closeout-audit.md`](../audits/detection-assurance-closeout-audit.md) —
-  the Epic [#95](https://github.com/omiologic/secret-scan/issues/95) closeout
+  the Epic [#95](https://github.com/redact-secret/redact-secret/issues/95) closeout
   (issue #118): coverage by capability and risk dimension, the classification
   and ownership of every currently `pending` cell, and confirmation that
   public documentation matches this baseline.

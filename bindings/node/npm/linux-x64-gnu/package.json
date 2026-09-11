@@ -10,7 +10,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/omiologic/secret-scan.git",
+    "url": "git+https://github.com/redact-secret/redact-secret.git",
     "directory": "bindings/node"
   },
   "engines": {

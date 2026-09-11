@@ -13,7 +13,7 @@ secrets in an issue, pull request, test fixture, log, screenshot, or proof of
 concept.
 
 Report vulnerabilities privately through the repository's
-[GitHub security advisory form](https://github.com/omiologic/secret-scan/security/advisories/new).
+[GitHub security advisory form](https://github.com/redact-secret/redact-secret/security/advisories/new).
 Use unmistakably synthetic or revoked examples and include:
 
 - the affected API or detector;

@@ -76,7 +76,7 @@ The work that is easy to forget and expensive to add after the merge:
 - `CHANGELOG.md` entry for anything user-visible.
 - An ADR when the PR settled a decision, plus `rtk npm run decisions:validate`.
 - Docs touched by the change — `README.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`,
-  and the sibling `secret-scan.wiki` checkout when it is affected.
+  and the sibling `redact-secret.wiki` checkout when it is affected.
 - The PR body closes its issue (`Closes #<ISSUE_NUMBER>`).
 - The commit message `ghpr` generated actually describes the change.
 

@@ -77,16 +77,16 @@ class CheckLegacyIdentifiersTest(unittest.TestCase):
         )
         self.assertEqual(self.validate(), [])
 
-    def test_a_github_path_segment_is_not_flagged(self) -> None:
+    def test_the_legacy_github_path_is_rejected(self) -> None:
         self.repo.write(
             "docs/note.md",
             "https://github.com/omiologic/secret-scan/issues/1\n",
         )
-        self.assertEqual(self.validate(), [])
+        self.assertOneError("legacy identifier 'secret-scan' outside the allowlist")
 
-    def test_a_wiki_sibling_reference_is_not_flagged(self) -> None:
+    def test_the_legacy_wiki_sibling_reference_is_rejected(self) -> None:
         self.repo.write("note.txt", "checked out at ../secret-scan.wiki\n")
-        self.assertEqual(self.validate(), [])
+        self.assertOneError("legacy identifier 'secret-scan' outside the allowlist")
 
     def test_a_hit_on_an_allowlisted_path_passes(self) -> None:
         self.repo.write("CHANGELOG.md", "- Renamed the secret-scan npm package.\n")

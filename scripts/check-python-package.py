@@ -107,7 +107,7 @@ def targets_for_platform(platform: str, declared: Iterable[str]) -> list[str]:
 MINIMUM_MATURIN = (1, 10)
 MATURIN_REQUIREMENT = re.compile(r"^maturin\s*>=\s*(\d+)\.(\d+)(?:\.\d+)?\s*,\s*<\s*2$")
 
-USER_AGENT = "redact-secret packaging check (https://github.com/omiologic/secret-scan)"
+USER_AGENT = "redact-secret packaging check (https://github.com/redact-secret/redact-secret)"
 
 
 def load_policy(root: Path) -> dict:

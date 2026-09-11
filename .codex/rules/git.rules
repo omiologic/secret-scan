@@ -1,11 +1,11 @@
 # Allow ordinary Git operations only when the repository is selected explicitly.
-# Use `git -C . ...` for secret-scan and `git -C ../secret-scan.wiki ...`
+# Use `git -C . ...` for Redact Secret and `git -C ../redact-secret.wiki ...`
 # for its sibling GitHub Wiki checkout.
 prefix_rule(
     pattern = [
         "git",
         "-C",
-        [".", "../secret-scan.wiki"],
+        [".", "../redact-secret.wiki"],
         [
             "add",
             "branch",
@@ -28,17 +28,17 @@ prefix_rule(
         ],
     ],
     decision = "allow",
-    justification = "Allow ordinary Git operations for secret-scan and its sibling wiki checkout.",
+    justification = "Allow ordinary Git operations for Redact Secret and its sibling wiki checkout.",
     match = [
         "git -C . status --short --branch",
         "git -C . add .codex/config.toml",
-        "git -C ../secret-scan.wiki status --short --branch",
-        "git -C ../secret-scan.wiki push origin master",
+        "git -C ../redact-secret.wiki status --short --branch",
+        "git -C ../redact-secret.wiki push origin master",
     ],
     not_match = [
         "git status --short --branch",
         "git -C ../another-repository status",
         "git -C . clean -fd",
-        "git -C ../secret-scan.wiki reset --hard",
+        "git -C ../redact-secret.wiki reset --hard",
     ],
 )

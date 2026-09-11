@@ -280,9 +280,9 @@ artifact that reports a different one.
 
 Client-side scanning is preventive UX; server-side scanning is the
 authoritative enforcement boundary. See
-[SECURITY.md](https://github.com/omiologic/secret-scan/blob/main/SECURITY.md)
+[SECURITY.md](https://github.com/redact-secret/redact-secret/blob/main/SECURITY.md)
 for the security model and private vulnerability reporting.
 
 ## License
 
-[MIT](https://github.com/omiologic/secret-scan/blob/main/LICENSE)
+[MIT](https://github.com/redact-secret/redact-secret/blob/main/LICENSE)

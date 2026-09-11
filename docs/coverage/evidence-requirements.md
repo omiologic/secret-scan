@@ -1,7 +1,7 @@
 # Risk-based evidence requirements and exception rules
 
-Issue [#102](https://github.com/omiologic/secret-scan/issues/102)
-(tracking-key `dacd-f1-t2`, under Epic [#96](https://github.com/omiologic/secret-scan/issues/96))
+Issue [#102](https://github.com/redact-secret/redact-secret/issues/102)
+(tracking-key `dacd-f1-t2`, under Epic [#96](https://github.com/redact-secret/redact-secret/issues/96))
 asks for the minimum evidence a row of the coverage baseline
 ([`detector-inventory.json`](./detector-inventory.json)) must show before it
 can honestly resolve, and the rule for when a row may instead resolve to
@@ -11,12 +11,12 @@ This document defines that model. It does not itself change any generator or
 CI gate:
 
 - Encoding these requirements into the canonical corpus schema so they are
-  machine-validated is issue [#103](https://github.com/omiologic/secret-scan/issues/103)
+  machine-validated is issue [#103](https://github.com/redact-secret/redact-secret/issues/103)
   (tracking-key `dacd-f1-t3`) — see `conformance/schema.ts`'s
   `CanonicalCoverageDeclaration`/`validateCanonicalCoverageDeclarations` and
   the encoded result, [`docs/coverage/coverage-declarations.json`](./coverage-declarations.json).
 - Making drift from this model a CI failure is issue
-  [#104](https://github.com/omiologic/secret-scan/issues/104).
+  [#104](https://github.com/redact-secret/redact-secret/issues/104).
 
 Everything below is stated in terms of vocabulary the corpus already has
 (`conformance/schema.ts`'s `kind`, `tier`, `support`, `contexts`, `mutation`,
@@ -176,7 +176,7 @@ Applying §4's matrix and §5's exception codes to the current baseline
   already encodes this correctly. `connection_string_password` carries the
   class's extra targeted `log` context (grammar-specific leakage risk, §3)
   and resolves each of its 10 declared schemes independently: since issue
-  [#108](https://github.com/omiologic/secret-scan/issues/108) (deepened
+  [#108](https://github.com/redact-secret/redact-secret/issues/108) (deepened
   scheme and escaping coverage), every declared scheme (`postgres`,
   `postgresql`, `mysql`, `mariadb`, `mongodb`, `mongodb+srv`, `redis`,
   `rediss`, `amqp`, `amqps`) carries its own positive fixture, plus

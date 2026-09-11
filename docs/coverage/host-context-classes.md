@@ -1,7 +1,7 @@
 # Representative lexical host-context classes
 
-Issue [#110](https://github.com/omiologic/secret-scan/issues/110)
-(tracking-key `dacd-f3-t1`, under Epic [#98](https://github.com/omiologic/secret-scan/issues/98))
+Issue [#110](https://github.com/redact-secret/redact-secret/issues/110)
+(tracking-key `dacd-f3-t1`, under Epic [#98](https://github.com/redact-secret/redact-secret/issues/98))
 asks for `CanonicalHostContext` (`conformance/schema.ts`) to be grouped into
 explicit lexical classes with a justified representative set, rather than
 treating each of the 22 declared contexts as an independent axis a detector
@@ -16,7 +16,7 @@ informal version did not carry.
 
 It does not itself add fixtures or change a generator or CI gate — encoding
 representative-context fixtures for the rows this document identifies as
-gaps is issue [#111](https://github.com/omiologic/secret-scan/issues/111).
+gaps is issue [#111](https://github.com/redact-secret/redact-secret/issues/111).
 
 ## 1. The five classes
 
@@ -93,7 +93,7 @@ already does for `log`, below).
   and `contextual` behavior classes; a lifecycle or binding-consumer row has
   no lexical-host-context cell to resolve, by construction, not by omission.
 - **`contextual_secret` (`generic-token`)'s host-context breadth gap is
-  closed by issue [#111](https://github.com/omiologic/secret-scan/issues/111).**
+  closed by issue [#111](https://github.com/redact-secret/redact-secret/issues/111).**
   This section previously found the gap sharper than
   `evidence-requirements.md` §6 stated — `javascript`'s only `generic-token`
   fixture (`negative-source-map`, §5) is a near-miss negative, not a positive
