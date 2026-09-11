@@ -450,7 +450,11 @@ impl PyPolicyContext {
 ///
 /// Never constructed from Python; only produced by `scan` and
 /// `scan_and_redact`.
-#[pyclass(module = "redact_secret._native", name = "Finding", skip_from_py_object)]
+#[pyclass(
+    module = "redact_secret._native",
+    name = "Finding",
+    skip_from_py_object
+)]
 #[derive(Clone)]
 pub(crate) struct PyFinding {
     /// Deterministic finding id (`finding-1`, `finding-2`, ...).
