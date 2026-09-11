@@ -1,0 +1,41 @@
+{
+  "opengrep_version": "1.30.0",
+  "release_url": "https://github.com/opengrep/opengrep/releases/tag/v1.30.0",
+  "signing": {
+    "scheme": "sigstore-cosign-keyless",
+    "oidc_issuer": "https://token.actions.githubusercontent.com",
+    "certificate_identity_regexp": "^https://github\\.com/opengrep/opengrep/",
+    "verified_with": "cosign verify-blob --certificate <asset>.cert --signature <asset>.sig --certificate-identity-regexp <certificate_identity_regexp> --certificate-oidc-issuer <oidc_issuer> <asset>"
+  },
+  "binaries": {
+    "linux-x86_64-gnu": {
+      "asset": "opengrep_manylinux_x86",
+      "sha256": "35779bdd72e92129c8df2a77f0c55e8c08356801ea92591ef32108d6b28d564c"
+    },
+    "linux-x86_64-musl": {
+      "asset": "opengrep_musllinux_x86",
+      "sha256": "ee21fa70714531e1eccbcb50993a871e198fb0f4ade254ef7636c433304fe4bd"
+    },
+    "macos-arm64": {
+      "asset": "opengrep_osx_arm64",
+      "sha256": "0f5bc3dec09d995c61331a4017b856ede508f90d95b018d95f1dc6166be89fdd"
+    }
+  },
+  "rules": {
+    "source_repo": "https://github.com/opengrep/opengrep-rules",
+    "revision": "f1d2b562b414783763fd02a6ed2736eaed622efa",
+    "revision_date": "2025-01-26T15:41:13Z",
+    "vendored_paths": [
+      "rust/lang/security",
+      "python/lang/security",
+      "javascript/lang/security",
+      "typescript/lang/security",
+      "bash/lang/security",
+      "bash/curl/security",
+      "yaml/github-actions/security"
+    ],
+    "digest_algorithm": "sha256-manifest-v1",
+    "digest": "18894c09bcde68fd088ec8252e64b637d67cd975ad6fff2834374cc7345db6da",
+    "license_note": "Vendored under the upstream Commons Clause v1.0 condition layered on LGPL-2.1 (see sast/rules/LICENSE.upstream). Dev-tooling use only: these rule files are never bundled into a published npm, crates.io, or PyPI artifact."
+  }
+}
