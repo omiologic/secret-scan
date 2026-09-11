@@ -467,7 +467,12 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ needs.reconcile.outputs.source_revision }}
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Use current registry verification tooling
+        shell: bash
+        run: git show "$GITHUB_SHA:scripts/verify-registry-install.mjs" > scripts/verify-registry-install.mjs
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -497,7 +502,12 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ needs.reconcile.outputs.source_revision }}
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Use current registry verification tooling
+        shell: bash
+        run: git show "$GITHUB_SHA:scripts/verify-registry-install.mjs" > scripts/verify-registry-install.mjs
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0

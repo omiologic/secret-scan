@@ -55,7 +55,7 @@ async function buildConsumerProject(version) {
     "install",
     "--no-audit",
     "--no-fund",
-  ], { cwd: root, stdio: "inherit" });
+  ], { cwd: root, stdio: "inherit", shell: process.platform === "win32" });
   return root;
 }
 
