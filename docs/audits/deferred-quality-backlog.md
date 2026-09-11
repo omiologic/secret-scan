@@ -5,7 +5,7 @@ routed here by [the release-gap disposition](./release-gap-disposition.md)
 under issue #66.
 
 - **Recorded on:** 2026-09-09, at `fdfd05a`.
-- **Tracked by:** [#80](https://github.com/omiologic/secret-scan/issues/80), which has no parent by design.
+- **Tracked by:** [#80](https://github.com/redact-secret/redact-secret/issues/80), which has no parent by design.
 - **Status:** open work, deliberately outside Epic #60's tree. **Nothing in this
   document blocks the closeout Epic, Feature #11, or a release.**
 - **Authority:** this document records deferred work. It does not authorize

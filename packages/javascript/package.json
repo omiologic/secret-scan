@@ -4,12 +4,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/omiologic/secret-scan.git",
+    "url": "git+https://github.com/redact-secret/redact-secret.git",
     "directory": "packages/javascript"
   },
-  "homepage": "https://github.com/omiologic/secret-scan#readme",
+  "homepage": "https://github.com/redact-secret/redact-secret#readme",
   "bugs": {
-    "url": "https://github.com/omiologic/secret-scan/issues"
+    "url": "https://github.com/redact-secret/redact-secret/issues"
   },
   "keywords": [
     "secret-detection",

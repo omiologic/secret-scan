@@ -25,8 +25,8 @@ Copy everything between the `---` markers below verbatim into
 This repository is archived and read-only. It never held a released
 package independent of the monorepo: Python support for `secret-scan` now
 lives at
-[`bindings/python`](https://github.com/omiologic/secret-scan/tree/main/bindings/python)
-in the [`omiologic/secret-scan`](https://github.com/omiologic/secret-scan)
+[`bindings/python`](https://github.com/redact-secret/redact-secret/tree/main/bindings/python)
+in the [`redact-secret/redact-secret`](https://github.com/redact-secret/redact-secret)
 monorepo, alongside the Rust core and the Node.js, browser, and CLI
 surfaces that share it.
 
@@ -43,7 +43,7 @@ result = redact_secret.scan_and_redact(text)
 ```
 
 File issues and pull requests against the monorepo, not here:
-https://github.com/omiologic/secret-scan/issues
+https://github.com/redact-secret/redact-secret/issues
 
 ---
 

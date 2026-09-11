@@ -6,7 +6,7 @@ honestly reports as `pending`, routed here by
 under issue #118.
 
 - **Recorded on:** 2026-09-10, at `e8bf910`.
-- **Tracked by:** [#136](https://github.com/omiologic/secret-scan/issues/136), which has no parent by design.
+- **Tracked by:** [#136](https://github.com/redact-secret/redact-secret/issues/136), which has no parent by design.
 - **Status:** open work, deliberately outside Epic #95's tree. **Nothing in
   this document blocks Epic #95's closeout.**
 - **Authority:** this document records deferred evidence gaps. It does not

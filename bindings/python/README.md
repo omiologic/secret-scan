@@ -2,7 +2,7 @@
 
 Deterministic secret detection and redaction for CPython, over the same Rust
 core that backs the JavaScript, Rust, and CLI surfaces of
-[Redact Secret](https://github.com/omiologic/secret-scan). Every built-in
+[Redact Secret](https://github.com/redact-secret/redact-secret). Every built-in
 detector runs in Rust; there is no pure-Python fallback implementation to drift
 from it.
 
@@ -10,7 +10,7 @@ The distribution is `redact-secret` and the import name is
 `redact_secret`. The product name is `Redact Secret` everywhere; per PEP 503,
 `redact-secret` and `redact_secret` normalize to the same PyPI project
 identity, so no registry fallback name is needed — see
-[docs/rust-workspace.md](https://github.com/omiologic/secret-scan/blob/main/docs/rust-workspace.md#registry-names).
+[docs/rust-workspace.md](https://github.com/redact-secret/redact-secret/blob/main/docs/rust-workspace.md#registry-names).
 
 > No release is authorized by the version currently in the development
 > manifests. Installation applies only after a separately approved release.
@@ -19,7 +19,7 @@ This directory is the canonical Python binding
 `decision-release-bindings-in-lockstep` requires before the separately created
 `secret-scan-python` GitHub repository (empty today) is archived with a
 redirect to here; that prepared redirect text lives in
-[docs/python-repository-redirect.md](https://github.com/omiologic/secret-scan/blob/main/docs/python-repository-redirect.md).
+[docs/python-repository-redirect.md](https://github.com/redact-secret/redact-secret/blob/main/docs/python-repository-redirect.md).
 
 ## Install
 
@@ -97,7 +97,7 @@ stub, so type checkers resolve the API without a stub package.
 
 Every wheel in that matrix is built and smoke-tested on its own architecture,
 on CPython 3.10 and 3.14, before a release candidate is accepted; see
-[docs/python-packaging.md](https://github.com/omiologic/secret-scan/blob/main/docs/python-packaging.md).
+[docs/python-packaging.md](https://github.com/redact-secret/redact-secret/blob/main/docs/python-packaging.md).
 
 ## Building from source
 
@@ -161,4 +161,4 @@ Packaging identity, the abi3 contract, and the wheel matrix are declared in
 `[workspace.metadata.redact-secret]` in the root `Cargo.toml` and enforced by
 `scripts/check-python-package.py`. Build and qualify artifacts with
 `scripts/qualify-python-wheel.py`; see
-[docs/python-packaging.md](https://github.com/omiologic/secret-scan/blob/main/docs/python-packaging.md).
+[docs/python-packaging.md](https://github.com/redact-secret/redact-secret/blob/main/docs/python-packaging.md).

@@ -276,7 +276,7 @@ def build_evidence(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--repo", default="omiologic/secret-scan")
+    parser.add_argument("--repo", default="redact-secret/redact-secret")
     parser.add_argument("--environment", default="release")
     parser.add_argument("--branch", default="main")
     parser.add_argument("--npm", dest="npm_packages", action="append", default=[])

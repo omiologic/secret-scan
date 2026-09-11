@@ -16,7 +16,7 @@ reimplementing it.
 
 The repository has completed its migration from a TypeScript implementation to
 the [Rust-core monorepo architecture](./ARCHITECTURE.md). Progress was tracked
-by [issue #3](https://github.com/omiologic/secret-scan/issues/3) and its linked
+by [issue #3](https://github.com/redact-secret/redact-secret/issues/3) and its linked
 sub-issues.
 
 The published `@redact-secret/core` npm package is `packages/javascript`,

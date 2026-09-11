@@ -106,7 +106,7 @@ FORBIDDEN_SOURCE = {
     "println!": "standard output",
     "eprintln!": "standard error",
 }
-USER_AGENT = "redact-secret workspace check (https://github.com/omiologic/secret-scan)"
+USER_AGENT = "redact-secret workspace check (https://github.com/redact-secret/redact-secret)"
 
 
 def version_key(version: str) -> tuple[int, int, int]:

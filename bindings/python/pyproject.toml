@@ -56,10 +56,10 @@ dependencies = []
 test = ["pytest>=8"]
 
 [project.urls]
-Homepage = "https://github.com/omiologic/secret-scan#readme"
-Repository = "https://github.com/omiologic/secret-scan"
-Issues = "https://github.com/omiologic/secret-scan/issues"
-Changelog = "https://github.com/omiologic/secret-scan/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/redact-secret/redact-secret#readme"
+Repository = "https://github.com/redact-secret/redact-secret"
+Issues = "https://github.com/redact-secret/redact-secret/issues"
+Changelog = "https://github.com/redact-secret/redact-secret/blob/main/CHANGELOG.md"
 
 [tool.maturin]
 features = ["extension-module"]

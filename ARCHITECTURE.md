@@ -21,7 +21,7 @@ and agent/tool gateways.
 ## Migration state
 
 This document describes the accepted target architecture. Migration progress
-was tracked by [issue #3](https://github.com/omiologic/secret-scan/issues/3)
+was tracked by [issue #3](https://github.com/redact-secret/redact-secret/issues/3)
 and its sub-issues rather than duplicated here.
 
 The migration is complete:

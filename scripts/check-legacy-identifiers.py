@@ -17,17 +17,18 @@ It scans every tracked file for three legacy-identifier shapes:
    (`decision-adopt-redact-secret-naming-contract`'s own scope boundary), so
    they are not a legacy identifier by themselves.
 
-Three occurrences are never legacy identifiers, because they are not this
+Two occurrences are never legacy identifiers, because they are not this
 contract's concern:
 
 - a `crates/secret-scan-core` or `crates/secret-scan-cli` path segment -- the
   directories were not renamed (Cargo resolves a crate by its manifest name,
   not its path);
-- an `omiologic/secret-scan` GitHub path segment, or a `secret-scan.wiki`
-  sibling-checkout reference -- the repository transfer is issue #157's, not
-  this one's, so these stay until that separately authorized transfer;
 - `SecretScanError`/`SecretScanErrorCode` themselves, per the scope boundary
   above.
+
+The repository transfer tracked by issue #157 is complete, so the former
+GitHub owner/name and wiki sibling name are now ordinary legacy identifiers.
+They are permitted only in reviewed historical records on the allowlist.
 
 Every other hit must be on `LEGACY_IDENTIFIER_ALLOWLIST`, keyed by the exact
 repository-relative path, with a non-empty rationale. Only reviewed
@@ -61,6 +62,9 @@ LEGACY_IDENTIFIER_ALLOWLIST: dict[str, str] = {
         "an accepted ADR describing what was decided on 2026-09-10 under "
         "the names then in force; a historical record, not current identity"
     ),
+    "docs/decisions/2026-09-09-adopt-rust-core-monorepo.md": (
+        "the accepted architecture ADR identifies the repository name in force when adopted"
+    ),
     "docs/decisions/2026-09-10-adopt-redact-secret-naming-contract.md": (
         "the ADR that records this rename itself; its naming matrix and "
         "rationale cite the old identity as the decision's own record of "
@@ -90,14 +94,12 @@ LEGACY_IDENTIFIER_ALLOWLIST: dict[str, str] = {
     "docs/audits/release-readiness-audit.md": (
         "a closed, dated, commit-pinned independent review"
     ),
+    "docs/audits/repository-transfer-evidence.md": (
+        "a dated pre/post transfer evidence record that must identify the former path"
+    ),
     "CHANGELOG.md": (
         "append-only historical narrative; past entries describe the "
         "product under the name in force when they were written"
-    ),
-    ".codex/rules/git.rules": (
-        "names this repository's current (pre-transfer) identity and its "
-        "GitHub wiki sibling checkout directory; both move only when issue "
-        "#157 transfers the repository"
     ),
     "scripts/check-legacy-identifiers.py": (
         "this script's own docstring and token patterns must name the "
@@ -110,10 +112,10 @@ LEGACY_IDENTIFIER_ALLOWLIST: dict[str, str] = {
     ),
 }
 
-# `secret-scan` immediately inside a preserved directory path, GitHub path
-# segment, or wiki sibling-checkout reference is not a legacy identifier --
-# none of those were renamed by this contract.
-KEBAB = re.compile(r"(?<!omiologic/)secret-scan(?!-core|-cli|-node|-wasm|-python|\.wiki)")
+# `secret-scan` immediately inside a preserved directory path is not a legacy
+# identifier. The former GitHub owner/name and wiki sibling name are detected
+# now that issue #157 has transferred the repository.
+KEBAB = re.compile(r"secret-scan(?!-core|-cli|-node|-wasm|-python)")
 SNAKE = re.compile(r"secret_scan")
 # `SecretScanError`/`SecretScanErrorCode` are exported type names this
 # contract leaves unchanged; any other `SecretScan*` is a legacy identifier.
