@@ -155,6 +155,61 @@ class PypiTests(unittest.TestCase):
         self.assertFalse(result["exists"])
 
 
+class Pep503Tests(unittest.TestCase):
+    def test_normalizes_hyphens_underscores_and_dots_to_one_hyphen(self) -> None:
+        self.assertEqual(VERIFY.normalize_pep503("Redact_Secret"), "redact-secret")
+        self.assertEqual(VERIFY.normalize_pep503("redact.secret"), "redact-secret")
+        self.assertEqual(VERIFY.normalize_pep503("redact--secret"), "redact-secret")
+
+    def test_aliases_that_agree_are_reported_as_one_project(self) -> None:
+        reader = FakeReader(
+            {
+                "https://pypi.org/pypi/redact-secret/json": {"info": {"name": "redact-secret"}},
+                "https://pypi.org/pypi/redact_secret/json": {"info": {"name": "redact-secret"}},
+            }
+        )
+        result = VERIFY.check_pypi_normalized_aliases(reader, "redact-secret")
+        self.assertEqual(result["aliases"], ["redact-secret", "redact_secret"])
+        self.assertTrue(result["exists"])
+        self.assertTrue(result["agree"])
+
+    def test_no_public_project_under_any_alias_is_not_a_reservation(self) -> None:
+        reader = FakeReader(
+            {
+                "https://pypi.org/pypi/redact-secret/json": None,
+                "https://pypi.org/pypi/redact_secret/json": None,
+            }
+        )
+        result = VERIFY.check_pypi_normalized_aliases(reader, "redact-secret")
+        self.assertFalse(result["exists"])
+        self.assertTrue(result["agree"])
+
+    def test_aliases_that_disagree_are_flagged(self) -> None:
+        reader = FakeReader(
+            {
+                "https://pypi.org/pypi/redact-secret/json": {"info": {"name": "redact-secret"}},
+                "https://pypi.org/pypi/redact_secret/json": {"info": {"name": "some-other-project"}},
+            }
+        )
+        result = VERIFY.check_pypi_normalized_aliases(reader, "redact-secret")
+        self.assertFalse(result["agree"])
+
+
+class GitHubRepoTests(unittest.TestCase):
+    def test_nonexistent_repo_is_not_a_reservation(self) -> None:
+        reader = FakeReader({"repos/redact-secret/redact-secret": None})
+        result = VERIFY.check_github_repo(reader, "redact-secret/redact-secret")
+        self.assertEqual(
+            result, {"check": "github-repo", "repo": "redact-secret/redact-secret", "exists": False}
+        )
+
+    def test_existing_repo_reports_visibility(self) -> None:
+        reader = FakeReader({"repos/redact-secret/redact-secret": {"private": False}})
+        result = VERIFY.check_github_repo(reader, "redact-secret/redact-secret")
+        self.assertTrue(result["exists"])
+        self.assertFalse(result["private"])
+
+
 class BuildEvidenceTests(unittest.TestCase):
     def test_unavailable_check_is_recorded_not_raised(self) -> None:
         gh_reader = FakeReader({}, unavailable={"repos/o/r/environments/release", "repos/o/r/branches/main/protection"})
@@ -188,6 +243,7 @@ class BuildEvidenceTests(unittest.TestCase):
                 "https://registry.npmjs.org/@redact-secret/core": {"maintainers": []},
                 "https://crates.io/api/v1/crates/redact-secret": None,
                 "https://pypi.org/pypi/redact-secret/json": None,
+                "https://pypi.org/pypi/redact_secret/json": None,
             }
         )
         evidence = VERIFY.build_evidence(
