@@ -461,7 +461,9 @@ fn azure_storage_candidate(input: &str, anchor: usize) -> Option<Candidate> {
     let (segment_start, segment_end) = azure_segment_bounds(input, anchor)?;
     let fields = parse_azure_fields(&input[segment_start..segment_end], segment_start);
 
-    let protocol = fields.iter().find(|field| field.key == AZURE_PROTOCOL_KEY)?;
+    let protocol = fields
+        .iter()
+        .find(|field| field.key == AZURE_PROTOCOL_KEY)?;
     if !protocol.value.eq_ignore_ascii_case("https") && !protocol.value.eq_ignore_ascii_case("http")
     {
         return None;
@@ -986,7 +988,9 @@ mod tests {
     #[test]
     fn a_key_shaped_field_name_that_merely_ends_in_accountkey_is_ignored() {
         assert_eq!(
-            detect("MyAccountKey=U1lOVEhFVElDLVJFVk9LRUQtQVpVUkUtU1RPUkFHRS1BQ0NPVU5ULUtFWS1GSVhUVVJFLTAwMDAwMDAwMDA="),
+            detect(
+                "MyAccountKey=U1lOVEhFVElDLVJFVk9LRUQtQVpVUkUtU1RPUkFHRS1BQ0NPVU5ULUtFWS1GSVhUVVJFLTAwMDAwMDAwMDA="
+            ),
             Vec::new()
         );
     }
