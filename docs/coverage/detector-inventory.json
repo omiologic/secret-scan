@@ -130,6 +130,13 @@
       "schemes": null
     },
     {
+      "type": "npm_access_token",
+      "detector": "npm-token",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "npm_SYNTHETICREVOKEDNPMACCESSTOKENVALUE1",
+      "schemes": null
+    },
+    {
       "type": "jwt",
       "detector": "jwt",
       "policyClass": "always-redact",
