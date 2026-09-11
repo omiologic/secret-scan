@@ -6,7 +6,8 @@ Audit verdicts apply to the revision and date recorded in each document. They
 are historical evidence, not live status dashboards. A later code fix does not
 rewrite what an earlier reviewer observed.
 
-Start with [the current local pre-release code and documentation review](pre-release-code-and-docs-review.md).
+Start with [the local pre-release code and documentation review](pre-release-code-and-docs-review.md)
+and its [cross-platform qualification follow-up](release-qualification-follow-up.md).
 
 | Topic | Evidence |
 | --- | --- |

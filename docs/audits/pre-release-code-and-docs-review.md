@@ -57,10 +57,11 @@ Executed locally on macOS arm64:
 
 ## Remaining release and operational limits
 
-The full native target matrix, real Node/WebAssembly consumer artifact
-qualification, browser engines, wheel matrix, registry install verification,
-MSRV toolchain run, dependency advisory freshness, SAST engine scan, and live
-publisher/repository settings were not revalidated by this local review.
+At the initial local review, the full native target matrix, real Node/WebAssembly
+consumer artifacts, browser engines, wheel matrix, registry installation, MSRV,
+advisory freshness, SAST engine scan, and live publisher/repository settings had
+not been revalidated. The subsequent [cross-platform qualification follow-up](release-qualification-follow-up.md)
+records the checks performed after that review and their exact source revision.
 Repository script tests validate their declarations and guards, not the external
 state. Run the [qualification workflow](../qualification.md) for the exact
 approved release revision and follow the release authority before publication.
