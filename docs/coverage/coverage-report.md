@@ -13,11 +13,11 @@ python3 -B scripts/generate-coverage-report.py --out docs/coverage/coverage-repo
 
 | Row state | Count |
 | --- | --- |
-| supported | 23 |
+| supported | 24 |
 | intentionally-unsupported | 0 |
 | unresolved | 0 |
 
-Coverage declarations: 33.
+Coverage declarations: 34.
 
 ## Coverage by detector
 
@@ -37,6 +37,7 @@ Coverage declarations: 33.
 | jwt | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | linear-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | openai-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
+| otpauth-uri | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | private-key | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | pypi-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
 | shopify-token | 1 | supported: 1, intentionally-unsupported: 0, unresolved: 0 |
@@ -65,6 +66,7 @@ Coverage declarations: 33.
 | jwt | jwt | structural | supported | not-applicable | host-context |
 | linear_token | linear-token | provider | supported | not-applicable | none |
 | openai_api_key | openai-token | provider | supported | not-applicable | none |
+| otpauth_secret | otpauth-uri | structural | supported | supported | host-context |
 | private_key | private-key | structural | supported | not-applicable | host-context |
 | pypi_api_token | pypi-token | provider | supported | not-applicable | none |
 | shopify_access_token | shopify-token | provider | supported | not-applicable | none |
@@ -90,20 +92,22 @@ Coverage declarations: 33.
 | connection-string | connection_string_password | postgresql | supported |
 | connection-string | connection_string_password | redis | supported |
 | connection-string | connection_string_password | rediss | supported |
+| otpauth-uri | otpauth_secret | hotp | supported |
+| otpauth-uri | otpauth_secret | totp | supported |
 
 ## Coverage by evidence dimension
 
 | Dimension | Supported | Not applicable | Pending |
 | --- | --- | --- | --- |
-| adversarial | 33 | 0 | 0 |
-| boundary | 23 | 0 | 0 |
-| host-context | 18 | 0 | 5 |
+| adversarial | 34 | 0 | 0 |
+| boundary | 24 | 0 | 0 |
+| host-context | 18 | 0 | 6 |
 | incremental | 3 | 7 | 0 |
-| malformed | 33 | 0 | 0 |
-| near-miss-negative | 23 | 0 | 0 |
-| overlap | 20 | 0 | 3 |
-| positive | 23 | 0 | 0 |
-| range | 33 | 0 | 0 |
+| malformed | 34 | 0 | 0 |
+| near-miss-negative | 24 | 0 | 0 |
+| overlap | 21 | 0 | 3 |
+| positive | 24 | 0 | 0 |
+| range | 34 | 0 | 0 |
 
 ## Unresolved and pending coverage
 
@@ -126,4 +130,5 @@ None.
 - connection_string_password.host-context (`structural-host-context-breadth`)
 - contextual_secret.overlap (`contextual-secret-overlap`)
 - jwt.host-context (`structural-host-context-breadth`)
+- otpauth_secret.host-context (`structural-host-context-breadth`)
 - private_key.host-context (`structural-host-context-breadth`)

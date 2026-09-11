@@ -770,6 +770,52 @@
       "type": "connection_string_password"
     },
     {
+      "detector": "otpauth-uri",
+      "evidence": {
+        "fixtureCount": 11,
+        "hostContextsExercised": [
+          "plain-text"
+        ],
+        "kindsWithSupportedEvidence": [
+          "adversarial",
+          "boundary",
+          "negative",
+          "overlap",
+          "positive"
+        ],
+        "supportStatesPresent": [
+          "supported"
+        ]
+      },
+      "evidenceFixtureIds": [
+        "otpauth-positive-hotp-full-parameters",
+        "otpauth-positive-hotp-minimal",
+        "otpauth-positive-totp-full-parameters",
+        "otpauth-positive-totp-minimal"
+      ],
+      "policyClass": "always-redact",
+      "schemeRows": [
+        {
+          "evidenceFixtureIds": [
+            "otpauth-positive-totp-full-parameters",
+            "otpauth-positive-totp-minimal"
+          ],
+          "scheme": "totp",
+          "state": "supported"
+        },
+        {
+          "evidenceFixtureIds": [
+            "otpauth-positive-hotp-full-parameters",
+            "otpauth-positive-hotp-minimal"
+          ],
+          "scheme": "hotp",
+          "state": "supported"
+        }
+      ],
+      "state": "supported",
+      "type": "otpauth_secret"
+    },
+    {
       "detector": "generic-token",
       "evidence": {
         "fixtureCount": 44,
@@ -870,7 +916,7 @@
   "summary": {
     "intentionally-unsupported": 0,
     "not-applicable": 0,
-    "supported": 23,
+    "supported": 24,
     "unresolved": 0
   }
 }

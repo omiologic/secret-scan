@@ -162,6 +162,16 @@
       ]
     },
     {
+      "type": "otpauth_secret",
+      "detector": "otpauth-uri",
+      "policyClass": "always-redact",
+      "reconciliationTrigger": "otpauth://totp/Example:alice@example.com?secret=JBSWY3DPEHPK3PXP",
+      "schemes": [
+        "totp",
+        "hotp"
+      ]
+    },
+    {
       "type": "contextual_secret",
       "detector": "generic-token",
       "policyClass": "confidence-gated",
