@@ -26,13 +26,17 @@ ever changing whether the job passes or fails.
 
 `run-sast.py`'s SARIF projection (`build_sarif`) carries every
 `false_positive`/`hardening` baseline disposition forward as a SARIF
-`suppression` with its recorded rationale, rather than omitting the
-finding: code scanning's UI then shows reviewed-and-dismissed findings as
-suppressed, and a `blocking` or not-yet-classified finding -- exactly what
-already fails the run -- as an active alert. This is a projection of the
-existing baseline gate, never a second source of truth: the SARIF file
-never influences `run-sast.py`'s own exit code, and the workflow's
-"Enforce scan result" step checks the scan step's real outcome
+`suppression` with its recorded rationale, rather than omitting the finding.
+GitHub's third-party SARIF ingestion retains that metadata but does not apply
+it to alert state by itself. After successful upload processing, a
+commit-pinned `advanced-security/dismiss-alerts` step synchronizes the SARIF
+state on `refs/heads/main` only: reviewed findings are dismissed as `won't
+fix`, and action-managed alerts are re-opened when their baseline suppression
+disappears. Pull-request runs may upload SARIF but cannot perform this
+repository-wide mutation. This is a projection of the existing baseline gate,
+never a second source of truth: neither the SARIF file nor the best-effort
+upload and synchronization steps influence `run-sast.py`'s own exit code, and
+the workflow's "Enforce scan result" step checks the scan step's real outcome
 (`steps.scan.outcome`, which `continue-on-error` does not mask) after every
 artifact and upload step has already run `if: always()`.
 
@@ -69,7 +73,10 @@ is valuable, but availability of that upload is an infrastructure property
 repository's own code passed its own gate. Treating it as advisory --
 `continue-on-error: true`, checked nowhere in the pass/fail decision --
 keeps the enforcement signal exactly one command's exit code, as issue #156
-requires.
+requires. The same best-effort boundary applies to issue #172's main-only
+suppression synchronization: it repairs GitHub alert state after ingestion,
+but can neither make a failed scan pass nor make an otherwise passing scan
+fail.
 
 ## Consequences
 
@@ -89,3 +96,8 @@ requires.
   with an unresolved blocking OpenGrep finding, an unacknowledged scan
   error, or a tool/rule-integrity failure, without a human deliberately
   widening `sast/baseline.json`.
+- A successful `main` run synchronizes `false_positive` and `hardening`
+  suppressions into GitHub alert state after SARIF processing. The pinned
+  action dismisses matching alerts as `won't fix` with `Suppressed via SARIF`
+  and re-opens alerts it manages when the corresponding suppression is later
+  removed; pull-request runs never mutate that state.

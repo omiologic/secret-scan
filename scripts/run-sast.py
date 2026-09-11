@@ -37,8 +37,10 @@ scanning. It is a projection of this same gate, never a second source of
 truth: a finding already dispositioned as `false_positive`/`hardening` is
 carried as a SARIF suppression rather than omitted, and a `blocking` or
 unclassified finding is left unsuppressed -- exactly the findings that
-already fail this run's exit code. Whether GitHub accepts the SARIF upload
-never changes this script's own exit code.
+already fail this run's exit code. GitHub ingestion does not apply those
+suppressions to alert state by itself; the main-branch workflow synchronizes
+them after processing. Whether upload or synchronization succeeds never
+changes this script's own exit code.
 """
 
 from __future__ import annotations
@@ -211,11 +213,12 @@ def build_sarif(*, report: dict, baseline: dict) -> dict:
     report `check_baseline` already gates on -- never an independent source
     of truth. A finding already dispositioned as `false_positive` or
     `hardening` in `sast/baseline.json` is carried as a SARIF `suppression`
-    (kind `external`, with the recorded rationale) so code scanning's UI
-    shows it as reviewed-and-dismissed rather than a fresh alert; a
-    `blocking` or not-yet-classified finding is left unsuppressed, since it
-    is exactly what already fails the run. Only the rule's own `message` is
-    ever included, matching `normalize_report` -- never a matched snippet.
+    (kind `external`, with the recorded rationale). GitHub ingestion preserves
+    that data but does not apply it to alert state by itself; the main-branch
+    workflow's pinned dismissal action performs that synchronization. A
+    `blocking` or not-yet-classified finding is left unsuppressed, since it is
+    exactly what already fails the run. Only the rule's own `message` is ever
+    included, matching `normalize_report` -- never a matched snippet.
     """
     findings_baseline = baseline.get("findings", {})
     rule_ids = sorted({finding["rule_id"] for finding in report["findings"]})

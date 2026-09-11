@@ -59,11 +59,15 @@ minutes (`timeout-minutes`), matching this command's own bounded per-file
 `continue-on-error` does not mask) is the only enforcement signal: it is
 checked in an explicit final "Enforce scan result" step so that the JSON
 report, the SARIF report, and the best-effort code-scanning upload all still
-run `if: always()` beforehand. Code-scanning upload availability is
-therefore never the gate -- a private repository without Advanced Security,
-or a fork pull request's restricted token, degrades that one step to a
-no-op without changing whether the job passes or fails. A "Record OpenGrep
-evidence" step writes the run's source revision, rules digest, tool
+run `if: always()` beforehand. GitHub does not apply third-party SARIF
+suppressions to alert state during ingestion, so after successful processing
+the `main`-branch run invokes the pinned `advanced-security/dismiss-alerts`
+action to dismiss reviewed alerts as `won't fix` and re-open action-managed
+alerts whose baseline suppression was removed. Pull-request runs never invoke
+that repository-wide mutation. Upload and synchronization are both
+best-effort: unavailable code scanning, a fork pull request's restricted
+token, or an action failure cannot change whether the job passes or fails. A
+"Record OpenGrep evidence" step writes the run's source revision, rules digest, tool
 version, and finding/error counts to the job summary, which is the exact
 run URL and rule digest issue #156 asks to be recorded for issue #145 at
 the final release candidate revision.
