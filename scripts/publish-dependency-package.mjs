@@ -43,6 +43,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { viewPublished } from "./npm-registry-metadata.mjs";
 
 const NPM = process.platform === "win32" ? "npm.cmd" : "npm";
 
@@ -112,31 +113,13 @@ function checkPackedContents(manifest, packResult) {
   }
 }
 
-/** The registry's view of `name@version`, or `undefined` if it is not published. */
-function viewPublished(name, version) {
-  try {
-    const output = execFileSync(NPM, ["view", `${name}@${version}`, "--json"], {
-      encoding: "utf8",
-    });
-    return JSON.parse(output);
-  } catch (error) {
-    const combined = `${error.stdout ?? ""}${error.stderr ?? ""}`;
-    if (/"code":\s*"E404"/.test(combined) || /code E404/.test(combined)) {
-      return undefined;
-    }
-    throw new Error(
-      `${name}@${version}: could not determine registry state: ${combined || error.message}`,
-    );
-  }
-}
-
 async function sleep(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function verifyPublished(name, version) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const published = viewPublished(name, version);
+    const published = await viewPublished(name, version);
     if (published !== undefined && published.version === version) return published;
     await sleep(5000);
   }
@@ -156,7 +139,7 @@ async function main() {
   try {
     checkPackedContents(manifest, packResult);
 
-    const published = viewPublished(name, version);
+    const published = await viewPublished(name, version);
     if (published !== undefined) {
       if (published.dist.shasum !== packResult.shasum) {
         throw new Error(
@@ -185,6 +168,9 @@ async function main() {
       stdio: "inherit",
     });
     const verified = await verifyPublished(name, version);
+    if (verified.dist.shasum !== packResult.shasum) {
+      throw new Error(`${name}@${version}: published content does not match the qualified tarball`);
+    }
     console.log(
       `${name}@${version} published and verified (shasum ${verified.dist.shasum}).`,
     );
