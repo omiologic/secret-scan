@@ -42,14 +42,26 @@ jobs:
       - name: Run the pinned, provenance-verified OpenGrep scan
         id: scan
         continue-on-error: true
-        run: python3 -B scripts/run-sast.py --out out.json --sarif-out out.sarif
+        run: python3 -B scripts/run-sast.py --out out.json --sarif-out sast/reports/ci-latest.sarif
 
       - name: Upload SARIF to code scanning
+        id: upload
         if: always()
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
-          sarif_file: out.sarif
+          sarif_file: sast/reports/ci-latest.sarif
+          wait-for-processing: true
+
+      - name: Synchronize reviewed SARIF suppressions
+        if: github.ref == 'refs/heads/main' && steps.upload.outcome == 'success'
+        continue-on-error: true
+        uses: advanced-security/dismiss-alerts@a18f986bdb40edba0dd7a74382c15d4a3d50a1c8 # v2.0.3
+        with:
+          sarif-id: ${{ steps.upload.outputs.sarif-id }}
+          sarif-file: sast/reports/ci-latest.sarif
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Enforce scan result
         if: always()
@@ -103,6 +115,16 @@ class SastWorkflowCheckTest(unittest.TestCase):
             errors = CHECK.validate(root)
             self.assertTrue(any("id: scan) must declare continue-on-error" in error for error in errors))
 
+    def test_scan_step_with_wrong_sarif_output_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace(
+                "--sarif-out sast/reports/ci-latest.sarif",
+                "--sarif-out other.sarif",
+            )
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(any("must generate SARIF at" in error for error in errors))
+
     def test_enforce_step_checking_conclusion_instead_of_outcome_fails(self) -> None:
         with tempfile.TemporaryDirectory() as root_dir:
             broken = GOOD_WORKFLOW.replace("steps.scan.outcome", "steps.scan.conclusion")
@@ -123,11 +145,37 @@ class SastWorkflowCheckTest(unittest.TestCase):
                 any("uploads SARIF but lacks continue-on-error" in error for error in errors)
             )
 
+    def test_sarif_upload_without_id_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace("        id: upload\n", "")
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(any("lacks id: upload" in error for error in errors))
+
+    def test_sarif_upload_without_processing_wait_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace("          wait-for-processing: true\n", "")
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(any("wait-for-processing: true" in error for error in errors))
+
+    def test_sarif_upload_with_wrong_path_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace(
+                "          sarif_file: sast/reports/ci-latest.sarif\n",
+                "          sarif_file: other.sarif\n",
+            )
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(
+                any("must upload the generated SARIF path" in error for error in errors)
+            )
+
     def test_sarif_upload_without_always_fails(self) -> None:
         with tempfile.TemporaryDirectory() as root_dir:
             broken = GOOD_WORKFLOW.replace(
-                "      - name: Upload SARIF to code scanning\n        if: always()\n",
-                "      - name: Upload SARIF to code scanning\n",
+                "        id: upload\n        if: always()\n",
+                "        id: upload\n",
             )
             root = write(Path(root_dir), broken)
             errors = CHECK.validate(root)
@@ -143,6 +191,93 @@ class SastWorkflowCheckTest(unittest.TestCase):
             root = write(Path(root_dir), broken)
             errors = CHECK.validate(root)
             self.assertTrue(any("no step uploads SARIF" in error for error in errors))
+
+    def test_missing_dismissal_step_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            before, remainder = GOOD_WORKFLOW.split(
+                "      - name: Synchronize reviewed SARIF suppressions\n", 1
+            )
+            _, after = remainder.split("      - name: Enforce scan result\n", 1)
+            root = write(
+                Path(root_dir), before + "      - name: Enforce scan result\n" + after
+            )
+            errors = CHECK.validate(root)
+            self.assertTrue(
+                any("no step synchronizes SARIF suppressions" in error for error in errors)
+            )
+
+    def test_unpinned_dismissal_action_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace(
+                "advanced-security/dismiss-alerts@a18f986bdb40edba0dd7a74382c15d4a3d50a1c8",
+                "advanced-security/dismiss-alerts@v2",
+            )
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(any("must pin dismiss-alerts" in error for error in errors))
+
+    def test_dismissal_without_continue_on_error_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace(
+                "        if: github.ref == 'refs/heads/main' && steps.upload.outcome == 'success'\n"
+                "        continue-on-error: true\n",
+                "        if: github.ref == 'refs/heads/main' && steps.upload.outcome == 'success'\n",
+            )
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(any("synchronizes suppressions but lacks" in error for error in errors))
+
+    def test_dismissal_outside_main_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace(
+                "github.ref == 'refs/heads/main' && ",
+                "",
+            )
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(any("must run only on refs/heads/main" in error for error in errors))
+
+    def test_dismissal_without_successful_upload_guard_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace(
+                " && steps.upload.outcome == 'success'",
+                "",
+            )
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(
+                any(
+                    "must require a successful processed SARIF upload" in error
+                    for error in errors
+                )
+            )
+
+    def test_dismissal_with_wrong_sarif_id_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace(
+                "${{ steps.upload.outputs.sarif-id }}",
+                "${{ steps.other.outputs.sarif-id }}",
+            )
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(any("must consume steps.upload.outputs.sarif-id" in error for error in errors))
+
+    def test_dismissal_with_wrong_sarif_file_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace(
+                "          sarif-file: sast/reports/ci-latest.sarif\n",
+                "          sarif-file: other.sarif\n",
+            )
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(any("must read the generated SARIF path" in error for error in errors))
+
+    def test_dismissal_without_github_token_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as root_dir:
+            broken = GOOD_WORKFLOW.replace("          GITHUB_TOKEN: ${{ github.token }}\n", "")
+            root = write(Path(root_dir), broken)
+            errors = CHECK.validate(root)
+            self.assertTrue(any("must receive GITHUB_TOKEN" in error for error in errors))
 
 
 if __name__ == "__main__":

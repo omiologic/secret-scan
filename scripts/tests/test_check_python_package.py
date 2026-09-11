@@ -48,6 +48,7 @@ class Binding:
         self.dependencies = "[]"
         self.init = INIT
         self.package_files = ["py.typed", "_native.pyi"]
+        self.pull_request_trigger = "  pull_request:\n"
 
     def write(self, relative: str, content: str) -> None:
         path = self.root / relative
@@ -104,7 +105,9 @@ class Binding:
         matrix = "".join(f"          - target: {target}\n" for target in self.targets)
         self.write(
             ".github/workflows/python-wheels.yml",
-            "name: Python wheels\njobs:\n  wheels:\n    strategy:\n      matrix:\n        include:\n"
+            "name: Python wheels\non:\n"
+            + self.pull_request_trigger
+            + "jobs:\n  wheels:\n    strategy:\n      matrix:\n        include:\n"
             + matrix
             + "    steps:\n      - uses: PyO3/maturin-action@abc\n        with:\n          target: ${{ matrix.target }}\n",
         )
@@ -226,6 +229,18 @@ class CheckPythonPackageTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.assertIn("i686-pc-windows-msvc", " ".join(CHECK.validate(root)))
+
+    def test_wheel_workflow_must_trigger_on_pull_requests(self) -> None:
+        self.binding.pull_request_trigger = ""
+        self.assertOneError("must trigger on every pull_request")
+
+    def test_wheel_workflow_rejects_pull_request_path_filters(self) -> None:
+        self.binding.pull_request_trigger = (
+            "  pull_request:\n"
+            "    paths:\n"
+            "      - bindings/python/**\n"
+        )
+        self.assertOneError("pull_request trigger must not use path filters")
 
     def test_an_unmappable_target_is_reported(self) -> None:
         self.binding.targets = TARGETS + ["s390x-unknown-linux-gnu"]

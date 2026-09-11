@@ -236,8 +236,10 @@ python3 scripts/qualify-python-wheel.py --build-sdist dist/*.tar.gz
 `.github/workflows/python-wheels.yml` runs the same commands: a `policy` job,
 a `sdist` job, one `wheels` job per target, and a `qualify-matrix` job that
 collects every artifact and requires one wheel per declared target plus a
-source distribution. It also exposes `workflow_call`, so release qualification
-can reuse it without restating the matrix.
+source distribution. Because `Wheel matrix` is required by `main` branch
+protection, the workflow runs on every pull request without path filtering, as
+well as every push to `main`. It also exposes `workflow_call`, so release
+qualification can reuse it without restating the matrix.
 
 No release is authorized by any of this. Publishing requires the separate
 approval defined by repository governance.

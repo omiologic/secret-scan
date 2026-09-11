@@ -70,11 +70,29 @@ jobs:
       # real gate is the "Enforce scan result" step below, driven by the
       # scan's own exit code against sast/baseline.json.
       - name: Upload SARIF to code scanning
+        id: upload
         if: always()
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
           sarif_file: sast/reports/ci-latest.sarif
+          wait-for-processing: true
+
+      # GitHub does not apply third-party SARIF suppressions to alert state.
+      # Synchronize the reviewed baseline only after the upload has finished
+      # processing, and only from main: dismissals and re-openings are
+      # repository-wide state and must never be driven by a pull request.
+      # Like the upload, this is advisory visibility; the scan outcome below
+      # remains the sole enforcement signal.
+      - name: Synchronize reviewed SARIF suppressions
+        if: github.ref == 'refs/heads/main' && steps.upload.outcome == 'success'
+        continue-on-error: true
+        uses: advanced-security/dismiss-alerts@a18f986bdb40edba0dd7a74382c15d4a3d50a1c8 # v2.0.3
+        with:
+          sarif-id: ${{ steps.upload.outputs.sarif-id }}
+          sarif-file: sast/reports/ci-latest.sarif
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       # Issue #156's final-candidate evidence for issue #145 is "the exact
       # run URL and rule digest" -- both are already implicit in any GitHub

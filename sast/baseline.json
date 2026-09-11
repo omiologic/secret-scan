@@ -1,8 +1,8 @@
 {
   "findings": {
-    "02cde1c79eaa60d5": {
+    "bd6f826f125bd4aa": {
       "classification": "false_positive",
-      "line": 336,
+      "line": 353,
       "path": "scripts/check-python-package.py",
       "rationale": "The URL is built from a fixed, hardcoded registry host (pypi.org, crates.io, or registry.npmjs.org) with only a package/crate name path-appended; the host is never attacker-influenced, so this cannot be redirected to an untrusted origin.",
       "rule_id": "sast.rules.python.lang.security.audit.dynamic-urllib-use-detected"
@@ -49,9 +49,9 @@
       "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "31db7dfac44961cf": {
+    "b7303fc73d176e6c": {
       "classification": "false_positive",
-      "line": 309,
+      "line": 312,
       "path": "scripts/run-sast.py",
       "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
       "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
@@ -77,9 +77,9 @@
       "rationale": "The matched pattern is one of this file's three module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN, ERROR_CODE_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/case identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "5c3cee4821f6da93": {
+    "df47445dce8a325c": {
       "classification": "false_positive",
-      "line": 384,
+      "line": 387,
       "path": "scripts/run-sast.py",
       "rationale": "Every argument list passed to this subprocess call is built entirely from this script's own internal logic (interpreter paths, pinned tool names, static flags) as a list -- never `shell=True` and never externally- or network-controlled data -- so there is no command-injection surface for this generic audit rule to flag.",
       "rule_id": "sast.rules.python.lang.security.audit.dangerous-subprocess-use-audit"
@@ -205,8 +205,8 @@
     }
   },
   "known_errors": {
-    "1910ef602dbe5d21": {
-      "line": 202,
+    "52e5a2cdaa9c5bcb": {
+      "line": 195,
       "path": ".github/workflows/python-wheels.yml",
       "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
       "type": "PartialParsing"
@@ -295,8 +295,8 @@
       "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
       "type": "PartialParsing"
     },
-    "faf0504b069b8fcd": {
-      "line": 212,
+    "cab0bae1fda7f93d": {
+      "line": 205,
       "path": ".github/workflows/python-wheels.yml",
       "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
       "type": "PartialParsing"

@@ -12,20 +12,13 @@ name: Python wheels
 # toolchain (`decision-define-runtime-bindings`).
 #
 # `scripts/check-python-package.py` keeps the matrix below and the manifest in
-# agreement; a target cannot be dropped here without a manifest change.
+# agreement; a target cannot be dropped here without a manifest change. The
+# final `Wheel matrix` job is a required `main` branch-protection check, so the
+# workflow must run for every pull request rather than use path filters that
+# can leave the required check permanently pending.
 
 on:
   pull_request:
-    paths:
-      - bindings/python/**
-      - crates/secret-scan-core/**
-      - conformance/**
-      - Cargo.toml
-      - Cargo.lock
-      - rust-toolchain.toml
-      - scripts/check-python-package.py
-      - scripts/qualify-python-wheel.py
-      - .github/workflows/python-wheels.yml
   push:
     branches:
       - main
