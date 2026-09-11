@@ -14,6 +14,18 @@ against. This document describes the workflow that carries both out.
 Nothing here publishes anything. Publication requires the separate release
 approval `AGENTS.md` defines.
 
+## Candidate security evidence
+
+The separate `.github/workflows/sast.yml` OpenGrep gate (#156) is required
+alongside artifact qualification. It verifies the pinned tool and rules,
+enforces the reviewed baseline, and records source revision, tool version,
+rules digest, findings, and acknowledged scan errors. SARIF upload is
+best-effort; the scan outcome remains the enforcement signal. Candidate
+reviews must include that evidence at the reviewed revision, not substitute
+`npm run sast:test` (which tests gate machinery) for an actual scan.
+See the [SAST contract](../sast/README.md) and the
+[candidate public-contract review](audits/candidate-public-contract-review.md).
+
 ## The declaration
 
 `[workspace.metadata.redact-secret]` in the root `Cargo.toml` states the whole

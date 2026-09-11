@@ -376,7 +376,7 @@ snapshot, log, or diagnostic.
 A release requires explicit approval after tests pass and the public API and
 changelog have been reviewed. Readiness checks do not authorize selecting a
 version, creating a tag, publishing a package, deploying, or archiving another
-repository. See the version-neutral [Unreleased changelog](./CHANGELOG.md).
+repository. See the [candidate changelog](./CHANGELOG.md).
 
 The accepted architectural decisions are indexed in
 [docs/decisions/DECISIONS.md](./docs/decisions/DECISIONS.md).

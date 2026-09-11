@@ -10,7 +10,7 @@ Checks, in order:
 2. Unsafe-code policy: every member inherits workspace lints, the workspace
    denies ``unsafe_code``, and the core and CLI crate roots forbid it.
 3. Version lockstep: the workspace version, every member, every manifest
-   named in ``LOCKSTEP_MANIFESTS`` (``bindings/node/package.json``,
+   named in ``LOCKSTEP_MANIFESTS`` (``package.json``, ``bindings/node/package.json``,
    ``packages/javascript/package.json``), the WebAssembly package manifest
    (``bindings/wasm/npm/package.json``), and every native platform package
    manifest discovered under ``bindings/node/npm/*/package.json`` share one
@@ -65,7 +65,7 @@ CI_NODE_VERSIONS = re.compile(r"node-version:\s*\n((?:\s*-\s*\d+\s*\n)+)")
 NODE_VERSION_ENTRY = re.compile(r"-\s*(\d+)")
 FORBID_UNSAFE = re.compile(r"^\s*#!\[forbid\(unsafe_code\)\]\s*$", re.M)
 FORBID_UNSAFE_ROOTS = {"redact-secret": "src/lib.rs", "redact-secret-cli": "src/main.rs"}
-LOCKSTEP_MANIFESTS = ("bindings/node/package.json", "packages/javascript/package.json")
+LOCKSTEP_MANIFESTS = ("package.json", "bindings/node/package.json", "packages/javascript/package.json")
 # The WebAssembly package: an ordinary lockstep manifest for version
 # purposes, but it declares no `engines.node` (it ships no Node.js-specific
 # claim), so it is not part of the engines check below.

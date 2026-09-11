@@ -196,26 +196,28 @@ the binding macros were insufficient.
 
 ### Version lockstep
 
-Every workspace member's Cargo version and every JSON manifest that carries
-the product's own version number share one value. `LOCKSTEP_MANIFESTS` in
-`scripts/check-rust-workspace.py` names the JSON manifests: `bindings/node/package.json`
-and `packages/javascript/package.json`. `npm run rust:check` fails when either
-of them, or any workspace Cargo member, drifts from `[workspace.package] version`
-in the root `Cargo.toml`; `scripts/tests/test_check_rust_workspace.py` drifts
-each `LOCKSTEP_MANIFESTS` entry individually and asserts the check reports it.
-`bindings/python/pyproject.toml` declares `version = "dynamic"` and takes its
-version from `bindings/python/Cargo.toml` at build time, so it needs no entry
-of its own — it is covered by the Cargo member check. The repository root
-`package.json` is private tooling named `redact-secret-workspace` and is not
-version-locked to the product: `RB-2` (issue #72) removed it from
-`LOCKSTEP_MANIFESTS` when it cut the published npm artifact over to
-`packages/javascript`, the only manifest that still declares
-`@redact-secret/core`.
+Every workspace member's Cargo version and every JSON manifest carrying the
+product version share `[workspace.package] version` in the root `Cargo.toml`.
+`scripts/check-rust-workspace.py` enforces:
 
-`packages/javascript` first publishes under whatever version is current in
-this lockstep set; publishing it, and its platform and wasm dependencies, for
-the first time is a one-time cutover action gated on the release approval
-`AGENTS.md` mandates, not a routine release.
+- `LOCKSTEP_MANIFESTS`: the private root `package.json`,
+  `bindings/node/package.json`, and `packages/javascript/package.json`;
+- `bindings/wasm/npm/package.json` and every native platform manifest discovered
+  under `bindings/node/npm/*/package.json`; and
+- every Cargo workspace member, including the three private binding crates.
+
+The root remains private tooling, but its version-bearing manifest is checked
+as of #144; private status does not exempt a declared product version.
+`bindings/python/pyproject.toml` uses a dynamic version inherited through its
+Cargo manifest (SemVer prereleases become the corresponding PEP 440 spelling
+in Python distribution metadata). Lockfiles record these same package versions
+and must be refreshed when an approved version changes. Policy tests reject
+version drift, including drift in the private root and native/Wasm packages.
+
+`npm run rust:check` runs the enforcement. First and subsequent publications
+use the same approved release graph, including all seven npm dependencies
+before the wrapper; there is no separate first-cutover dispatch. A manifest
+value alone neither selects nor authorizes a release.
 
 ### MSRV
 

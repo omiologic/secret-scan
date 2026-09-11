@@ -77,6 +77,7 @@ class Workspace:
             ".github/workflows/ci.yml",
             f'name: CI\nenv:\n  MSRV: "{MSRV}"\njobs:\n  test:\n    strategy:\n      matrix:\n        node-version:\n          - 20\n          - 22\n',
         )
+        self.write("package.json", json.dumps({"private": True, "version": VERSION, "engines": {"node": NODE_ENGINES}}))
         self.write("bindings/node/package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
         self.write("packages/javascript/package.json", json.dumps({"version": VERSION, "engines": {"node": NODE_ENGINES}}))
         self.write("bindings/wasm/npm/package.json", json.dumps({"version": VERSION}))
@@ -205,6 +206,15 @@ class RustWorkspaceCheckTests(unittest.TestCase):
         errors = self.run_check(configure)
         self.assertTrue(any("must set [lints] workspace = true" in error for error in errors), errors)
 
+    def test_private_root_version_drift_is_rejected(self) -> None:
+        def configure(workspace: Workspace) -> None:
+            workspace.write("package.json", json.dumps({
+                "private": True, "version": "0.2.0", "engines": {"node": NODE_ENGINES},
+            }))
+
+        errors = self.run_check(configure)
+        self.assertEqual(errors, [f"package.json: version 0.2.0 differs from workspace version {VERSION}"])
+
     def test_node_package_json_drift_is_rejected(self) -> None:
         def configure(workspace: Workspace) -> None:
             workspace.write("bindings/node/package.json", json.dumps({"version": "0.2.0"}))
@@ -282,6 +292,7 @@ class RustWorkspaceCheckTests(unittest.TestCase):
 
     def test_node_engines_drift_is_rejected_in_every_lockstep_manifest(self) -> None:
         for relative in (
+            "package.json",
             "bindings/node/package.json",
             "packages/javascript/package.json",
             "bindings/node/npm/darwin-arm64/package.json",

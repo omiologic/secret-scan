@@ -323,11 +323,13 @@ while that plaintext remains inside their own trusted process boundary.
 
 The first stable Rust-core extension surface supports custom policy and
 placeholder formatter callbacks. These callbacks receive normalized safe
-metadata. Custom detector callbacks are intentionally excluded because they
-would expose plaintext across the FFI boundary and could restore divergent
+metadata. Custom detector callbacks across bindings are intentionally excluded
+because they would expose plaintext across the FFI boundary and could restore divergent
 detector behavior. The retired TypeScript oracle's custom-detector and
 registry APIs were legacy migration surfaces, not part of the accepted first
-stable cross-language contract.
+stable cross-language contract. Rust consumers retain the native `Detector`
+traits and `DetectorRegistry` listed in the core public API; that native
+extension is not a JavaScript or Python callback surface.
 
 Extensions are trusted in-process code, not a sandbox. Fixed library errors can
 sanitize an exception crossing a callback boundary, but cannot prevent trusted
