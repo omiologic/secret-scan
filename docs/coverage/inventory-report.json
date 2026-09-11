@@ -688,7 +688,7 @@
     {
       "detector": "connection-string",
       "evidence": {
-        "fixtureCount": 46,
+        "fixtureCount": 55,
         "hostContextsExercised": [
           "log",
           "plain-text"
@@ -708,6 +708,9 @@
       "evidenceFixtureIds": [
         "connection-positive-amqp-query",
         "connection-positive-amqps",
+        "connection-positive-azure-http",
+        "connection-positive-azure-https",
+        "connection-positive-azure-sovereign-suffix",
         "connection-positive-encoded-ipv6",
         "connection-positive-mariadb-percent-encoded",
         "connection-positive-mongodb-seed-list",
@@ -792,6 +795,15 @@
             "connection-positive-amqps"
           ],
           "scheme": "amqps",
+          "state": "supported"
+        },
+        {
+          "evidenceFixtureIds": [
+            "connection-positive-azure-http",
+            "connection-positive-azure-https",
+            "connection-positive-azure-sovereign-suffix"
+          ],
+          "scheme": "azure",
           "state": "supported"
         }
       ],

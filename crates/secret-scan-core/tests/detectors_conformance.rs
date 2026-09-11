@@ -209,3 +209,90 @@ fn connection_string_escaping_boundaries_produce_no_finding_through_the_full_reg
         assert_eq!(findings, Vec::new(), "{input}");
     }
 }
+
+// --- issue #161: Azure Storage connection strings --------------------------
+//
+// `connection_string.rs`'s own unit tests and the corpus fixtures cited below
+// prove *detection* for the Azure Storage `DefaultEndpointsProtocol=...;
+// AccountKey=...` grammar, a distinct semicolon-delimited key=value form
+// alongside this file's `scheme://` authorities. This asserts the
+// always-redact policy outcome holds for it too, and that its declared
+// boundary and near-miss cases produce no finding through the full registry.
+
+const AZURE_ACCOUNT_NAME: &str = "fixturestorageaccount";
+/// fixture: connection-positive-azure-https, connection-positive-azure-http,
+/// connection-positive-azure-sovereign-suffix,
+/// connection-boundary-azure-reordered-fields
+///
+/// Base64 decodes to
+/// `SYNTHETIC-REVOKED-AZURE-STORAGE-ACCOUNT-KEY-FIXTURE-0000000000`.
+const AZURE_ACCOUNT_KEY: &str =
+    "U1lOVEhFVElDLVJFVk9LRUQtQVpVUkUtU1RPUkFHRS1BQ0NPVU5ULUtFWS1GSVhUVVJFLTAwMDAwMDAwMDA=";
+
+/// fixture: connection-positive-azure-https, connection-positive-azure-http,
+/// connection-positive-azure-sovereign-suffix,
+/// connection-boundary-azure-reordered-fields
+///
+/// Every protocol variant, recognized `EndpointSuffix`, and field order
+/// still redacts under the default policy, not merely gets detected.
+#[test]
+fn every_azure_storage_connection_string_variant_redacts_under_default_policy() {
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+    let inputs = [
+        format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey={AZURE_ACCOUNT_KEY};EndpointSuffix=core.windows.net"
+        ),
+        format!(
+            "DefaultEndpointsProtocol=http;AccountName={AZURE_ACCOUNT_NAME};AccountKey={AZURE_ACCOUNT_KEY};EndpointSuffix=core.windows.net"
+        ),
+        format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey={AZURE_ACCOUNT_KEY};EndpointSuffix=core.usgovcloudapi.net"
+        ),
+        format!(
+            "AccountName={AZURE_ACCOUNT_NAME};EndpointSuffix=core.windows.net;AccountKey={AZURE_ACCOUNT_KEY};DefaultEndpointsProtocol=https"
+        ),
+    ];
+
+    for input in inputs {
+        let findings = scan(&input, &registry, &DefaultPolicy).unwrap();
+        assert_eq!(findings.len(), 1, "{input}");
+        assert_eq!(
+            findings[0].type_name(),
+            "connection_string_password",
+            "{input}"
+        );
+        assert_eq!(findings[0].action(), Action::Redact, "{input}");
+    }
+}
+
+/// fixture: connection-boundary-azure-missing-key-value,
+/// connection-boundary-azure-malformed-base64,
+/// connection-negative-azure-account-name-only,
+/// connection-negative-azure-unrelated-semicolon-config
+///
+/// A present-but-empty `AccountKey`, a malformed base64 value, a connection
+/// string missing the field entirely, and an unrelated semicolon-delimited
+/// grammar (a SQL Server ADO.NET connection string) all produce no finding
+/// at all through the full built-in registry.
+#[test]
+fn azure_storage_boundaries_and_near_misses_produce_no_finding_through_the_full_registry() {
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+    let inputs = [
+        format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey=;EndpointSuffix=core.windows.net"
+        ),
+        format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};AccountKey=not-a-valid-base64-key!!;EndpointSuffix=core.windows.net"
+        ),
+        format!(
+            "DefaultEndpointsProtocol=https;AccountName={AZURE_ACCOUNT_NAME};EndpointSuffix=core.windows.net"
+        ),
+        "Server=tcp:fixture.database.windows.net,1433;Database=fixturedb;IntegratedSecurity=true;Encrypt=true;TrustServerCertificate=false;"
+            .to_string(),
+    ];
+
+    for input in inputs {
+        let findings = scan(&input, &registry, &DefaultPolicy).unwrap();
+        assert_eq!(findings, Vec::new(), "{input}");
+    }
+}

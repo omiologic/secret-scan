@@ -86,6 +86,7 @@ Coverage declarations: 35.
 | generic-token | authorization_credential | token | supported |
 | connection-string | connection_string_password | amqp | supported |
 | connection-string | connection_string_password | amqps | supported |
+| connection-string | connection_string_password | azure | supported |
 | connection-string | connection_string_password | mariadb | supported |
 | connection-string | connection_string_password | mongodb | supported |
 | connection-string | connection_string_password | mongodb+srv | supported |

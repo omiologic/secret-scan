@@ -165,7 +165,8 @@
         "redis",
         "rediss",
         "amqp",
-        "amqps"
+        "amqps",
+        "azure"
       ]
     },
     {
