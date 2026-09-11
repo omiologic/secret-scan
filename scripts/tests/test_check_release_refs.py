@@ -48,6 +48,8 @@ def reconcile_workflow(*, guarded: bool = True, present: bool = True) -> str:
         "    runs-on: ubuntu-latest\n"
         "    steps:\n"
         + (GUARD_STEP if guarded else "      - run: reconcile\n")
+        + "  tag-reconciled-release:\n    runs-on: ubuntu-latest\n    steps:\n"
+        + GUARD_STEP
     )
 
 

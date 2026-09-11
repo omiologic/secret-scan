@@ -19,7 +19,7 @@ RELEASE_WORKFLOW = Path(".github") / "workflows" / "release.yml"
 RELEASE_JOBS = ("publish", "publish-crates", "publish-pypi", "publish-native-dependencies", "publish-wasm-dependency", "tag-release")
 
 RECONCILE_WORKFLOW = Path(".github") / "workflows" / "reconcile-release.yml"
-RECONCILE_JOBS = ("reconcile",)
+RECONCILE_JOBS = ("reconcile", "tag-reconciled-release")
 
 # A named top-level job block: `  <job-name>:` through the line before the
 # next top-level job (or end of file). Workflow jobs are two-space indented

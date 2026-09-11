@@ -74,6 +74,7 @@ WRITE_SCOPE_ALLOWLIST = {
     ("release.yml", "tag-release", "contents"),
     ("release.yml", "publish-pypi", "id-token"),
     ("reconcile-release.yml", "reconcile", "contents"),
+    ("reconcile-release.yml", "tag-reconciled-release", "contents"),
     ("reconcile-release.yml", "reconcile", "id-token"),
     # Issue #156: scoped solely to the best-effort SARIF upload step; the
     # gate itself (the scan's own exit code) needs no more than contents:

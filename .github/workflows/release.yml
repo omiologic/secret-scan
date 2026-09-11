@@ -238,7 +238,7 @@ jobs:
           if [[ -n "$package_name" && -n "$version" ]]; then
             if npm view "$package_name@$version" version >/dev/null 2>&1; then state=published; else state=unpublished; fi
           fi
-          json=$(jq -n --arg artifact "npm:${package_name:-unknown}" --arg state "$state" '{($artifact): $state}')
+          json=$(jq -cn --arg artifact "npm:${package_name:-unknown}" --arg state "$state" '{($artifact): $state}')
           echo "registry_state_json=$json" >> "$GITHUB_OUTPUT"
 
   publish:
@@ -378,7 +378,7 @@ jobs:
               state=unpublished
             fi
           fi
-          json=$(jq -n --arg artifact "npm:${package_name:-unknown}" --arg state "$state" '{($artifact): $state}')
+          json=$(jq -cn --arg artifact "npm:${package_name:-unknown}" --arg state "$state" '{($artifact): $state}')
           echo "registry_state_json=$json" >> "$GITHUB_OUTPUT"
 
   publish-crates:
@@ -422,7 +422,7 @@ jobs:
           version=$(cargo metadata --no-deps --format-version 1 --locked \
             | jq -r '.packages[] | select(.name == "redact-secret") | .version')
           for crate in redact-secret redact-secret-cli; do
-            status=$(curl -s -o /dev/null -w '%{http_code}' \
+            status=$(curl -s -A "redact-secret-release (https://github.com/redact-secret/redact-secret)" -o /dev/null -w '%{http_code}' \
               "https://crates.io/api/v1/crates/$crate/$version")
             if [[ "$status" == "200" ]]; then
               echo "$crate@$version is already published." >&2
@@ -444,7 +444,7 @@ jobs:
         shell: bash
         run: |
           for attempt in 1 2 3 4 5 6; do
-            status=$(curl -s -o /dev/null -w '%{http_code}' \
+            status=$(curl -s -A "redact-secret-release (https://github.com/redact-secret/redact-secret)" -o /dev/null -w '%{http_code}' \
               "https://crates.io/api/v1/crates/redact-secret/${{ steps.identity.outputs.version }}")
             if [[ "$status" == "200" ]]; then
               exit 0
@@ -469,14 +469,14 @@ jobs:
           cli_state=unknown
           if [[ -n "$version" ]]; then
             for crate in redact-secret redact-secret-cli; do
-              status=$(curl -s -o /dev/null -w '%{http_code}' \
+              status=$(curl -s -A "redact-secret-release (https://github.com/redact-secret/redact-secret)" -o /dev/null -w '%{http_code}' \
                 "https://crates.io/api/v1/crates/$crate/$version")
               state=unpublished
               [[ "$status" == "200" ]] && state=published
               if [[ "$crate" == "redact-secret" ]]; then core_state=$state; else cli_state=$state; fi
             done
           fi
-          json=$(jq -n \
+          json=$(jq -cn \
             --arg core "crate:redact-secret" --arg core_state "$core_state" \
             --arg cli "crate:redact-secret-cli" --arg cli_state "$cli_state" \
             '{($core): $core_state, ($cli): $cli_state}')
@@ -552,11 +552,11 @@ jobs:
           version="${{ steps.identity.outputs.version }}"
           state=unknown
           if [[ -n "$name" && -n "$version" ]]; then
-            status=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/$name/$version/json")
+            status=$(curl -s -A "redact-secret-release (https://github.com/redact-secret/redact-secret)" -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/$name/$version/json")
             state=unpublished
             [[ "$status" == "200" ]] && state=published
           fi
-          json=$(jq -n --arg artifact "pypi:${name:-unknown}" --arg state "$state" '{($artifact): $state}')
+          json=$(jq -cn --arg artifact "pypi:${name:-unknown}" --arg state "$state" '{($artifact): $state}')
           echo "registry_state_json=$json" >> "$GITHUB_OUTPUT"
 
   # Issue #141's "registry-backed clean install" criterion: installs the
@@ -736,7 +736,7 @@ jobs:
           # a partial release still yields a manifest instead of a jq error.
           npm_json='${{ needs.publish.outputs.registry_state_json }}'
           [[ -z "$npm_json" ]] && npm_json='{}'
-          native_json=$(jq -s 'add // {}' dependency-registry-states/*/registry-state.json 2>/dev/null || echo '{}')
+          native_json=$(jq -s 'add // {}' dependency-registry-states/*/registry-state.json 2>/dev/null) || native_json='{}'
           wasm_json='${{ needs.publish-wasm-dependency.outputs.registry_state_json }}'
           [[ -z "$wasm_json" ]] && wasm_json='{}'
           crates_json='${{ needs.publish-crates.outputs.registry_state_json }}'
@@ -744,13 +744,21 @@ jobs:
           pypi_json='${{ needs.publish-pypi.outputs.registry_state_json }}'
           [[ -z "$pypi_json" ]] && pypi_json='{}'
 
-          merged=$(jq -n \
+          # Declare the whole product even when no publisher produced output.
+          expected_json=$(node --input-type=commonjs -e '
+            const p = require("./packages/javascript/package.json");
+            const npm = [p.name, ...Object.keys(p.dependencies || {}), ...Object.keys(p.optionalDependencies || {})];
+            const artifacts = [...npm.map(name => "npm:" + name), "crate:redact-secret", "crate:redact-secret-cli", "pypi:redact-secret"];
+            console.log(JSON.stringify(Object.fromEntries(artifacts.map(name => [name, "unknown"]))));
+          ')
+          merged=$(jq -cn \
+            --argjson expected "$expected_json" \
             --argjson npm "$npm_json" \
             --argjson native "$native_json" \
             --argjson wasm "$wasm_json" \
             --argjson crates "$crates_json" \
             --argjson pypi "$pypi_json" \
-            '$npm + $native + $wasm + $crates + $pypi')
+            '$expected + $npm + $native + $wasm + $crates + $pypi')
 
           artifact_args=()
           registry_args=()
