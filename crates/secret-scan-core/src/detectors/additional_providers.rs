@@ -207,11 +207,31 @@ pub(super) const VERCEL: KnownFormatProviderDetector = KnownFormatProviderDetect
     boundary: pattern::is_alnum_dash,
 };
 
+/// npm access tokens. Granular, automation, and legacy read-only tokens all
+/// share the same `npm_`-prefixed shape: a fixed 36-byte base62
+/// (`[A-Za-z0-9]`) body, the last six bytes of which encode a base62-encoded
+/// CRC32 checksum. The suffix is matched as an exact length, not a minimum —
+/// a prefix with the token truncated below 36 bytes, or with the `npm_`
+/// prefix stripped entirely, is an intentional false negative; the fixed
+/// prefix, alphabet, and length keep false-positive risk low.
+pub(super) const NPM: KnownFormatProviderDetector = KnownFormatProviderDetector {
+    id: "npm-token",
+    type_name: "npm_access_token",
+    signals: &["npm-documented-prefix", "base62-exact-length"],
+    prefixes: &["npm_"],
+    run: RunLength::Exact(36),
+    alphabet: pattern::is_alnum,
+    boundary: pattern::is_alnum_dash,
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const BODY: &str = "SYNTHETICREVOKEDPROVIDERVALUE";
+    /// npm's suffix is matched as an exact 36-byte length, not a minimum, so
+    /// it needs its own fixed-length synthetic body rather than [`BODY`].
+    const NPM_BODY: &str = "SYNTHETICREVOKEDNPMACCESSTOKENVALUE1";
 
     fn detect(detector: &KnownFormatProviderDetector, input: &str) -> Vec<Candidate> {
         detector
@@ -276,6 +296,11 @@ mod tests {
                 detector: VERCEL,
                 value: format!("vcp_{BODY}"),
                 short: "vcp_SYNTHETIC_SHORT",
+            },
+            Family {
+                detector: NPM,
+                value: format!("npm_{NPM_BODY}"),
+                short: "npm_SYNTHETICSHORT",
             },
         ]
     }
