@@ -18,6 +18,7 @@ mod github;
 mod gitlab;
 mod jwt;
 mod openai;
+mod otpauth;
 mod pattern;
 mod private_key;
 mod shopify;
@@ -58,6 +59,7 @@ pub(crate) fn built_in_detectors() -> Vec<Box<dyn Detector>> {
         jwt::jwt_detector(),
         bearer_token::bearer_token_detector(),
         Box::new(ConnectionStringDetector),
+        otpauth::otpauth_detector(),
         generic_token::generic_token_detector(),
     ]
 }
@@ -108,6 +110,7 @@ mod tests {
                 "jwt",
                 "bearer-token",
                 "connection-string",
+                "otpauth-uri",
                 "generic-token",
             ]
         );

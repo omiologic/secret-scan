@@ -1950,6 +1950,86 @@
       "type": "connection_string_password"
     },
     {
+      "behaviorClass": "structural",
+      "detector": "otpauth-uri",
+      "dimensions": [
+        {
+          "dimension": "positive",
+          "evidenceFixtureIds": [
+            "otpauth-positive-hotp-full-parameters",
+            "otpauth-positive-hotp-minimal",
+            "otpauth-positive-totp-full-parameters",
+            "otpauth-positive-totp-minimal"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "overlap",
+          "evidenceFixtureIds": [
+            "otpauth-overlap-generic-token-secret-assignment"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "adversarial",
+          "evidenceFixtureIds": [
+            "otpauth-adversarial-overlong-query"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "boundary",
+          "evidenceFixtureIds": [
+            "otpauth-boundary-invalid-base32-alphabet",
+            "otpauth-boundary-missing-secret-parameter",
+            "otpauth-boundary-secret-below-minimum-length"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "near-miss-negative",
+          "evidenceFixtureIds": [
+            "otpauth-negative-no-secret-parameter",
+            "otpauth-negative-unrelated-otpauth-mention"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "malformed",
+          "evidenceFixtureIds": [
+            "otpauth-boundary-invalid-base32-alphabet",
+            "otpauth-boundary-missing-secret-parameter",
+            "otpauth-boundary-secret-below-minimum-length"
+          ],
+          "state": "supported"
+        },
+        {
+          "dimension": "host-context",
+          "evidenceFixtureIds": [],
+          "exception": {
+            "backlogId": "structural-host-context-breadth",
+            "code": "pending"
+          },
+          "state": "pending"
+        },
+        {
+          "classLevel": true,
+          "dimension": "range",
+          "evidenceFixtureIds": [
+            "unicode-conversion-adjacent-punctuation",
+            "unicode-conversion-astral-after",
+            "unicode-conversion-astral-before",
+            "unicode-conversion-astral-within",
+            "unicode-conversion-combining-before",
+            "unicode-conversion-multibyte-bmp-before"
+          ],
+          "state": "supported"
+        }
+      ],
+      "note": "Coverage declaration for otpauth_secret (otpauth-uri), derived from synchronous-corpus.json per evidence-requirements.md's requirement matrix.",
+      "type": "otpauth_secret"
+    },
+    {
       "behaviorClass": "contextual",
       "detector": "generic-token",
       "dimensions": [
@@ -2216,6 +2296,7 @@
             "linear-adversarial-long-suffix",
             "npm-adversarial-long-suffix",
             "openai-adversarial-long-suffix",
+            "otpauth-adversarial-overlong-query",
             "private-key-adversarial-incomplete",
             "private-key-adversarial-mismatched",
             "private-key-adversarial-nested",
@@ -2487,6 +2568,7 @@
             "linear-adversarial-long-suffix",
             "npm-adversarial-long-suffix",
             "openai-adversarial-long-suffix",
+            "otpauth-adversarial-overlong-query",
             "private-key-adversarial-incomplete",
             "private-key-adversarial-mismatched",
             "private-key-adversarial-nested",

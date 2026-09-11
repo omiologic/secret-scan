@@ -56,7 +56,13 @@ _INVENTORY_SPEC.loader.exec_module(INVENTORY)
 
 # evidence-requirements.md §1: the fixed partition of the 22 declared types
 # into behavior classes. Every type not listed here is "provider" (16 of 22).
-STRUCTURAL_TYPES = {"private_key", "jwt", "bearer_token", "connection_string_password"}
+STRUCTURAL_TYPES = {
+    "private_key",
+    "jwt",
+    "bearer_token",
+    "connection_string_password",
+    "otpauth_secret",
+}
 CONTEXTUAL_TYPES = {"contextual_secret", "authorization_credential"}
 
 # evidence-requirements.md §3: the 22 CanonicalHostContext values partitioned

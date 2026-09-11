@@ -232,8 +232,11 @@ Built-in Rust detection covers:
 - qualified Stripe, Slack, PyPI, Hugging Face, Docker Hub, Cloudflare,
   DigitalOcean, Linear, Supabase, and Vercel credentials;
 - contextual credential assignments, including AWS secret-access-key and
-  session-token setting names; and
-- credential-bearing PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and AMQP URLs.
+  session-token setting names;
+- credential-bearing PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and AMQP URLs;
+  and
+- `otpauth://totp` and `otpauth://hotp` URIs carrying a base32-encoded shared
+  secret.
 
 Entropy is only a supporting signal. Random-looking text is not classified
 without structural or contextual evidence, and the generic name `token` alone
