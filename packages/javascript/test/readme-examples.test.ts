@@ -6,6 +6,10 @@ import { describe, expect, it } from "vitest";
 
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const README = readFileSync(join(PACKAGE_ROOT, "README.md"), "utf8");
+const STREAMING_GUIDE = readFileSync(
+  join(PACKAGE_ROOT, "..", "..", "docs", "guides", "streaming.md"),
+  "utf8",
+);
 const TSC = join(PACKAGE_ROOT, "..", "..", "node_modules", "typescript", "bin", "tsc");
 
 /** Runs `tsc` over `project` and returns its diagnostics, empty when clean. */
@@ -23,8 +27,8 @@ function typeCheck(project: string): string {
 }
 
 /** Every fenced ` ```ts ` block in the README, in document order. */
-function typeScriptExamples(): readonly string[] {
-  return [...README.matchAll(/```ts\n([\s\S]*?)```/g)].map(
+function typeScriptExamples(document = README): readonly string[] {
+  return [...document.matchAll(/```ts\n([\s\S]*?)```/g)].map(
     ([, body]) => body ?? "",
   );
 }
@@ -84,6 +88,12 @@ describe("README examples", () => {
     expect(README).toContain("@redact-secret/core/web-stream");
   });
 
+  it("keeps the repository streaming guide on the public JavaScript API", () => {
+    expect(STREAMING_GUIDE).toContain("createIncrementalSanitizer");
+    expect(STREAMING_GUIDE).toContain("createNodeStreamSanitizer");
+    expect(typeScriptExamples(STREAMING_GUIDE).length).toBeGreaterThan(0);
+  });
+
   it("imports only names the package actually exports", async () => {
     for (const [subpath, declarations] of [
       ["", "index.d.ts"],
@@ -115,7 +125,7 @@ describe("README examples", () => {
     const scratch = mkdtempSync(join(PACKAGE_ROOT, ".readme-examples-"));
     try {
       const sources: string[] = [];
-      typeScriptExamples().forEach((example, index) => {
+      [...typeScriptExamples(), ...typeScriptExamples(STREAMING_GUIDE)].forEach((example, index) => {
         const name = `example-${index}.ts`;
         writeFileSync(
           join(scratch, name),

@@ -420,7 +420,11 @@ smoke-testing each on the architecture it targets, exercising the browser
 artifact in Chromium, Firefox, and WebKit, and recording an artifact inventory
 — source commit, product version, conformance-corpus digests, per-artifact
 SHA-256, and the file-by-file contents of each publishable package — that
-states `"published": false`. The supported target, engine, and Node.js lists
+states `"published": false`. Packed JavaScript candidates are also installed
+outside the checkout and their public incremental and stream APIs are exercised
+on every declared Node.js major and browser engine; each row records its runtime,
+commands, results, source revision, and package SHA-256 identities. The supported
+target, engine, and Node.js lists
 live once in `[workspace.metadata.redact-secret]`, and a declaration check binds
 every manifest, script, and workflow matrix to them so a supported platform
 cannot be added or dropped in one file alone. That check also enforces

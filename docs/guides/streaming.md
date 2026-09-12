@@ -14,6 +14,61 @@ A secret may cross any chunk boundary. Scanning each chunk independently can
 leak it. A session retains unresolved text until its detection window closes,
 then emits text and findings. An append may legitimately return empty text.
 
+## JavaScript incremental example
+
+Both installed JavaScript artifacts expose the same root API. Limits and
+findings count UTF-16 code units on Node.js and in browsers.
+
+```ts
+import { createIncrementalSanitizer, initialize } from "@redact-secret/core";
+
+await initialize();
+
+const session = createIncrementalSanitizer({
+  limits: {
+    maxInputCodeUnits: 32_768,
+    maxBufferedCodeUnits: 16_512,
+    maxTokenCodeUnits: 8_192,
+    maxMultilineCodeUnits: 16_384,
+  },
+});
+const first = session.append("api_key=SYNTHETIC_REVOKED_");
+const second = session.append("INCREMENTAL_VALUE\nordinary text");
+const final = session.finalize();
+const safeText = first.text + second.text + final.text;
+```
+
+For byte streams, use the runtime adapter rather than decoding each chunk.
+The adapters own one fatal, stateful UTF-8 decoder, so a multibyte character
+may cross byte chunks without replacement or leakage:
+
+```ts
+import { pipeline } from "node:stream/promises";
+import { initialize } from "@redact-secret/core";
+import { createNodeStreamSanitizer } from "@redact-secret/core/node-stream";
+
+await initialize();
+await pipeline(
+  process.stdin,
+  createNodeStreamSanitizer({
+    limits: {
+      maxInputCodeUnits: 32_768,
+      maxBufferedCodeUnits: 16_512,
+      maxTokenCodeUnits: 8_192,
+      maxMultilineCodeUnits: 16_384,
+    },
+  }),
+  process.stdout,
+);
+```
+
+Browser code uses `createWebStreamSanitizer` from
+`@redact-secret/core/web-stream` with `source.pipeThrough(transform)`; the
+package README contains the complete typed example. Repository tests
+type-check those Markdown examples, and artifact qualification executes the
+same public incremental and stream calls from clean candidate-package installs
+on Node.js 20, 22, and 24 and in Chromium, Firefox, and WebKit.
+
 ## Python example
 
 ```python

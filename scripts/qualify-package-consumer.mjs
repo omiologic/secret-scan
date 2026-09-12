@@ -4,8 +4,8 @@
  * it: packs it and its native/WebAssembly dependencies into tarballs, installs
  * the packed `@redact-secret/core` tarball into a clean directory outside
  * the repository (nothing under it resolves back into this checkout), and
- * awaits `initialize()` successfully on both the Node runtime and a real
- * browser runtime (issue #79, "Under either branch" criterion 1).
+ * exercises the installed public scan, incremental, and stream APIs on the
+ * requested Node or browser runtime.
  *
  * `optionalDependencies`/`dependencies` in `packages/javascript/package.json`
  * name registry versions of `@redact-secret/node-<platform>` and
@@ -25,12 +25,14 @@
  * - `wasm-bindgen --target web --out-name redact_secret_wasm` has produced the
  *   browser build in some directory (`--wasm-dir`).
  * - `npm run js:build` has produced `packages/javascript/dist`.
- * - `playwright`'s `chromium` browser is installed for the browser lane.
+ * - The requested Playwright engine is installed for the browser lane.
  *
- * Usage: node scripts/qualify-package-consumer.mjs --wasm-dir <dir>
+ * Usage: node scripts/qualify-package-consumer.mjs --lane node|browser
+ *   --wasm-dir <dir> [--engine chromium|firefox|webkit] --report <path>
  */
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,11 +51,38 @@ const NODE_PLATFORM_ROOT = join(REPO_ROOT_PATH, "bindings/node");
 const WASM_PACKAGE_ROOT = join(REPO_ROOT_PATH, "bindings/wasm/npm");
 
 function parseArgs(argv) {
-  const index = argv.indexOf("--wasm-dir");
-  if (index === -1 || argv[index + 1] === undefined) {
-    throw new Error("usage: qualify-package-consumer.mjs --wasm-dir <dir>");
+  function value(name) {
+    const index = argv.indexOf(name);
+    return index === -1 ? undefined : argv[index + 1];
   }
-  return { wasmDir: argv[index + 1] };
+  const lane = value("--lane");
+  const wasmDir = value("--wasm-dir");
+  const report = value("--report");
+  const engine = value("--engine");
+  if (
+    (lane !== "node" && lane !== "browser") ||
+    wasmDir === undefined ||
+    report === undefined ||
+    (lane === "browser" && engine === undefined)
+  ) {
+    throw new Error(
+      "usage: qualify-package-consumer.mjs --lane node|browser " +
+        "--wasm-dir <dir> [--engine chromium|firefox|webkit] --report <path>",
+    );
+  }
+  return { lane, wasmDir, report, engine };
+}
+
+async function sha256(path) {
+  return createHash("sha256").update(await readFile(path)).digest("hex");
+}
+
+function sourceCommit() {
+  if (process.env.SOURCE_COMMIT?.trim()) return process.env.SOURCE_COMMIT.trim();
+  return execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: REPO_ROOT_PATH,
+    encoding: "utf8",
+  }).trim();
 }
 
 function npmPack(cwd) {
@@ -123,7 +152,7 @@ async function buildConsumerProject(tarballs) {
 }
 
 async function main() {
-  const { wasmDir } = parseArgs(process.argv.slice(2));
+  const { lane, wasmDir, report, engine } = parseArgs(process.argv.slice(2));
   const fixture = await loadCanonicalFixture(CANONICAL_FIXTURE_ID);
   const expectedVersion = await packageVersion();
 
@@ -141,8 +170,63 @@ async function main() {
   let consumerRoot;
   try {
     consumerRoot = await buildConsumerProject(tarballs);
-    qualifyNode(consumerRoot, fixture, expectedVersion);
-    await qualifyBrowser(consumerRoot, fixture, expectedVersion);
+    const results =
+      lane === "node"
+        ? qualifyNode(consumerRoot, fixture, expectedVersion)
+        : await qualifyBrowser(consumerRoot, fixture, expectedVersion, engine);
+    const packageArtifacts = await Promise.all(
+      [
+        ["@redact-secret/core", tarballs.js],
+        [nodeSpecifier, tarballs.node],
+        [WASM_SPECIFIER, tarballs.wasm],
+      ].map(async ([name, path]) => ({
+        name,
+        version: expectedVersion,
+        file: path.split(/[\\/]/).at(-1),
+        sha256: await sha256(path),
+      })),
+    );
+    await writeFile(
+      report,
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          sourceCommit: sourceCommit(),
+          published: false,
+          lane,
+          runtime:
+            lane === "node"
+              ? { name: "node", version: process.version }
+              : { name: engine, version: results.engineVersion },
+          productVersion: expectedVersion,
+          fixture: fixture.id,
+          packageArtifacts,
+          commands: [
+            "npm install --no-audit --no-fund",
+            `node scripts/qualify-package-consumer.mjs --lane ${lane}` +
+              (engine ? ` --engine ${engine}` : "") +
+              " --wasm-dir <candidate-wasm-dir> --report <evidence-path>",
+          ],
+          operations:
+            lane === "node"
+              ? [
+                  "initialize",
+                  "scan",
+                  "createIncrementalSanitizer",
+                  "createNodeStreamSanitizer",
+                ]
+              : [
+                  "initialize",
+                  "scan",
+                  "createIncrementalSanitizer",
+                  "createWebStreamSanitizer",
+                ],
+          results,
+        },
+        null,
+        2,
+      )}\n`,
+    );
   } finally {
     await rm(tarballs.js, { force: true });
     await rm(tarballs.node, { force: true });
@@ -157,8 +241,9 @@ async function main() {
   }
 
   console.log(
-    `Package consumer qualification passed (fixture ${fixture.id}, version ${expectedVersion}): ` +
-      "Node and browser lanes both installed the packed tarball into a clean directory and initialized.",
+    `Package consumer qualification passed (${lane}${engine ? `/${engine}` : ""}, ` +
+      `fixture ${fixture.id}, version ${expectedVersion}): the packed package was ` +
+      "installed into a clean directory and its public scan, incremental, and stream APIs passed.",
   );
 }
 

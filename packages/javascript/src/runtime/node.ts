@@ -29,12 +29,10 @@ import type {
  * which this adapter renames to the contract's `text`; everything else is
  * already the documented UTF-16 shape.
  *
- * `createIncrementalSanitizer` is declared optional here because this type
- * also describes any addon a consumer might have installed, including one
- * built before `bindings/node` implemented it: this adapter treats its
- * absence the same way `runtime/browser.ts` treats `bindings/wasm`'s
- * documented non-support — `INCREMENTAL_UNAVAILABLE` at call time, not a
- * load-time failure — rather than assuming every addon on disk is current.
+ * Incremental sanitization is part of the artifact contract. A package and
+ * platform addon are released in lockstep, so an addon without that export is
+ * an invalid installation and fails initialization with the other missing
+ * required exports.
  */
 interface NodeAddon {
   version(): string;
@@ -53,7 +51,7 @@ interface NodeAddon {
     policy?: NativePolicyCallback,
     formatter?: NativeFormatterCallback,
   ): { readonly findings: readonly NativeFinding[]; readonly redacted: string };
-  createIncrementalSanitizer?(
+  createIncrementalSanitizer(
     options: NativeIncrementalOptions,
   ): NativeIncrementalSanitizer;
 }
@@ -134,6 +132,7 @@ function loadAddon(): NodeAddon {
     "scan",
     "redact",
     "scanAndRedact",
+    "createIncrementalSanitizer",
   ] as const) {
     if (typeof addon[name] !== "function") {
       throw new SecretScanError("INITIALIZATION_FAILED");
@@ -145,9 +144,8 @@ function loadAddon(): NodeAddon {
 /**
  * Builds the internal binding contract from an already-loaded addon.
  *
- * Exported so a test double can exercise this exact normalization —
- * including the `createIncrementalSanitizer` fallback — without loading the
- * real addon, the way `runtime/browser.ts`'s
+ * Exported so a test double can exercise this exact normalization without
+ * loading the real addon, the way `runtime/browser.ts`'s
  * `createBindingFromWasmModule` does for the WebAssembly artifact.
  */
 export function createBindingFromAddon(addon: NodeAddon): NativeBinding {
@@ -163,12 +161,8 @@ export function createBindingFromAddon(addon: NodeAddon): NativeBinding {
       const result = addon.scanAndRedact(input, policy, formatter);
       return { text: result.redacted, findings: result.findings };
     },
-    createIncrementalSanitizer: (options) => {
-      if (typeof addon.createIncrementalSanitizer !== "function") {
-        throw new SecretScanError("INCREMENTAL_UNAVAILABLE");
-      }
-      return addon.createIncrementalSanitizer(options);
-    },
+    createIncrementalSanitizer: (options) =>
+      addon.createIncrementalSanitizer(options),
   };
 }
 
