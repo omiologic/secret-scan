@@ -40,11 +40,17 @@ sufficient coverage evidence.
   honestly stating that a reachable finding type or scheme currently has no
   positive corpus evidence and no documented reason to be exempt. No row is
   currently `unresolved` — `authorization_credential` was the last one,
-  closed by issue #105; the 5 remaining evidence-*breadth* gaps
+  closed by issue #105; the remaining evidence-*breadth* gaps
   (`coverage-declarations.json`'s `pending` dimension cells, below) are
   tracked as
-  [`docs/audits/detection-assurance-residual-evidence-backlog.md`](../audits/detection-assurance-residual-evidence-backlog.md)
-  by issue [#136](https://github.com/redact-secret/redact-secret/issues/136).
+  [`docs/audits/detection-assurance-residual-evidence-backlog.md`](../audits/detection-assurance-residual-evidence-backlog.md).
+  Issue [#136](https://github.com/redact-secret/redact-secret/issues/136)
+  closed the historical tracking artifact; current exit work is owned by
+  [#186](https://github.com/redact-secret/redact-secret/issues/186),
+  [#187](https://github.com/redact-secret/redact-secret/issues/187),
+  [#188](https://github.com/redact-secret/redact-secret/issues/188),
+  [#189](https://github.com/redact-secret/redact-secret/issues/189), and
+  [#190](https://github.com/redact-secret/redact-secret/issues/190).
 
 Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_coverage_inventory.py'`.
 
