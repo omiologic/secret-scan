@@ -1,16 +1,16 @@
 {
   "performance": {
     "initialization": {
-      "maximum": 0.497667,
-      "mean": 0.26056250000000003,
-      "median": 0.26056250000000003,
-      "minimum": 0.023458,
-      "p95": 0.497667,
+      "maximum": 0.208209,
+      "mean": 0.108771,
+      "median": 0.108771,
+      "minimum": 0.009333000000000001,
+      "p95": 0.208209,
       "samples": [
-        0.497667,
-        0.023458
+        0.208209,
+        0.009333000000000001
       ],
-      "standardDeviation": 0.2371045,
+      "standardDeviation": 0.099438,
       "unit": "milliseconds"
     },
     "memory": {
@@ -35,12 +35,12 @@
       "nodeRss": {
         "samples": [
           {
-            "baselineBytes": 3899392,
-            "maximumObservedBytes": 3915776
+            "baselineBytes": 3325952,
+            "maximumObservedBytes": 3358720
           },
           {
-            "baselineBytes": 3981312,
-            "maximumObservedBytes": 3981312
+            "baselineBytes": 3391488,
+            "maximumObservedBytes": 3391488
           }
         ],
         "samplingLimit": "Sampled immediately before and after processing; short-lived peaks between those boundaries may be missed, so maxima are observed samples, not guaranteed true peaks.",
@@ -60,29 +60,29 @@
       }
     },
     "processing": {
-      "maximum": 169.099875,
-      "mean": 132.867667,
-      "median": 132.867667,
-      "minimum": 96.63545900000001,
-      "p95": 169.099875,
+      "maximum": 89.83429199999999,
+      "mean": 89.777125,
+      "median": 89.777125,
+      "minimum": 89.719958,
+      "p95": 89.83429199999999,
       "samples": [
-        169.099875,
-        96.63545900000001
+        89.83429199999999,
+        89.719958
       ],
-      "standardDeviation": 36.23220799999999,
+      "standardDeviation": 0.05716699999999264,
       "unit": "milliseconds"
     },
     "throughput": {
-      "maximum": 678363.829161302,
-      "mean": 533014.1099030898,
-      "median": 533014.1099030898,
-      "minimum": 387664.39064487774,
-      "p95": 678363.829161302,
+      "maximum": 730651.2559892192,
+      "mean": 730186.2983497564,
+      "median": 730186.2983497564,
+      "minimum": 729721.3407102936,
+      "p95": 730651.2559892192,
       "samples": [
-        387664.39064487774,
-        678363.829161302
+        729721.3407102936,
+        730651.2559892192
       ],
-      "standardDeviation": 145349.7192582121,
+      "standardDeviation": 464.9576394627802,
       "unit": "bytes-per-second"
     }
   },
@@ -90,7 +90,7 @@
   "provenance": {
     "artifactIdentity": "redact-secret@0.1.0-beta.1",
     "command": "cargo run -p redact-secret --example assessment_adapter -- performance --profile scale-logs-small-whole --runs 2 --json-out assessment/results/rust-core/scale-logs-small-whole.json --markdown-out assessment/results/rust-core/scale-logs-small-whole.md",
-    "commit": "f221571e862e57dde3278255ba85fe7c9be053eb",
+    "commit": "3f6bd022952f59cac260fb177313752ca1428650",
     "corpusHash": "b4db2cd22b4c008c9d63789df8ca2e21e697a21a84699466ea5f96c89d8e2806",
     "corpusVersion": "1",
     "cpu": "aarch64",

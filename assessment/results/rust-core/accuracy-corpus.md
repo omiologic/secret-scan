@@ -3,7 +3,7 @@
 - Profile: `accuracy-corpus`
 - Schema version: `2`
 - Artifact: `redact-secret@0.1.0-beta.1`
-- Commit: `eb1ce0d73710669fd5a826762efa701aab7a1309`
+- Commit: `3f6bd022952f59cac260fb177313752ca1428650`
 - Corpus: `1` (`9c72ab77bb1ee54c6912592c2ce3de72c0c152356283d620498aac5fe08c26d9`)
 - Host: macos-25.5.0 / aarch64 / rustc-1.98.1 (48a229cea 2026-09-01)
 - Command: `cargo run -p redact-secret --example assessment_adapter -- accuracy --json-out assessment/results/rust-core/accuracy-corpus.json --markdown-out assessment/results/rust-core/accuracy-corpus.md --mismatches-out assessment/results/rust-core/accuracy-corpus-mismatches.json`
