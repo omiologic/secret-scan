@@ -374,7 +374,10 @@ addon on every target's own runner, the WebAssembly build in each browser
 engine — and runs the canonical corpus through its public API. Both the Node
 artifact and the WebAssembly artifact open a real `createIncrementalSanitizer`
 session, the same core session the Python binding wraps, and the qualifier
-exercises each on its own real artifact.
+exercises each on its own real artifact, including the Node `Transform` and
+Web `TransformStream` adapters built on top of it: byte-partition and Unicode
+equivalence, backpressure, cancellation/abort, and that a downstream failure
+or malformed UTF-8 never flushes retained plaintext.
 
 ## Security and release process
 
