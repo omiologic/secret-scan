@@ -688,10 +688,14 @@
     {
       "detector": "connection-string",
       "evidence": {
-        "fixtureCount": 55,
+        "fixtureCount": 60,
         "hostContextsExercised": [
+          "dotenv",
+          "javascript",
           "log",
-          "plain-text"
+          "markdown",
+          "plain-text",
+          "shell"
         ],
         "kindsWithSupportedEvidence": [
           "adversarial",
@@ -706,6 +710,11 @@
         ]
       },
       "evidenceFixtureIds": [
+        "connection-host-dotenv",
+        "connection-host-javascript",
+        "connection-host-log",
+        "connection-host-markdown",
+        "connection-host-shell",
         "connection-positive-amqp-query",
         "connection-positive-amqps",
         "connection-positive-azure-http",

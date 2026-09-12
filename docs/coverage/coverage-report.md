@@ -55,21 +55,21 @@ Coverage declarations: 35.
 | anthropic_api_key | anthropic-token | provider | supported | not-applicable | none |
 | authorization_credential | generic-token | contextual | supported | supported | host-context, overlap |
 | aws_access_key_id | aws-access-key | provider | supported | not-applicable | none |
-| bearer_token | bearer-token | structural | supported | not-applicable | host-context, overlap |
+| bearer_token | bearer-token | structural | supported | not-applicable | overlap |
 | cloudflare_api_token | cloudflare-token | provider | supported | not-applicable | none |
-| connection_string_password | connection-string | structural | supported | supported | host-context |
+| connection_string_password | connection-string | structural | supported | supported | none |
 | contextual_secret | generic-token | contextual | supported | not-applicable | overlap |
 | digitalocean_token | digitalocean-token | provider | supported | not-applicable | none |
 | docker_token | docker-token | provider | supported | not-applicable | none |
 | github_token | github-token | provider | supported | not-applicable | none |
 | gitlab_token | gitlab-token | provider | supported | not-applicable | none |
 | huggingface_token | huggingface-token | provider | supported | not-applicable | none |
-| jwt | jwt | structural | supported | not-applicable | host-context |
+| jwt | jwt | structural | supported | not-applicable | none |
 | linear_token | linear-token | provider | supported | not-applicable | none |
 | npm_access_token | npm-token | provider | supported | not-applicable | none |
 | openai_api_key | openai-token | provider | supported | not-applicable | none |
-| otpauth_secret | otpauth-uri | structural | supported | supported | host-context |
-| private_key | private-key | structural | supported | not-applicable | host-context |
+| otpauth_secret | otpauth-uri | structural | supported | supported | none |
+| private_key | private-key | structural | supported | not-applicable | none |
 | pypi_api_token | pypi-token | provider | supported | not-applicable | none |
 | shopify_access_token | shopify-token | provider | supported | not-applicable | none |
 | slack_token | slack-token | provider | supported | not-applicable | none |
@@ -104,7 +104,7 @@ Coverage declarations: 35.
 | --- | --- | --- | --- |
 | adversarial | 35 | 0 | 0 |
 | boundary | 25 | 0 | 0 |
-| host-context | 19 | 0 | 6 |
+| host-context | 24 | 0 | 1 |
 | incremental | 3 | 7 | 0 |
 | malformed | 35 | 0 | 0 |
 | near-miss-negative | 25 | 0 | 0 |
@@ -128,10 +128,5 @@ None.
 
 - authorization_credential.host-context (`authorization-credential-host-context-breadth`)
 - authorization_credential.overlap (`authorization-credential-overlap`)
-- bearer_token.host-context (`structural-host-context-breadth`)
 - bearer_token.overlap (`bearer-token-overlap`)
-- connection_string_password.host-context (`structural-host-context-breadth`)
 - contextual_secret.overlap (`contextual-secret-overlap`)
-- jwt.host-context (`structural-host-context-breadth`)
-- otpauth_secret.host-context (`structural-host-context-breadth`)
-- private_key.host-context (`structural-host-context-breadth`)

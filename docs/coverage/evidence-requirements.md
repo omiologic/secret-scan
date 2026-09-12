@@ -169,13 +169,18 @@ Applying §4's matrix and §5's exception codes to the current baseline
   remaining 14 correctly default to their single `plain-text` fixture. No
   row needs invented context fixtures of its own. **All 16 resolve
   `supported`.**
-- **4 structural rows** (`private_key`, `jwt`, `bearer_token`,
-  `connection_string_password`): same dimension coverage as provider.
+- **5 structural rows** (`private_key`, `jwt`, `bearer_token`,
+  `connection_string_password`, `otpauth_secret`): same dimension coverage as
+  provider.
   `private_key`'s scheme dimension resolves `not-applicable` under
   `no-concept` (`schemes: null`), not `unresolved` — the current baseline
-  already encodes this correctly. `connection_string_password` carries the
-  class's extra targeted `log` context (grammar-specific leakage risk, §3)
-  and resolves each of its 10 declared schemes independently: since issue
+  already encodes this correctly. Since issue
+  [#186](https://github.com/redact-secret/redact-secret/issues/186),
+  `connection_string_password` is the structural class's representative for
+  `host-context`: supported positive fixtures cover `dotenv`, `shell`,
+  `javascript`, `log`, and `markdown`, while the other four rows resolve the
+  class-level dimension through `owned-elsewhere`. It also resolves each of
+  its declared schemes independently: since issue
   [#108](https://github.com/redact-secret/redact-secret/issues/108) (deepened
   scheme and escaping coverage), every declared scheme (`postgres`,
   `postgresql`, `mysql`, `mariadb`, `mongodb`, `mongodb+srv`, `redis`,
@@ -187,7 +192,7 @@ Applying §4's matrix and §5's exception codes to the current baseline
   span, an unescaped `@` or `/` in userinfo truncating or invalidating the
   authority, `?`/`#` terminating the authority the same as `/`, a rejected
   IPv6 host with a non-hex group, and a rejected non-ASCII (Unicode/IDN)
-  host label. **All 4 resolve `supported` at the type level**, and
+  host label. **All 5 resolve `supported` at the type level**, and
   `connection_string_password`'s per-scheme ledger now shows full coverage
   rather than partial.
 - **2 contextual rows** (`contextual_secret`, `authorization_credential`,
