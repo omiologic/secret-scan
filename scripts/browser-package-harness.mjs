@@ -6,8 +6,12 @@
  * `scripts/browser-harness.mjs` exercises the artifact through its own
  * exports; this exercises everything above it — the `imports` map selecting
  * the browser runtime, that runtime's normalization of opaque handles and
- * nested ranges, the initialization gate, and the frozen public finding —
- * which is the one layer no other check reaches.
+ * nested ranges, the initialization gate, the frozen public finding, and the
+ * Web `TransformStream` adapter (`packages/javascript/src/adapters/
+ * web-stream.ts`) — which is the one layer no other check reaches.
+ * `test/adapters/web-stream.test.ts` exercises that same adapter surface only
+ * against the deterministic double (`test/sanitizing-binding.ts`), because
+ * the real artifact is not present in a source checkout.
  *
  * This module is bundled (the package resolves `#native` and the artifact
  * specifier through its own manifests, so it cannot be loaded from source in
@@ -27,9 +31,24 @@ import {
   scan,
   scanAndRedact,
 } from "@redact-secret/core";
+import { WebStreamSanitizer } from "@redact-secret/core/web-stream";
 
 const results = [];
 let failures = 0;
+
+async function checkAsync(name, run) {
+  try {
+    await run();
+    results.push({ name, ok: true });
+  } catch (error) {
+    failures += 1;
+    results.push({
+      name,
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 function check(name, run) {
   try {
@@ -245,6 +264,320 @@ export async function qualify(fixtures) {
     assert(thrown instanceof SecretScanError, "a foreign error escaped the package");
     assertEqual(thrown.code, "INVALID_STATE", "post-finalize append code");
   });
+
+  // The Web `TransformStream` adapter, wrapped around the same real session
+  // as the checks above, on the real WebAssembly artifact.
+  //
+  // `fixture` is one canonical, single-finding corpus entry: real enough that
+  // an actual detector must decide it, synthetic enough to publish. It is
+  // wrapped in astral-plane padding on its own lines so byte-partitioning
+  // also exercises a decoder split mid-character without disturbing the
+  // fixture's own line-start context. Every expectation below is
+  // self-consistent — computed from one whole-input pass of the same real
+  // session (`oracleText`) rather than a hardcoded string.
+  const STREAM_LIMITS = {
+    maxInputCodeUnits: 1_000_000,
+    maxBufferedCodeUnits: 16_512,
+    maxTokenCodeUnits: 8_192,
+    maxMultilineCodeUnits: 16_384,
+  };
+  const streamEncoder = new TextEncoder();
+  const streamFixture = synchronous.find((entry) => entry.expected.length === 1);
+  assert(
+    streamFixture !== undefined,
+    "no single-finding fixture available for the stream adapter checks",
+  );
+
+  function openStreamSession() {
+    return createIncrementalSanitizer({ limits: STREAM_LIMITS });
+  }
+
+  function oracleText(text) {
+    const session = openStreamSession();
+    const appended = session.append(text);
+    const finalized = session.finalize();
+    return appended.text + finalized.text;
+  }
+
+  async function sanitizeChunks(chunks) {
+    const transform = new WebStreamSanitizer(openStreamSession());
+    const writer = transform.writable.getWriter();
+    const reader = transform.readable.getReader();
+    const output = [];
+    const writing = (async () => {
+      for (const chunk of chunks) await writer.write(chunk);
+      await writer.close();
+    })();
+    const reading = (async () => {
+      for (;;) {
+        const result = await reader.read();
+        if (result.done) break;
+        output.push(result.value);
+      }
+    })();
+    await Promise.all([writing, reading]);
+    return { text: output.join(""), findings: transform.findings };
+  }
+
+  /** Writes `input` and returns the one value the reader receives for it. */
+  async function writeAndRead(writer, reader, input) {
+    const writing = writer.write(streamEncoder.encode(input));
+    const result = await reader.read();
+    await writing;
+    assert(result.done === false, "expected data, not an early close");
+    return result.value ?? "";
+  }
+
+  const FULL = streamFixture.input;
+  const FINALIZED = `${FULL}\n`;
+  // Deliberately short of a complete match: this construct can never close in
+  // these checks, so it stays retained/undecided the whole time.
+  const UNRESOLVED = FULL.slice(0, -5);
+  const wrapped = `🔑 lead\n${FINALIZED}🔒 tail`;
+  const wrappedBytes = streamEncoder.encode(wrapped);
+  const expectedWrapped = oracleText(wrapped);
+  const finalizedOracle = oracleText(FINALIZED);
+
+  await checkAsync(
+    "the Web stream adapter matches the whole-input result at every byte boundary on the real artifact",
+    async () => {
+      assert(
+        expectedWrapped !== wrapped,
+        "the real artifact left a known secret unredacted",
+      );
+      const diverged = [];
+      for (let boundary = 0; boundary <= wrappedBytes.length; boundary += 1) {
+        const { text } = await sanitizeChunks([
+          wrappedBytes.slice(0, boundary),
+          wrappedBytes.slice(boundary),
+        ]);
+        if (text !== expectedWrapped) diverged.push(boundary);
+      }
+      assert(
+        diverged.length === 0,
+        `${diverged.length} boundary(ies) diverged: ${diverged.slice(0, 5).join(", ")}`,
+      );
+    },
+  );
+
+  await checkAsync(
+    "the Web stream adapter's findings are frozen on the real artifact",
+    async () => {
+      const { findings } = await sanitizeChunks([wrappedBytes]);
+      assert(
+        Object.isFrozen(findings),
+        "the real artifact returned a mutable findings array through the stream adapter",
+      );
+      assert(findings.length > 0, "expected at least one finding from the wrapped fixture");
+      assert(
+        Object.isFrozen(findings[0]),
+        "the real artifact returned a mutable finding through the stream adapter",
+      );
+    },
+  );
+
+  await checkAsync(
+    "an explicit abort() on the real artifact discards retained plaintext and wins over a later close",
+    async () => {
+      const session = openStreamSession();
+      const transform = new WebStreamSanitizer(session);
+      const writer = transform.writable.getWriter();
+      const reader = transform.readable.getReader();
+      await writer.write(streamEncoder.encode(UNRESOLVED));
+
+      transform.abort();
+      transform.abort();
+      const closing = writer.close();
+      const reading = reader.read();
+
+      let closeRejection;
+      try {
+        await closing;
+      } catch (error) {
+        closeRejection = error;
+      }
+      assert(
+        closeRejection instanceof SecretScanError,
+        "close() did not reject after an explicit abort()",
+      );
+
+      let readRejection;
+      try {
+        await reading;
+      } catch (error) {
+        readRejection = error;
+      }
+      assert(
+        readRejection instanceof SecretScanError &&
+          readRejection.code === "INVALID_STATE" &&
+          !readRejection.message.includes(UNRESOLVED),
+        "the reader did not observe an input-free INVALID_STATE after abort()",
+      );
+      assertEqual(
+        [...transform.findings],
+        [],
+        "abort() reported a finding that was never finalized",
+      );
+      assertEqual(session.state, "aborted", "abort() did not abort the real artifact's session");
+    },
+  );
+
+  await checkAsync(
+    "malformed UTF-8 on the real artifact rejects with INVALID_UTF8 and flushes no retained plaintext",
+    async () => {
+      const transform = new WebStreamSanitizer(openStreamSession());
+      const writer = transform.writable.getWriter();
+      const reader = transform.readable.getReader();
+      const output = await writeAndRead(writer, reader, FINALIZED + UNRESOLVED);
+      const reading = reader.read();
+
+      let thrown;
+      try {
+        await writer.write(Uint8Array.of(0xc3, 0x28));
+      } catch (error) {
+        thrown = error;
+      }
+      assert(thrown instanceof SecretScanError, "the writer accepted malformed UTF-8");
+      assertEqual(thrown.code, "INVALID_UTF8", "malformed UTF-8 error code");
+
+      let readRejection;
+      try {
+        await reading;
+      } catch (error) {
+        readRejection = error;
+      }
+      assert(
+        readRejection instanceof SecretScanError,
+        "the reader did not observe the malformed UTF-8 failure",
+      );
+      assertEqual(
+        output,
+        finalizedOracle,
+        "output flushed before malformed UTF-8 diverged from the oracle",
+      );
+      assertEqual(
+        transform.findings.length,
+        1,
+        "expected exactly one finalized finding before the failure",
+      );
+    },
+  );
+
+  await checkAsync(
+    "readable backpressure on the real artifact stalls a write until a pull resumes it",
+    async () => {
+      const transform = new WebStreamSanitizer(openStreamSession());
+      const writer = transform.writable.getWriter();
+      const reader = transform.readable.getReader();
+      let settled = false;
+      const writing = writer.write(streamEncoder.encode("ordinary line\n")).then(() => {
+        settled = true;
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+      assert(!settled, "the write settled before the readable side was ever read");
+
+      const pulled = await reader.read();
+      assertEqual(pulled.value, "ordinary line\n", "the pulled value");
+      await writing;
+      assert(settled, "the write never settled after a pull");
+
+      const closing = writer.close();
+      const closingRead = await reader.read();
+      assertEqual(closingRead.done, true, "the readable side did not close with the writable side");
+      await closing;
+    },
+  );
+
+  await checkAsync(
+    "cancelling the readable side on the real artifact discards retained plaintext",
+    async () => {
+      const session = openStreamSession();
+      const transform = new WebStreamSanitizer(session);
+      const writer = transform.writable.getWriter();
+      const reader = transform.readable.getReader();
+      const pendingRead = reader.read();
+
+      await writer.write(streamEncoder.encode(UNRESOLVED));
+      await reader.cancel();
+
+      const settled = await pendingRead;
+      assertEqual(settled.done, true, "the pending read did not resolve with done after cancellation");
+      assertEqual([...transform.findings], [], "cancellation reported a finding that was never finalized");
+      assertEqual(session.state, "aborted", "cancellation did not abort the real artifact's session");
+    },
+  );
+
+  await checkAsync(
+    "aborting the writable side on the real artifact keeps finalized output but discards retained plaintext",
+    async () => {
+      const session = openStreamSession();
+      const transform = new WebStreamSanitizer(session);
+      const writer = transform.writable.getWriter();
+      const reader = transform.readable.getReader();
+      const output = await writeAndRead(writer, reader, FINALIZED + UNRESOLVED);
+      const pendingRead = reader.read();
+      const reason = new Error("Synthetic writable abort.");
+
+      await writer.abort(reason);
+
+      let rejection;
+      try {
+        await pendingRead;
+      } catch (error) {
+        rejection = error;
+      }
+      assert(rejection === reason, "the pending read did not reject with the abort reason");
+      assertEqual(output, finalizedOracle, "finalized output was not preserved on writable abort");
+      assertEqual(session.state, "aborted", "writable abort did not abort the real artifact's session");
+    },
+  );
+
+  await checkAsync(
+    "a throwing placeholder formatter on the real artifact propagates PLACEHOLDER_FAILURE and releases no plaintext",
+    async () => {
+      const transform = new WebStreamSanitizer(
+        createIncrementalSanitizer({
+          limits: STREAM_LIMITS,
+          placeholderFormatter() {
+            throw new Error(FULL);
+          },
+        }),
+      );
+      const writer = transform.writable.getWriter();
+      const reader = transform.readable.getReader();
+      const reading = reader.read().catch((error) => error);
+
+      // `FINALIZED` closes on its own trailing newline, so the formatter can
+      // run — and throw — inside this `write()` rather than waiting for
+      // `close()`'s flush; either is a valid place for the real artifact to
+      // surface it.
+      let thrown;
+      try {
+        await writer.write(streamEncoder.encode(FINALIZED));
+        await writer.close();
+      } catch (error) {
+        thrown = error;
+      }
+      assert(
+        thrown instanceof SecretScanError,
+        "no operation rejected on a formatter failure",
+      );
+      assertEqual(thrown.code, "PLACEHOLDER_FAILURE", "formatter failure code");
+
+      const readOutcome = await reading;
+      assert(
+        readOutcome instanceof SecretScanError,
+        "the reader did not observe the formatter failure",
+      );
+      assertEqual(readOutcome.code, "PLACEHOLDER_FAILURE", "formatter failure code");
+      assert(
+        !String(readOutcome).includes(FULL),
+        "the formatter failure leaked the plaintext value",
+      );
+    },
+  );
 
   return { ok: failures === 0, failures, checks: results };
 }
