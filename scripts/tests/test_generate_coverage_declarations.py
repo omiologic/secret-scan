@@ -303,6 +303,39 @@ class BuildDeclarationsIntegrationTests(unittest.TestCase):
                 backlog_id = dimension["exception"]["backlogId"]
                 self.assertTrue(backlog_id and " " not in backlog_id, backlog_id)
 
+    def test_current_pending_dimensions_match_tracked_follow_up_issues(self) -> None:
+        pending = {}
+        for row in self.report["declarations"]:
+            for dimension in row["dimensions"]:
+                if dimension["state"] != "pending":
+                    continue
+                backlog_id = dimension["exception"]["backlogId"]
+                pending.setdefault(backlog_id, set()).add(f"{row['type']}.{dimension['dimension']}")
+
+        self.assertEqual(
+            pending,
+            {
+                # #186
+                "structural-host-context-breadth": {
+                    "private_key.host-context",
+                    "jwt.host-context",
+                    "bearer_token.host-context",
+                    "connection_string_password.host-context",
+                    "otpauth_secret.host-context",
+                },
+                # #187
+                "bearer-token-overlap": {"bearer_token.overlap"},
+                # #188
+                "contextual-secret-overlap": {"contextual_secret.overlap"},
+                # #189
+                "authorization-credential-overlap": {"authorization_credential.overlap"},
+                # #190
+                "authorization-credential-host-context-breadth": {
+                    "authorization_credential.host-context"
+                },
+            },
+        )
+
     def test_authorization_credential_resolves_the_dimensions_c_f_03_closed(self) -> None:
         """Issue #105 closed `C/F-03`'s exact scope: a supported positive
         fixture per scheme and a boundary fixture pinning

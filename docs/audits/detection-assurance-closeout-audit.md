@@ -21,6 +21,34 @@ selecting a version, tagging, publishing, releasing, deploying, or archiving.
   remediate anything, change any issue's state, select a version, create a
   tag, publish a package, deploy, or archive another repository.
 
+## Current reconciliation
+
+Issue [#185](https://github.com/redact-secret/redact-secret/issues/185)
+compares this historical closeout record with the current generated coverage
+state. The closeout evidence remains historical: it was assessed on
+2026-09-10 at `e8bf910` and should not be rewritten as though it had assessed
+later corpus additions. Current generated declarations still report zero
+`unresolved` rows or schemes, but now report 9 `pending` dimension cells under
+the same 5 backlog IDs. The only row-set difference from this closeout is that
+`otpauth_secret.host-context` now joins the shared
+`structural-host-context-breadth` gap.
+
+The aggregate historical tracker
+[#136](https://github.com/redact-secret/redact-secret/issues/136) is closed
+because it completed the tracking deliverable. The current exit work is owned
+by [#186](https://github.com/redact-secret/redact-secret/issues/186)
+(`structural-host-context-breadth`),
+[#187](https://github.com/redact-secret/redact-secret/issues/187)
+(`bearer-token-overlap`),
+[#188](https://github.com/redact-secret/redact-secret/issues/188)
+(`contextual-secret-overlap`),
+[#189](https://github.com/redact-secret/redact-secret/issues/189)
+(`authorization-credential-overlap`), and
+[#190](https://github.com/redact-secret/redact-secret/issues/190)
+(`authorization-credential-host-context-breadth`). See
+[the residual evidence backlog](./detection-assurance-residual-evidence-backlog.md)
+for the current table and bounded exit evidence.
+
 ## Verdict
 
 **ASSURANCE TARGET MET.** Epic #95 may close.
