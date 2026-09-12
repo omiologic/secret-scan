@@ -208,15 +208,43 @@ checks its declared count, selects one known `purpose: "scale"` profile, and
 bounds repetitions to 100. The default 64 KiB profile with `--runs 2` is the
 minimal known workload and bounded real-artifact smoke measurement.
 
+## Rust library runner
+
+`npm run assessment:rust -- --json-out <path> --markdown-out <path>
+--mismatches-out <path>` evaluates the real Rust library crate through its
+public API and emits the same `"rust-core"` `AssessmentResult` contract as
+the JavaScript runners. The adapter is
+[`../crates/secret-scan-core/examples/assessment_adapter.rs`](../crates/secret-scan-core/examples/assessment_adapter.rs)
+so it can run from the checkout without entering the published library
+package contents. It constructs `DetectorRegistry::with_built_in`, calls
+`scan` for accuracy, and reports the crate's canonical UTF-8 byte ranges
+directly; it does not duplicate detector logic.
+
+`npm run assessment:rust:performance -- --profile <scale-id> --runs <2-100>`
+measures the same generated scale profiles. Whole profiles call
+`scan_and_redact`; chunked profiles call `IncrementalSanitizer` with explicit
+byte limits. The adapter records initialization, steady-state processing,
+throughput, sampled RSS, unavailable Node/browser/Wasm memory categories, and
+the unavailable retained-buffer metric with the same limitation text as the
+other public surfaces. `npm run assessment:rust:self-test` runs tiny
+known-answer checks for UTF-8 Unicode ranges, incremental incomplete-run
+behavior, and sanitized failure handling.
+
+The first bounded Rust baseline is recorded under
+[`results/rust-core/`](./results/rust-core/): accuracy against
+`accuracy-corpus`, plus `scale-logs-small-whole` with two runs. These files
+are inspectable evidence for this surface, not a release gate.
+
 ## What this directory is not (yet)
 
 This item defines the schema, the corpus, the workload profiles, and the
 result contract — the common language every surface's evaluation reports
-through. The Node and browser WebAssembly runners above are the first two of
-the five per-surface runners that execute a profile, collect real `accuracy`
-or `performance` metrics, and emit a conforming `AssessmentResult`; a Rust,
-Python, and CLI accuracy runner, plus their `performance` (scale) runners, are
-separate, larger work tracked elsewhere, on the same terms
+through. The Node, browser WebAssembly, and Rust library runners above are
+the first three per-surface runners that execute a profile, collect real
+`accuracy` or `performance` metrics, and emit a conforming
+`AssessmentResult`; Python and CLI accuracy runners, plus their
+`performance` (scale) runners, are separate, larger work tracked elsewhere,
+on the same terms
 `conformance/README.md`'s "What this directory is not (yet)" section
 describes for the behavioral contract. This directory adds no runtime
 instrumentation, telemetry, or public API to any product surface; `secret-scan-core`
