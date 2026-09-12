@@ -233,11 +233,10 @@ For accepted input within the declared limits, concatenated incremental output
 and findings must equal a whole-input scan over the same logical string,
 regardless of chunk partitioning.
 
-The Node artifact builds a real session, wrapping the same core
-`IncrementalSanitizer` the Python binding does; only the browser
-(WebAssembly) artifact builds none: its factories return
-`INCREMENTAL_UNAVAILABLE`. Rust, Python, CLI standard input, and the Node
-artifact expose working incremental sanitization.
+The Node artifact and the browser (WebAssembly) artifact both build a real
+session, wrapping the same core `IncrementalSanitizer` the Python binding
+does. Rust, Python, CLI standard input, and both JavaScript artifacts expose
+working incremental sanitization.
 
 Byte-stream adapters own one fatal, stateful UTF-8 decoder so a multibyte scalar
 may cross chunks without becoming a detection boundary. Node adapters integrate
@@ -398,11 +397,8 @@ every manifest, script, and workflow matrix to them so a supported platform
 cannot be added or dropped in one file alone. That check also enforces
 least-privilege workflow permissions and commit-pinned third-party actions.
 See [docs/qualification.md](./docs/qualification.md), which also records the
-one remaining deliberate asymmetry: the browser (WebAssembly) artifact builds
-no streaming session, so `createIncrementalSanitizer` reports
-`INCREMENTAL_UNAVAILABLE` there, while the Node artifact and the Python
-binding both offer it; and neither the CLI nor npm ships a musl variant. The
-musl N-API addons are built and qualified only.
+one remaining deliberate asymmetry: neither the CLI nor npm ships a musl
+variant. The musl N-API addons are built and qualified only.
 
 Release readiness does not authorize selecting a version, tagging, publishing,
 deploying, or archiving another repository. Those actions require the separate

@@ -288,8 +288,8 @@ async function linkAddon() {
  * glue, on a real artifact. `bindings/node` builds a real incremental
  * session (`decision-define-runtime-bindings`), so `initialize()` succeeds
  * and both the synchronous surface and `createIncrementalSanitizer` are
- * exercised here; only the browser's WebAssembly artifact still reports
- * `INCREMENTAL_UNAVAILABLE` (`qualify-browser-artifact.mjs`).
+ * exercised here; `qualify-browser-artifact.mjs` exercises the same session
+ * on the browser's WebAssembly artifact.
  *
  * The single-fixture assertion goes through `qualify-runtime-fixture.mjs`,
  * so this script embeds no fixture input of its own beyond a fixed synthetic

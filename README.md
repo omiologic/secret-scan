@@ -149,10 +149,8 @@ chunk boundary. The bounded incremental API retains unresolved plaintext until
 a detector window closes, finalization supplies the end-of-input boundary, or a
 declared limit fails.
 
-**Current support:** Rust, Python, CLI standard input, and the JavaScript
-Node artifact support incremental sanitization. The browser (WebAssembly)
-artifact does not: its session and stream factories fail with
-`INCREMENTAL_UNAVAILABLE`. Use bounded whole-input operations in the browser.
+**Current support:** Rust, Python, CLI standard input, and both JavaScript
+artifacts (Node and browser WebAssembly) support incremental sanitization.
 See [streaming](./docs/guides/streaming.md).
 
 Python limits count UTF-8 bytes, while findings carry absolute Unicode code
@@ -363,12 +361,10 @@ that consumes them drifts. See
 On both JavaScript runtimes the matrix goes all the way through the published
 package: it loads `@redact-secret/core` on the real artifact — the N-API
 addon on every target's own runner, the WebAssembly build in each browser
-engine — and runs the canonical corpus through its public API. The Node
-artifact opens a real `createIncrementalSanitizer` session, the same as the
-Python binding; only the WebAssembly artifact builds no streaming session, so
-`createIncrementalSanitizer` rejects there with the fixed
-`INCREMENTAL_UNAVAILABLE` code — a documented runtime difference the browser
-qualifier asserts.
+engine — and runs the canonical corpus through its public API. Both the Node
+artifact and the WebAssembly artifact open a real `createIncrementalSanitizer`
+session, the same core session the Python binding wraps, and the qualifier
+exercises each on its own real artifact.
 
 ## Security and release process
 
