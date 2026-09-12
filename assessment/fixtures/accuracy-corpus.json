@@ -1,0 +1,138 @@
+{
+  "offsetUnit": "utf8-byte",
+  "fixtureCount": 9,
+  "fixtures": [
+    {
+      "id": "logs-github-token",
+      "category": "logs",
+      "unicode": false,
+      "input": "2026-09-12T00:00:00Z INFO deploy token=ghp_ASSESSMENTSYNTHETIC0000000000000000 request_id=fixture-1",
+      "expected": [
+        {
+          "detector": "github-token",
+          "type": "github_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 39,
+          "end": 78,
+          "policyOutcome": "redact"
+        }
+      ],
+      "note": "Provider token embedded in a structured log line; always-redact type at high confidence."
+    },
+    {
+      "id": "logs-contextual-secret-warn",
+      "category": "logs",
+      "unicode": false,
+      "input": "2026-09-12T00:01:00Z DEBUG cache warm seed=fixture-context-0000000000000000",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "medium",
+          "specificity": "contextual",
+          "start": 38,
+          "end": 75,
+          "policyOutcome": "warn"
+        }
+      ],
+      "note": "Contextual secret at medium confidence: not an always-redact type, so the default policy warns rather than redacts."
+    },
+    {
+      "id": "code-aws-access-key",
+      "category": "code",
+      "unicode": false,
+      "input": "const awsAccessKeyId = \"AKIAASSESSMENTSYNTH\";",
+      "expected": [
+        {
+          "detector": "aws-access-key",
+          "type": "aws_access_key_id",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 24,
+          "end": 43,
+          "policyOutcome": "redact"
+        }
+      ],
+      "note": "Provider credential assigned to a variable in source code; always-redact type."
+    },
+    {
+      "id": "code-private-key-block",
+      "category": "code",
+      "unicode": false,
+      "input": "-----BEGIN PRIVATE KEY-----\nQVNTRVNTTUVOVF9TWU5USEVUSUNfUkVWT0tFRA==\n-----END PRIVATE KEY-----",
+      "expected": [
+        {
+          "detector": "private-key",
+          "type": "private_key",
+          "confidence": "high",
+          "specificity": "private-key",
+          "start": 0,
+          "end": 94,
+          "policyOutcome": "block"
+        }
+      ],
+      "note": "PEM private key block; the only finding type the default policy always blocks."
+    },
+    {
+      "id": "chat-bearer-token",
+      "category": "chat",
+      "unicode": false,
+      "input": "here's the header you asked for: Authorization: Bearer ASSESSMENT_SYNTHETIC_BEARER_VALUE",
+      "expected": [
+        {
+          "detector": "bearer-token",
+          "type": "bearer_token",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 48,
+          "end": 88,
+          "policyOutcome": "redact"
+        }
+      ],
+      "note": "Bearer credential pasted mid-sentence in a chat message; always-redact structural type."
+    },
+    {
+      "id": "chat-clean-conversation",
+      "category": "chat",
+      "unicode": false,
+      "input": "Sure, sounds good, let's sync on the fixture rollout plan tomorrow morning.",
+      "expected": [],
+      "note": "Ordinary chat message with no credential-shaped content; measures the false-positive rate."
+    },
+    {
+      "id": "negative-text-ordinary",
+      "category": "negative-text",
+      "unicode": false,
+      "input": "The quarterly fixture report shows steady, unremarkable growth across every region.",
+      "expected": [],
+      "note": "Plain prose with no credential-shaped content; a pure negative baseline."
+    },
+    {
+      "id": "negative-text-unicode-astral",
+      "category": "negative-text",
+      "unicode": true,
+      "input": "咖啡座 talk continued late into the night 🦎 near the café, calm and uneventful.",
+      "expected": [],
+      "note": "Negative baseline mixing CJK and an astral emoji with no credential-shaped content."
+    },
+    {
+      "id": "logs-unicode-astral-boundary",
+      "category": "logs",
+      "unicode": true,
+      "input": "🔑 token=ghp_ASSESSMENTSYNTHETIC0000000000000000 seen-in=café-fixture",
+      "expected": [
+        {
+          "detector": "github-token",
+          "type": "github_token",
+          "confidence": "high",
+          "specificity": "provider",
+          "start": 11,
+          "end": 50,
+          "policyOutcome": "redact"
+        }
+      ],
+      "note": "An astral emoji immediately precedes the finding, the same divergence case conformance/fixtures/unicode-astral.source.ts exercises for UTF-8/UTF-16 conversion."
+    }
+  ]
+}

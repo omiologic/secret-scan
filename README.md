@@ -293,6 +293,15 @@ synthetic or revoked values, and expected metadata never copies matched text.
 Binding-local lifecycle, callback, packaging, and host-integration tests add
 surface-specific evidence without copying or replacing the shared corpus.
 
+## Evaluation
+
+[`assessment/`](./assessment/README.md) defines the cross-language evaluation
+protocol: a synthetic assessment corpus, named workload profiles, and a
+common result contract covering accuracy, initialization, processing,
+throughput, repetition, and memory metrics, with full reproducibility
+provenance. It is distinct from `conformance/` and is never a release gate —
+it measures accuracy and performance, not pass/fail behavioral conformance.
+
 ## Development
 
 Install JavaScript tooling and run the main repository checks:
@@ -340,6 +349,7 @@ The repository layout is:
 
 ```text
 conformance/             shared cross-language contract
+assessment/              cross-language evaluation protocol (corpus, profiles, result contract)
 crates/secret-scan-core canonical Rust implementation
 crates/secret-scan-cli  CLI host adapter
 bindings/node           Node N-API binding
