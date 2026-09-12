@@ -5,8 +5,8 @@
  * local tarballs, standing in for a registry `npm install` before the
  * dependency packages are published) and `scripts/verify-registry-install.mjs`
  * (installs the real, published package from the registry, after they are)
- * -- the install source differs, but "does the installed package initialize
- * and scan correctly" does not.
+ * -- the install source differs, but "does the installed package initialize,
+ * scan, sanitize incrementally, and stream correctly" does not.
  */
 
 import { build } from "esbuild";
@@ -20,6 +20,13 @@ import { assertMatchesFixture } from "./qualify-runtime-fixture.mjs";
 
 export const WASM_SPECIFIER = "@redact-secret/wasm";
 
+const LIMITS = Object.freeze({
+  maxInputCodeUnits: 32_768,
+  maxBufferedCodeUnits: 16_512,
+  maxTokenCodeUnits: 8_192,
+  maxMultilineCodeUnits: 16_384,
+});
+
 const MIME_TYPES = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -28,15 +35,35 @@ const MIME_TYPES = {
 
 export function qualifyNode(consumerRoot, fixture, expectedVersion) {
   const source = [
-    "const { initialize, scan, VERSION } = await import('@redact-secret/core');",
+    "const { Readable } = await import('node:stream');",
+    "const { createIncrementalSanitizer, initialize, scan, scanAndRedact, VERSION } = await import('@redact-secret/core');",
+    "const { createNodeStreamSanitizer } = await import('@redact-secret/core/node-stream');",
     "await initialize();",
-    `const findings = scan(${JSON.stringify(fixture.input)});`,
-    "console.log(JSON.stringify({ version: VERSION, findings }));",
+    "const fixtureInput = process.env.REDACT_SECRET_QUALIFICATION_INPUT;",
+    "if (fixtureInput === undefined) throw new Error('qualification input is missing');",
+    "const findings = scan(fixtureInput);",
+    `const limits = ${JSON.stringify(LIMITS)};`,
+    "const incrementalInput = `${fixtureInput}\n`;",
+    "const split = Math.floor(incrementalInput.length / 2);",
+    "const session = createIncrementalSanitizer({ limits });",
+    "const incrementalText = session.append(incrementalInput.slice(0, split)).text + session.append(incrementalInput.slice(split)).text + session.finalize().text;",
+    "const expectedIncrementalText = scanAndRedact(incrementalInput).text;",
+    "const streamInput = `🔑 lead\n${fixtureInput}\n🔒 tail`;",
+    "const encoded = Buffer.from(streamInput, 'utf8');",
+    "const transform = createNodeStreamSanitizer({ limits });",
+    "const output = [];",
+    "for await (const chunk of Readable.from([encoded.subarray(0, 1), encoded.subarray(1)]).pipe(transform)) output.push(chunk);",
+    "const streamText = Buffer.concat(output).toString('utf8');",
+    "console.log(JSON.stringify({ version: VERSION, findings, incremental: incrementalText === expectedIncrementalText, stream: streamText === scanAndRedact(streamInput).text, streamFindings: transform.findings.length }));",
   ].join("\n");
   const output = execFileSync(
     process.execPath,
     ["--input-type=module", "--eval", source],
-    { cwd: consumerRoot, encoding: "utf8" },
+    {
+      cwd: consumerRoot,
+      encoding: "utf8",
+      env: { ...process.env, REDACT_SECRET_QUALIFICATION_INPUT: fixture.input },
+    },
   );
   const result = JSON.parse(output);
   if (result.version !== expectedVersion) {
@@ -50,6 +77,15 @@ export function qualifyNode(consumerRoot, fixture, expectedVersion) {
     );
   }
   assertMatchesFixture(result.findings[0], fixture);
+  if (!result.incremental || !result.stream || result.streamFindings < 1) {
+    throw new Error("Node lane: installed incremental or stream API diverged");
+  }
+  return {
+    initialize: "passed",
+    scan: "passed",
+    incremental: "passed",
+    stream: "passed",
+  };
 }
 
 async function bundleForBrowser(consumerRoot) {
@@ -60,8 +96,9 @@ async function bundleForBrowser(consumerRoot) {
     external: [WASM_SPECIFIER],
     stdin: {
       contents: [
-        `import { initialize, scan, VERSION } from "@redact-secret/core";`,
-        "window.__secretScan = { initialize, scan, VERSION };",
+        `import { createIncrementalSanitizer, initialize, scan, scanAndRedact, VERSION } from "@redact-secret/core";`,
+        `import { createWebStreamSanitizer } from "@redact-secret/core/web-stream";`,
+        "window.__secretScan = { createIncrementalSanitizer, createWebStreamSanitizer, initialize, scan, scanAndRedact, VERSION };",
       ].join("\n"),
       loader: "js",
       resolveDir: consumerRoot,
@@ -87,7 +124,39 @@ async function writeHarness(root, bundleText, installedWasmDir, fixture) {
     try {
       await window.__secretScan.initialize();
       const findings = window.__secretScan.scan(${JSON.stringify(fixture.input)});
-      window.__qualifyResult = { ok: true, version: window.__secretScan.VERSION, findings };
+      const limits = ${JSON.stringify(LIMITS)};
+      const incrementalInput = ${JSON.stringify(`${fixture.input}\n`)};
+      const split = Math.floor(incrementalInput.length / 2);
+      const session = window.__secretScan.createIncrementalSanitizer({ limits });
+      const incrementalText = session.append(incrementalInput.slice(0, split)).text
+        + session.append(incrementalInput.slice(split)).text
+        + session.finalize().text;
+      const streamInput = ${JSON.stringify(`🔑 lead\n${fixture.input}\n🔒 tail`)};
+      const encoded = new TextEncoder().encode(streamInput);
+      const source = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoded.slice(0, 1));
+          controller.enqueue(encoded.slice(1));
+          controller.close();
+        },
+      });
+      const transform = window.__secretScan.createWebStreamSanitizer({ limits });
+      const reader = source.pipeThrough(transform).getReader();
+      const output = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        output.push(value);
+      }
+      const streamText = output.join("");
+      window.__qualifyResult = {
+        ok: true,
+        version: window.__secretScan.VERSION,
+        findings,
+        incremental: incrementalText === window.__secretScan.scanAndRedact(incrementalInput).text,
+        stream: streamText === window.__secretScan.scanAndRedact(streamInput).text,
+        streamFindings: transform.findings.length,
+      };
     } catch (error) {
       window.__qualifyResult = { ok: false, error: String((error && error.stack) || error) };
     }
@@ -111,10 +180,19 @@ function serveDirectory(root) {
   });
 }
 
-export async function qualifyBrowser(consumerRoot, fixture, expectedVersion) {
+export async function qualifyBrowser(
+  consumerRoot,
+  fixture,
+  expectedVersion,
+  engine = "chromium",
+) {
   const bundleText = await bundleForBrowser(consumerRoot);
   const harnessRoot = await mkdtemp(join(tmpdir(), "redact-secret-consumer-browser-"));
-  const { chromium } = await import("playwright");
+  const playwright = await import("playwright");
+  const browserType = playwright[engine];
+  if (browserType === undefined || typeof browserType.launch !== "function") {
+    throw new Error(`Browser lane: unsupported engine ${engine}`);
+  }
 
   let server;
   let browser;
@@ -133,7 +211,7 @@ export async function qualifyBrowser(consumerRoot, fixture, expectedVersion) {
     });
     const { port } = server.address();
 
-    browser = await chromium.launch();
+    browser = await browserType.launch();
     const page = await browser.newPage();
     const consoleErrors = [];
     page.on("pageerror", (error) => consoleErrors.push(String(error)));
@@ -158,6 +236,19 @@ export async function qualifyBrowser(consumerRoot, fixture, expectedVersion) {
       );
     }
     assertMatchesFixture(result.findings[0], fixture);
+    if (!result.incremental || !result.stream || result.streamFindings < 1) {
+      throw new Error(
+        `Browser lane (${engine}): installed incremental or stream API diverged`,
+      );
+    }
+    return {
+      initialize: "passed",
+      scan: "passed",
+      incremental: "passed",
+      stream: "passed",
+      engine,
+      engineVersion: browser.version(),
+    };
   } finally {
     await browser?.close();
     await new Promise((resolve) => (server ? server.close(resolve) : resolve()));

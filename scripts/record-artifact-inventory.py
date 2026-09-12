@@ -6,7 +6,7 @@ declared matrix was actually built from one revision, and writes down what
 was built. Publication is not part of it and never happens here
 (``decision-release-bindings-in-lockstep``).
 
-Three things are recorded, all tied to one source commit:
+Four things are recorded, all tied to one source commit:
 
 1. **Every artifact** the run produced - family, target, file name, size, and
    SHA-256 - required to cover ``node-addon-targets``,
@@ -20,6 +20,9 @@ Three things are recorded, all tied to one source commit:
    fixture file, because the artifact set only means something alongside the
    behavioral contract it was qualified against
    (``decision-govern-cross-language-conformance``).
+4. **Installed JavaScript qualification** - one safe result for every declared
+   Node major and browser engine, naming the candidate package digests,
+   commands, runtime, and public incremental/stream outcomes.
 
     python3 -B scripts/record-artifact-inventory.py \\
         --artifacts qualification-artifacts --out artifact-inventory.json
@@ -31,6 +34,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tomllib
@@ -82,6 +86,8 @@ def collect(artifacts: Path) -> list[dict]:
     collected: list[dict] = []
     for directory in sorted(p for p in artifacts.iterdir() if p.is_dir()):
         name = directory.name
+        if name.startswith("installed-javascript-"):
+            continue
         if name.startswith("node-addon-"):
             family, target = "node-addon", name.removeprefix("node-addon-")
         elif name.startswith("cli-"):
@@ -106,6 +112,102 @@ def collect(artifacts: Path) -> list[dict]:
                 }
             )
     return collected
+
+
+def collect_installed_javascript_qualification(
+    artifacts: Path,
+) -> tuple[list[dict], list[str]]:
+    """Read the safe, installed-package result from every runtime matrix row."""
+    results: list[dict] = []
+    errors: list[str] = []
+    for directory in sorted(artifacts.glob("installed-javascript-*")):
+        files = sorted(path for path in directory.rglob("*") if path.is_file())
+        if len(files) != 1 or files[0].suffix != ".json":
+            errors.append(f"{directory.name}: expected exactly one JSON report")
+            continue
+        try:
+            report = json.loads(files[0].read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            errors.append(f"{directory.name}: invalid JSON report")
+            continue
+        if not isinstance(report, dict):
+            errors.append(f"{directory.name}: report must be a JSON object")
+            continue
+        report["artifact"] = directory.name
+        report["reportSha256"] = digest(files[0])
+        results.append(report)
+    return results, errors
+
+
+def require_installed_javascript_qualification(
+    matrix: dict, results: list[dict], expected_commit: str, expected_version: str
+) -> list[str]:
+    errors: list[str] = []
+    expected = {
+        "node": {str(value) for value in matrix["node-support-majors"]},
+        "browser": set(matrix["browser-engines"]),
+    }
+    found = {"node": set(), "browser": set()}
+    for result in results:
+        lane = result.get("lane")
+        runtime = result.get("runtime") or {}
+        target = (
+            str(runtime.get("version", "")).removeprefix("v").split(".")[0]
+            if lane == "node"
+            else runtime.get("name")
+        )
+        if lane not in found or not target:
+            errors.append(f"{result.get('artifact', 'installed JavaScript')}: invalid lane/runtime")
+            continue
+        found[lane].add(target)
+        label = f"installed JavaScript {lane} {target}"
+        if result.get("artifact") != f"installed-javascript-{lane}-{target}":
+            errors.append(f"{label}: artifact directory does not match its runtime")
+        if result.get("schemaVersion") != 1:
+            errors.append(f"{label}: unsupported evidence schema")
+        if result.get("sourceCommit") != expected_commit:
+            errors.append(f"{label}: source revision does not match the inventory")
+        if result.get("published") is not False:
+            errors.append(f"{label}: must record published=false")
+        if result.get("productVersion") != expected_version:
+            errors.append(f"{label}: product version does not match the inventory")
+        if not result.get("commands"):
+            errors.append(f"{label}: records no commands")
+        checks = result.get("results") or {}
+        for check in ("initialize", "scan", "incremental", "stream"):
+            if checks.get(check) != "passed":
+                errors.append(f"{label}: {check} did not pass")
+        packages = result.get("packageArtifacts") or []
+        names = {package.get("name") for package in packages}
+        if (
+            "@redact-secret/core" not in names
+            or "@redact-secret/wasm" not in names
+            or not any(str(name).startswith("@redact-secret/node-") for name in names)
+        ):
+            errors.append(f"{label}: package artifact identity is incomplete")
+        for package in packages:
+            if package.get("version") != expected_version or not package.get("file"):
+                errors.append(f"{label}: package artifact version/file identity is incomplete")
+            if re.fullmatch(r"[0-9a-f]{64}", str(package.get("sha256", ""))) is None:
+                errors.append(f"{label}: package artifact has no SHA-256 identity")
+
+    for lane, declared in expected.items():
+        counts = [
+            str((result.get("runtime") or {}).get("version", "")).removeprefix("v").split(".")[0]
+            if lane == "node"
+            else (result.get("runtime") or {}).get("name")
+            for result in results
+            if result.get("lane") == lane
+        ]
+        for duplicate in sorted({target for target in counts if counts.count(target) > 1}):
+            errors.append(f"installed JavaScript {lane}: duplicate qualification for {duplicate}")
+        for missing in sorted(declared - found[lane]):
+            errors.append(f"installed JavaScript {lane}: no qualification for {missing}")
+        for extra in sorted(found[lane] - declared):
+            errors.append(
+                f"installed JavaScript {lane}: qualified {extra}, which Cargo.toml does not declare"
+            )
+    return errors
 
 
 def require_matrix(matrix: dict, collected: list[dict]) -> list[str]:
@@ -200,6 +302,22 @@ def render_summary(inventory: dict) -> str:
             f"| {entry['family']} | {entry['target'] or '-'} | `{entry['file']}` | "
             f"{entry['bytes']} | `{entry['sha256'][:16]}…` |"
         )
+    lines.extend(
+        [
+            "",
+            "### Installed JavaScript qualification",
+            "",
+            "| Lane | Runtime | Incremental | Stream | Evidence SHA-256 |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+    )
+    for result in inventory.get("installedJavaScriptQualification", []):
+        runtime = result["runtime"]
+        lines.append(
+            f"| {result['lane']} | {runtime['name']} {runtime['version']} | "
+            f"{result['results']['incremental']} | {result['results']['stream']} | "
+            f"`{result['reportSha256'][:16]}…` |"
+        )
     lines.append("")
     for package, files in inventory["packageContents"].items():
         lines.append(f"<details><summary>{package} — {len(files)} file(s)</summary>")
@@ -226,13 +344,22 @@ def main() -> int:
 
     matrix = declared_matrix()
     collected = collect(arguments.artifacts)
-    errors = require_matrix(matrix, collected)
-
+    qualification, qualification_errors = collect_installed_javascript_qualification(
+        arguments.artifacts
+    )
+    revision = source_commit()
     with (ROOT / NPM_PACKAGE / "package.json").open(encoding="utf-8") as handle:
         product_version = json.load(handle)["version"]
+    errors = require_matrix(matrix, collected)
+    errors.extend(qualification_errors)
+    errors.extend(
+        require_installed_javascript_qualification(
+            matrix, qualification, revision, product_version
+        )
+    )
 
     inventory = {
-        "sourceCommit": source_commit(),
+        "sourceCommit": revision,
         "sourceRef": os.environ.get("GITHUB_REF", ""),
         "workflowRun": os.environ.get("GITHUB_RUN_ID", ""),
         "workflowRunAttempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
@@ -252,6 +379,7 @@ def main() -> int:
             f"{CRATE} (crate)": crate_contents(),
         },
         "artifacts": collected,
+        "installedJavaScriptQualification": qualification,
     }
 
     arguments.out.write_text(json.dumps(inventory, indent=2) + "\n", encoding="utf-8")

@@ -370,16 +370,17 @@ declares those matrices once and `npm run artifacts:check` fails when any file
 that consumes them drifts. See
 [docs/qualification.md](./docs/qualification.md).
 
-On both JavaScript runtimes the matrix goes all the way through the published
-package: it loads `@redact-secret/core` on the real artifact — the N-API
-addon on every target's own runner, the WebAssembly build in each browser
-engine — and runs the canonical corpus through its public API. Both the Node
-artifact and the WebAssembly artifact open a real `createIncrementalSanitizer`
-session, the same core session the Python binding wraps, and the qualifier
-exercises each on its own real artifact, including the Node `Transform` and
-Web `TransformStream` adapters built on top of it: byte-partition and Unicode
-equivalence, backpressure, cancellation/abort, and that a downstream failure
-or malformed UTF-8 never flushes retained plaintext.
+On both JavaScript runtimes the matrix loads `@redact-secret/core` on the real
+artifact — the N-API addon on every target's own runner, and the WebAssembly
+build in each browser engine — and runs the canonical corpus through its
+public API. It then packs the candidate wrapper, native addon, and WebAssembly
+packages, installs them in clean consumer directories, and exercises the
+public incremental and stream APIs on Node.js 20, 22, and 24 and in Chromium,
+Firefox, and WebKit. Each installed-package result records the source revision
+and SHA-256 identities of those candidate packages. Both artifacts open the
+same core `IncrementalSanitizer` session the Python binding wraps; the Node
+`Transform` and Web `TransformStream` adapters add one fatal stateful UTF-8
+decoder plus host backpressure and cancellation behavior.
 
 ## Security and release process
 

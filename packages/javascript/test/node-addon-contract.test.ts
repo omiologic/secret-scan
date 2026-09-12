@@ -21,26 +21,7 @@ const LIMITS = {
 };
 
 describe("Node addon binding: createIncrementalSanitizer", () => {
-  it("rejects with a fixed code when the addon has no such export", () => {
-    const binding = createBindingFromAddon({
-      version: () => "0.0.0-test",
-      initialize: () => {},
-      scan: () => [],
-      redact: (input) => input,
-      scanAndRedact: (input) => ({ findings: [], redacted: input }),
-    });
-
-    expect(() =>
-      binding.createIncrementalSanitizer({ limits: LIMITS }),
-    ).toThrowError(
-      expect.objectContaining({
-        name: "SecretScanError",
-        code: "INCREMENTAL_UNAVAILABLE",
-      }),
-    );
-  });
-
-  it("delegates to the addon's own export when present", () => {
+  it("delegates to the required addon's own export", () => {
     const calls: string[] = [];
     const binding = createBindingFromAddon({
       version: () => "0.0.0-test",
@@ -74,6 +55,12 @@ describe("Node addon binding: scanAndRedact result shape", () => {
       scan: () => [],
       redact: (input) => input,
       scanAndRedact: () => ({ findings: [sampleFinding], redacted: "<SECRET_1>" }),
+      createIncrementalSanitizer: () => ({
+        state: "accepting",
+        append: (chunk) => ({ text: chunk, findings: [] }),
+        finalize: () => ({ text: "", findings: [] }),
+        abort: () => {},
+      }),
     });
 
     expect(binding.scanAndRedact("input", undefined, undefined)).toEqual({
