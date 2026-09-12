@@ -131,14 +131,63 @@ and `corpusHash` (which revision of this corpus ran), `os`, `cpu`, `runtime`,
 and the exact `command` invoked. A result with no reproducible provenance is
 not evidence.
 
+## Node and browser accuracy runners
+
+- [`adapters/scoring.ts`](./adapters/scoring.ts) — pure accuracy scoring:
+  `scoreFixture` compares one fixture's real findings against its reviewed
+  `expected` array and returns `AssessmentAccuracyMetrics` plus safe,
+  fixture-id-keyed `AccuracyMismatch` diagnostics (`missing`, `extra`, or
+  `policy-mismatch`; a wrong-range finding surfaces as one of each rather
+  than needing special handling). `aggregateAccuracyMetrics` sums per-fixture
+  metrics across the corpus, and `runAccuracyFixtures` drives a `scan`
+  function over every fixture — the one corpus-iteration path every
+  surface's runner shares, so "what counts as a match" cannot drift between
+  them. A `scan` rejection propagates out rather than being absorbed into a
+  zero-finding result, so an evaluation that could not finish is never
+  reported as one that finished and found nothing. Tested by
+  [`adapters/scoring.test.ts`](./adapters/scoring.test.ts) with tiny fixtures
+  exercising each kind of mismatch, every policy action, and UTF-8/UTF-16
+  Unicode normalization.
+- [`adapters/report.ts`](./adapters/report.ts) — renders one surface's
+  `AssessmentResult` and its mismatches as Markdown, the common
+  human-readable counterpart to the JSON result contract. Never receives a
+  fixture's `input`, so it is safe to print or write to a file unmodified.
+- [`../scripts/assessment-run.mjs`](../scripts/assessment-run.mjs) —
+  command-line runnable: evaluates the real, installed `@redact-secret/core`
+  package on Node against `fixtures/accuracy-corpus.json` and emits a
+  conforming `"node"`-surface `AssessmentResult` (`node scripts/assessment-run.mjs`,
+  or `npm run assessment:node`). It drives the package's public API the same
+  way `scripts/qualify-node-addon.mjs`'s `integrateWithPackage` pass does,
+  and does no building or linking of its own — a missing package build or
+  native addon fails loudly (a distinct, non-zero exit) rather than reporting
+  a false zero-finding success.
+- [`../scripts/assessment-browser-run.mjs`](../scripts/assessment-browser-run.mjs) —
+  the same evaluation against the real browser WebAssembly artifact in a
+  real engine (`node scripts/assessment-browser-run.mjs [--engine chromium|firefox|webkit]`,
+  or `npm run assessment:browser`), staged and served the same way
+  `scripts/qualify-browser-artifact.mjs` qualifies the artifact.
+  [`../scripts/assessment-browser-harness.mjs`](../scripts/assessment-browser-harness.mjs)
+  is the in-page module it bundles with the published package aliased to the
+  real artifact, on the same terms `scripts/browser-package-harness.mjs`
+  does for conformance.
+- Both runners accept `--json-out <path>` (default: stdout),
+  `--markdown-out <path>`, and `--mismatches-out <path>` (the safe mismatch
+  list, omitted by default), and `--strict` to exit non-zero when any
+  mismatch is found — off by default, since a low score here is a finding to
+  act on, per [Common result contract](#common-result-contract), not a
+  build failure. Every fixture is synthetic or explicitly revoked, and
+  neither runner's output carries a fixture's `input` or a matched value.
+
 ## What this directory is not (yet)
 
 This item defines the schema, the corpus, the workload profiles, and the
 result contract — the common language every surface's evaluation reports
-through. Building the five per-surface runners that execute a profile,
-collect real `accuracy` or `performance` metrics, and emit a conforming
-`AssessmentResult` is separate, larger work tracked elsewhere, on the same
-terms `conformance/README.md`'s "What this directory is not (yet)" section
+through. The Node and browser WebAssembly runners above are the first two of
+the five per-surface runners that execute a profile, collect real `accuracy`
+or `performance` metrics, and emit a conforming `AssessmentResult`; a Rust,
+Python, and CLI runner, and every surface's `performance` (scale) runner, are
+separate, larger work tracked elsewhere, on the same terms
+`conformance/README.md`'s "What this directory is not (yet)" section
 describes for the behavioral contract. This directory adds no runtime
 instrumentation, telemetry, or public API to any product surface; `secret-scan-core`
 stays side-effect free.

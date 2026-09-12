@@ -107,6 +107,14 @@ export interface AssessmentWorkloadProfile {
  */
 export const ACCURACY_MAX_INPUT_BYTES = 4096;
 
+/**
+ * The version of this result contract itself (the shape `AssessmentResult`
+ * declares), not the corpus a result was measured against — see
+ * `AssessmentProvenance.corpusVersion`. A runner stamps every result it
+ * emits with this constant rather than a free-form literal.
+ */
+export const RESULT_SCHEMA_VERSION = "1";
+
 /** The five product surfaces this protocol defines a common contract for. */
 export type AssessmentSurface =
   | "rust-core"
