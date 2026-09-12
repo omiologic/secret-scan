@@ -155,8 +155,11 @@ target, and is then qualified in a musl image, which is where it runs.
    `packages/javascript/node_modules`, the way an installed consumer
    resolves it: `initialize()`, one canonical fixture through
    `scripts/qualify-runtime-fixture.mjs`, a frozen finding,
-   `scanAndRedact` against `scan` then `redact`, and
-   `createIncrementalSanitizer` rejecting with `INCREMENTAL_UNAVAILABLE`.
+   `scanAndRedact` against `scan` then `redact`, and a real
+   `createIncrementalSanitizer` session — a synthetic value split across
+   chunks, including one that only closes on a later chunk, sanitized the
+   same way the whole-input API would, and rejecting a post-`finalize`
+   `append` with `INVALID_STATE`.
 
 ### `scripts/qualify-browser-artifact.mjs`
 
@@ -249,19 +252,22 @@ a target to `node-publish-targets` without also adding its
 `packages/javascript/package.json` `optionalDependencies` entry, and its
 `runtime/node.ts` mapping (or the reverse) fails `npm run artifacts:check`.
 
-## Incremental sanitization is unavailable on both JavaScript runtimes
+## Incremental sanitization is unavailable on the browser runtime only
 
-Neither `bindings/node` nor `bindings/wasm` builds a streaming session, so
-`createIncrementalSanitizer` is absent from both artifacts. Both adapters
-report that the same way — a fixed `INCREMENTAL_UNAVAILABLE` at call time
-rather than a load-time failure — so `initialize()` succeeds on a real
-artifact on both runtimes and the whole synchronous surface is qualified end
-to end above. Only `bindings/python`, which wraps the core's
-`IncrementalSanitizer` directly, offers the streaming API today.
+`bindings/wasm` builds no streaming session, so `createIncrementalSanitizer`
+is absent from the WebAssembly artifact; `runtime/browser.ts` reports that
+with a fixed `INCREMENTAL_UNAVAILABLE` at call time rather than a load-time
+failure, so `initialize()` still succeeds on a real artifact and the whole
+synchronous surface is qualified end to end above. `bindings/node` wraps the
+core's `IncrementalSanitizer` directly, the same as `bindings/python`, so
+`createIncrementalSanitizer` opens a real session on Node; that session is
+qualified above as part of `scripts/qualify-node-addon.mjs`'s package-level
+pass.
 
 This is a documented runtime difference, not an outstanding gap in the
-matrix: both qualifiers assert the rejection, so an artifact that later gains
-the surface fails the check until the contract is revisited.
+matrix: `qualify-browser-artifact.mjs` asserts the rejection, so a browser
+artifact that later gains the surface fails the check until the contract is
+revisited.
 
 ## Running it locally
 

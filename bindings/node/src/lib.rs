@@ -9,6 +9,7 @@
 //! runs in Rust.
 
 mod error;
+mod incremental;
 mod offsets;
 
 use std::cell::OnceCell;
@@ -24,6 +25,15 @@ use redact_secret::{
 
 use crate::error::to_js_error;
 use crate::offsets::{byte_to_utf16, utf16_to_byte};
+// Re-exported so the incremental N-API surface (a public export like `scan`
+// or `redact`, just organized in its own module) is part of this crate's
+// effective public API rather than dead code the compiler cannot prove any
+// external caller reaches — the same reasoning `secret-scan-core`'s own
+// `lib.rs` applies to its private `incremental` module.
+pub use crate::incremental::{
+    JsIncrementalLimits, JsIncrementalOptions, JsIncrementalPolicyContext, JsIncrementalResult,
+    JsIncrementalSanitizer, create_incremental_sanitizer,
+};
 
 /// Returns the shared product version.
 #[napi]
@@ -100,7 +110,11 @@ pub struct JsScanAndRedactResult {
 type PolicyCallback<'env> = Function<'env, FnArgs<(JsDetectedFinding, JsPolicyContext)>, String>;
 
 /// A JavaScript placeholder formatter callback: `(finding, context) => text`.
-type FormatterCallback<'env> = Function<'env, FnArgs<(JsFinding, JsPlaceholderContext)>, String>;
+///
+/// `pub(crate)` so `incremental.rs` can accept the same callback shape for
+/// an incremental session's formatter option.
+pub(crate) type FormatterCallback<'env> =
+    Function<'env, FnArgs<(JsFinding, JsPlaceholderContext)>, String>;
 
 thread_local! {
     /// The built-in detector registry, built at most once per thread

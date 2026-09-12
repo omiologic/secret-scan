@@ -119,16 +119,74 @@ names the finding type instead (`<JWT_1>`).
 
 ## Incremental and stream availability
 
-The current Node and WebAssembly artifacts do not build incremental sessions.
-After initialization, `createIncrementalSanitizer`, `createNodeStreamSanitizer`,
-and `createWebStreamSanitizer` fail with `INCREMENTAL_UNAVAILABLE` when using
-these artifacts. Whole-input operations remain supported.
+The Node artifact builds a real incremental session, wrapping the same core
+`IncrementalSanitizer` the Python binding does. `createIncrementalSanitizer`
+retains unresolved text until its detection window closes, then emits
+sanitized text and findings; concatenating every `append`/`finalize` result's
+text reconstructs the whole sanitized output. Findings carry absolute UTF-16
+offsets into the logical whole-session input, so `input.slice(finding.start,
+finding.end)` selects the matched span. Do not scan chunks independently — a
+credential may cross a chunk boundary.
 
-The session types and stream subpaths are exported contracts, not evidence of
-runtime support. Adapter constructors accept a supplied session, but the
-package cannot create one with either current artifact. Use bounded whole-input
-scanning, or use Python, Rust, or CLI streaming. Do not scan chunks independently:
-a credential may cross a chunk boundary.
+```ts
+import { createIncrementalSanitizer, initialize } from "@redact-secret/core";
+
+await initialize();
+
+const limits = {
+  maxInputCodeUnits: 32_768,
+  maxBufferedCodeUnits: 16_512,
+  maxTokenCodeUnits: 8_192,
+  maxMultilineCodeUnits: 16_384,
+};
+const session = createIncrementalSanitizer({ limits });
+
+const first = session.append("api_key=SYNTHETIC_REVOKED_");
+const second = session.append("INCREMENTAL_VALUE\nordinary text");
+const final = session.finalize();
+
+const safeText = first.text + second.text + final.text;
+```
+
+A session starts `accepting` and moves to the terminal `finalized` (one
+successful `finalize()`), `aborted` (`abort()`), or `failed` (a limit,
+detector, policy, or placeholder failure) state; every operation outside
+`accepting` throws `INVALID_STATE`, and every terminal transition discards
+whatever plaintext the session still retained.
+
+`@redact-secret/core/node-stream` wraps a session in a byte-to-byte Node
+`Transform`, finalizing it when the stream ends normally and aborting it on
+every other exit:
+
+```ts
+import { pipeline } from "node:stream/promises";
+
+import { initialize } from "@redact-secret/core";
+import { createNodeStreamSanitizer } from "@redact-secret/core/node-stream";
+
+await initialize();
+
+await pipeline(
+  process.stdin,
+  createNodeStreamSanitizer({
+    limits: {
+      maxInputCodeUnits: 32_768,
+      maxBufferedCodeUnits: 16_512,
+      maxTokenCodeUnits: 8_192,
+      maxMultilineCodeUnits: 16_384,
+    },
+  }),
+  process.stdout,
+);
+```
+
+The browser (WebAssembly) artifact does not build incremental sessions.
+After initialization, `createIncrementalSanitizer` and
+`createWebStreamSanitizer` fail with `INCREMENTAL_UNAVAILABLE` there; use
+bounded whole-input operations in the browser, or Node, Python, Rust, or CLI
+streaming instead. The `./web-stream` subpath's exported types are a
+contract, not evidence of runtime support: its adapter accepts a supplied
+session, but the browser artifact cannot create one.
 
 See the [streaming guide](https://github.com/redact-secret/redact-secret/blob/main/docs/guides/streaming.md).
 
@@ -160,8 +218,8 @@ string may contain a lone UTF-16 surrogate, which has no UTF-8
 representation, so `scan`, `redact`, `scanAndRedact`, and an incremental
 sanitizer's `append` all reject one with this fixed code before it reaches
 either binding, identically on Node.js and in the browser — and
-`INCREMENTAL_UNAVAILABLE` from both current runtime adapters. Core failures
-are mapped to the same fixed error vocabulary.
+`INCREMENTAL_UNAVAILABLE` from the browser's WebAssembly runtime adapter
+only. Core failures are mapped to the same fixed error vocabulary.
 
 ## Public API
 

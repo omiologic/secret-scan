@@ -285,15 +285,16 @@ async function linkAddon() {
  * resolved under the specifier an installed consumer resolves.
  *
  * This is the one layer no other check reaches: the package's own binding
- * glue, on a real artifact. `bindings/node` exports no incremental session,
- * and `runtime/node.js` now treats that the way `runtime/browser.ts` treats
- * `bindings/wasm`'s documented non-support — `INCREMENTAL_UNAVAILABLE` at
- * call time rather than a load-time failure — so `initialize()` succeeds and
- * the whole synchronous surface is exercised here.
+ * glue, on a real artifact. `bindings/node` builds a real incremental
+ * session (`decision-define-runtime-bindings`), so `initialize()` succeeds
+ * and both the synchronous surface and `createIncrementalSanitizer` are
+ * exercised here; only the browser's WebAssembly artifact still reports
+ * `INCREMENTAL_UNAVAILABLE` (`qualify-browser-artifact.mjs`).
  *
  * The single-fixture assertion goes through `qualify-runtime-fixture.mjs`,
- * so this script embeds no fixture input or matched value of its own; the
- * whole-corpus pass above already covers the addon's own `scan`.
+ * so this script embeds no fixture input of its own beyond a fixed synthetic
+ * marker for the incremental session; the whole-corpus pass above already
+ * covers the addon's own `scan`.
  */
 async function integrateWithPackage() {
   const entry = join(JS_PACKAGE_DIR, "dist", "index.js");
@@ -333,20 +334,40 @@ async function integrateWithPackage() {
       `fixture ${fixture.id} left a redacted span in the output`,
     );
 
-    // `bindings/node` builds no streaming session, so the adapter reports
-    // that at call time with a fixed code instead of refusing to load.
+    // `bindings/node` builds a real session on the real addon: a value
+    // split across chunks, including one that only closes on the next
+    // chunk, must sanitize the same way the whole-input API does and never
+    // leave the marker in its output.
+    const MARKER = "SYNTHETIC_REVOKED_NODE_QUALIFICATION_MARKER";
+    const session = api.createIncrementalSanitizer({ limits: GENEROUS_LIMITS });
+    assertEqual(session.state, "accepting", "a fresh session's state");
+    let sanitized = "";
+    for (const chunk of [
+      `api_key=${MARKER.slice(0, 10)}`,
+      `${MARKER.slice(10)}\n`,
+      "tail",
+    ]) {
+      sanitized += session.append(chunk).text;
+    }
+    sanitized += session.finalize().text;
+    assertEqual(session.state, "finalized", "a finalized session's state");
+    assert(!sanitized.includes(MARKER), "the session left the marker in its output");
+    assert(sanitized.endsWith("tail"), "the session dropped trailing plaintext");
+
+    // A session outside `accepting` rejects every further operation with a
+    // fixed, input-free code rather than silently accepting it.
     let thrown;
     try {
-      api.createIncrementalSanitizer({ limits: GENEROUS_LIMITS });
+      session.append("ignored");
     } catch (error) {
       thrown = error;
     }
-    assert(thrown !== undefined, "the Node runtime opened a session");
+    assert(thrown !== undefined, "a finalized session accepted another append");
     assert(
       thrown instanceof api.SecretScanError,
       "a foreign error escaped the package",
     );
-    assertEqual(thrown.code, "INCREMENTAL_UNAVAILABLE", "incremental code");
+    assertEqual(thrown.code, "INVALID_STATE", "post-finalize append code");
   } finally {
     rmSync(link, { recursive: true, force: true });
   }

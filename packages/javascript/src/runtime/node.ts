@@ -29,11 +29,12 @@ import type {
  * which this adapter renames to the contract's `text`; everything else is
  * already the documented UTF-16 shape.
  *
- * `createIncrementalSanitizer` is optional: `bindings/node` does not implement
- * it yet (unlike `bindings/python`, which wraps the same core
- * `IncrementalSanitizer`), so this adapter treats its absence the same way
- * `runtime/browser.ts` treats `bindings/wasm`'s documented non-support —
- * `INCREMENTAL_UNAVAILABLE` at call time, not a load-time failure.
+ * `createIncrementalSanitizer` is declared optional here because this type
+ * also describes any addon a consumer might have installed, including one
+ * built before `bindings/node` implemented it: this adapter treats its
+ * absence the same way `runtime/browser.ts` treats `bindings/wasm`'s
+ * documented non-support — `INCREMENTAL_UNAVAILABLE` at call time, not a
+ * load-time failure — rather than assuming every addon on disk is current.
  */
 interface NodeAddon {
   version(): string;
