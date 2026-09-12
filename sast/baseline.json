@@ -203,6 +203,20 @@
       "rationale": "The flagged call is `env::args_os().skip(1)`: argv[0] is explicitly discarded before the remaining arguments are used as scan-target paths, so the exact property this audit rule warns about (relying on argv[0] for a security decision) does not apply.",
       "rule_id": "sast.rules.rust.lang.security.args-os"
     },
+    "f1955d528b4083fa": {
+      "classification": "false_positive",
+      "line": 113,
+      "path": "crates/secret-scan-core/examples/assessment_adapter.rs",
+      "rationale": "The assessment adapter reads `env::args().skip(1)`, explicitly discarding argv[0] before parsing its own fixed command options. The arguments select local assessment modes and output paths only; they are not used for authentication, authorization, or shell execution, so the argv[0] spoofing concern this generic rule targets does not apply.",
+      "rule_id": "sast.rules.rust.lang.security.args"
+    },
+    "5883476e89c8eb24": {
+      "classification": "false_positive",
+      "line": 710,
+      "path": "crates/secret-scan-core/examples/assessment_adapter.rs",
+      "rationale": "This call also uses `env::args().skip(1)` only to reconstruct the adapter invocation in assessment provenance. The resulting string is written to JSON/Markdown reports as inert reproducibility metadata and is never executed, parsed as a shell command, or used for a security decision.",
+      "rule_id": "sast.rules.rust.lang.security.args"
+    },
     "6482d71ba63ff531": {
       "classification": "false_positive",
       "path": "scripts/verify-recovery-artifact.py",
