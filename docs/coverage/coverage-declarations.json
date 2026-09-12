@@ -60,13 +60,14 @@
           "state": "supported"
         },
         {
+          "classLevel": true,
           "dimension": "host-context",
           "evidenceFixtureIds": [],
           "exception": {
-            "backlogId": "structural-host-context-breadth",
-            "code": "pending"
+            "code": "owned-elsewhere",
+            "ownedBy": "connection_string_password:host-context"
           },
-          "state": "pending"
+          "state": "supported"
         },
         {
           "classLevel": true,
@@ -1707,13 +1708,14 @@
           "state": "supported"
         },
         {
+          "classLevel": true,
           "dimension": "host-context",
           "evidenceFixtureIds": [],
           "exception": {
-            "backlogId": "structural-host-context-breadth",
-            "code": "pending"
+            "code": "owned-elsewhere",
+            "ownedBy": "connection_string_password:host-context"
           },
-          "state": "pending"
+          "state": "supported"
         },
         {
           "classLevel": true,
@@ -1781,13 +1783,14 @@
           "state": "supported"
         },
         {
+          "classLevel": true,
           "dimension": "host-context",
           "evidenceFixtureIds": [],
           "exception": {
-            "backlogId": "structural-host-context-breadth",
-            "code": "pending"
+            "code": "owned-elsewhere",
+            "ownedBy": "connection_string_password:host-context"
           },
-          "state": "pending"
+          "state": "supported"
         },
         {
           "classLevel": true,
@@ -1813,6 +1816,11 @@
         {
           "dimension": "positive",
           "evidenceFixtureIds": [
+            "connection-host-dotenv",
+            "connection-host-javascript",
+            "connection-host-log",
+            "connection-host-markdown",
+            "connection-host-shell",
             "connection-positive-amqp-query",
             "connection-positive-amqps",
             "connection-positive-azure-http",
@@ -1924,13 +1932,69 @@
           "state": "supported"
         },
         {
+          "classLevel": true,
           "dimension": "host-context",
-          "evidenceFixtureIds": [],
-          "exception": {
-            "backlogId": "structural-host-context-breadth",
-            "code": "pending"
-          },
-          "state": "pending"
+          "evidenceFixtureIds": [
+            "connection-adversarial-azure-overlong",
+            "connection-adversarial-malformed-authority",
+            "connection-adversarial-overlong",
+            "connection-boundary-amqp-invalid-port-length",
+            "connection-boundary-amqps-malformed-ipv6",
+            "connection-boundary-azure-malformed-base64",
+            "connection-boundary-azure-missing-key-value",
+            "connection-boundary-azure-reordered-fields",
+            "connection-boundary-mariadb-unescaped-slash",
+            "connection-boundary-missing-password",
+            "connection-boundary-mongodb-unicode-host",
+            "connection-boundary-mysql-missing-password",
+            "connection-boundary-postgresql-malformed-ipv6",
+            "connection-boundary-redis-unescaped-at",
+            "connection-boundary-rediss-invalid-port-range",
+            "connection-host-dotenv",
+            "connection-host-javascript",
+            "connection-host-log",
+            "connection-host-markdown",
+            "connection-host-shell",
+            "connection-negative-amqp-host-only",
+            "connection-negative-amqp-malformed-percent",
+            "connection-negative-amqps-host-only",
+            "connection-negative-amqps-malformed-percent",
+            "connection-negative-azure-account-name-only",
+            "connection-negative-azure-unrelated-semicolon-config",
+            "connection-negative-host-only",
+            "connection-negative-malformed-percent",
+            "connection-negative-mariadb-host-only",
+            "connection-negative-mariadb-malformed-percent",
+            "connection-negative-mongodb-host-only",
+            "connection-negative-mongodb-malformed-percent",
+            "connection-negative-mongodb-srv-host-only",
+            "connection-negative-mongodb-srv-malformed-percent",
+            "connection-negative-mysql-host-only",
+            "connection-negative-mysql-malformed-percent",
+            "connection-negative-postgresql-host-only",
+            "connection-negative-postgresql-malformed-percent",
+            "connection-negative-redis-host-only",
+            "connection-negative-redis-malformed-percent",
+            "connection-negative-rediss-host-only",
+            "connection-negative-rediss-malformed-percent",
+            "connection-overlap-context",
+            "connection-positive-amqp-query",
+            "connection-positive-amqps",
+            "connection-positive-azure-http",
+            "connection-positive-azure-https",
+            "connection-positive-azure-sovereign-suffix",
+            "connection-positive-encoded-ipv6",
+            "connection-positive-mariadb-percent-encoded",
+            "connection-positive-mongodb-seed-list",
+            "connection-positive-mongodb-srv",
+            "connection-positive-port",
+            "connection-positive-postgres",
+            "connection-positive-postgresql",
+            "connection-positive-redis-password-only",
+            "connection-positive-rediss-fragment",
+            "regression-malformed-percent-authority"
+          ],
+          "state": "supported"
         },
         {
           "classLevel": true,
@@ -2004,13 +2068,14 @@
           "state": "supported"
         },
         {
+          "classLevel": true,
           "dimension": "host-context",
           "evidenceFixtureIds": [],
           "exception": {
-            "backlogId": "structural-host-context-breadth",
-            "code": "pending"
+            "code": "owned-elsewhere",
+            "ownedBy": "connection_string_password:host-context"
           },
-          "state": "pending"
+          "state": "supported"
         },
         {
           "classLevel": true,

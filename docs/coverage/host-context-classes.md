@@ -111,19 +111,27 @@ already does for `log`, below).
   rules (a placeholder word, a `${...}` reference) hold across host syntax.
   `docs/coverage/coverage-declarations.json`'s `contextual_secret`
   `host-context` dimension now resolves `supported` at the type level.
+- **The structural class's host-context breadth gap is closed by issue
+  [#186](https://github.com/redact-secret/redact-secret/issues/186).**
+  `connection_string_password` is the single class-level representative: its
+  positive fixtures now cover `dotenv`, `shell`, `javascript`, `log`, and
+  `markdown`, one context in each of the five lexical classes. The generated
+  declarations resolve its `host-context` cell directly and resolve
+  `private_key`, `jwt`, `bearer_token`, and `otpauth_secret` through the
+  bounded `owned-elsewhere` exception. No duplicate context matrix is required
+  for those four types.
 - **`authorization_credential` (`generic-token`) has no host-context evidence
   at all** — it has no positive fixture of any kind yet
   (`evidence-requirements.md` §6, tracked as `C/F-03` in
   [`docs/audits/deferred-quality-backlog.md`](../audits/deferred-quality-backlog.md)).
   This document does not invent that evidence; it records the gap so its
   eventual fixtures land in the right representative contexts.
-- **Every `provider`/`structural` type other than `github_token`,
-  `aws_access_key_id`, and `connection_string_password`** carries only a
-  single `plain-text` fixture today (§5). That is correct, not a gap: §3's
-  class-level rule requires the representative evidence to exist *somewhere*
-  in the corpus for each lexical class, not on every member row — and
-  `github_token`'s 22-context fixture set already supplies it for all five
-  classes at once.
+- **Provider and structural breadth each has one class-level owner.** Most
+  other members still carry only a `plain-text` fixture, and that is correct,
+  not a gap: §3 requires representative evidence somewhere in the class, not
+  on every member row. `github_token` supplies the provider evidence and
+  `connection_string_password` supplies the structural evidence; the generated
+  declarations point the remaining rows to the applicable owner.
 
 ## 5. Reconciliation against the current corpus
 
@@ -134,28 +142,28 @@ orphaned from this classification, and this table is exhaustive over
 
 | Class | Context | Fixtures using it (fixture id) | Notes |
 |---|---|---|---|
-| structured-data-kv | `dotenv` | `host-dotenv-github`; `compound-repeated-crlf-aws` (`aws_access_key_id`); `contextual-host-dotenv` (`contextual_secret`) | representative (§3) |
+| structured-data-kv | `dotenv` | `host-dotenv-github`; `compound-repeated-crlf-aws` (`aws_access_key_id`); `contextual-host-dotenv` (`contextual_secret`); `connection-host-dotenv` (`connection_string_password`) | representative (§3) |
 | structured-data-kv | `json` | `host-json-github`; `contextual-negative-json-env-reference` (near-miss negative, `generic-token`) | |
 | structured-data-kv | `yaml` | `host-yaml-github` | |
 | structured-data-kv | `toml` | `host-toml-github` | |
-| shell-invocation | `shell` | `host-shell-github`; `host-shell-heredoc-github`; `contextual-host-shell` (`contextual_secret`); `contextual-negative-shell-placeholder` (near-miss negative, `generic-token`) | representative (§3) |
+| shell-invocation | `shell` | `host-shell-github`; `host-shell-heredoc-github`; `contextual-host-shell` (`contextual_secret`); `contextual-negative-shell-placeholder` (near-miss negative, `generic-token`); `connection-host-shell` (`connection_string_password`) | representative (§3) |
 | shell-invocation | `powershell` | `host-powershell-github` | |
 | shell-invocation | `docker-compose` | `host-docker-compose-github` | |
 | shell-invocation | `github-actions` | `host-github-actions-github` | |
 | shell-invocation | `terraform` | `host-terraform-github` | |
 | shell-invocation | `kubernetes` | `host-kubernetes-github` | |
-| source-code | `javascript` | `host-javascript-github`; `negative-source-map` (near-miss negative, `generic-token`); `contextual-host-javascript` (`contextual_secret`'s own positive) | representative (§3) |
+| source-code | `javascript` | `host-javascript-github`; `negative-source-map` (near-miss negative, `generic-token`); `contextual-host-javascript` (`contextual_secret`'s own positive); `connection-host-javascript` (`connection_string_password`) | representative (§3) |
 | source-code | `typescript` | `host-typescript-github` | |
 | source-code | `python` | `host-python-github` | |
 | wire-and-log | `http` | `host-http-github`; `contextual-host-http` (`contextual_secret`) | representative (§3) |
 | wire-and-log | `curl` | `host-curl-github`; `mutation-github-09-host-embedding` | |
-| wire-and-log | `log` | `host-log-github`; `adversarial-dense-aws-findings` (`aws_access_key_id`); `regression-malformed-percent-authority` (`connection_string_password`'s targeted evidence, §3); `contextual-host-log` (`contextual_secret`) | representative (§3) |
+| wire-and-log | `log` | `host-log-github`; `adversarial-dense-aws-findings` (`aws_access_key_id`); `regression-malformed-percent-authority` and `connection-host-log` (`connection_string_password`); `contextual-host-log` (`contextual_secret`) | representative (§3) |
 | wire-and-log | `terminal` | `host-terminal-github` | |
 | wire-and-log | `stack-trace` | `host-stack-trace-github` | |
 | prose-and-markup | `chat` | `host-chat-github`; `contextual-host-chat` (`contextual_secret`) | |
-| prose-and-markup | `markdown` | `host-markdown-github` | representative (§3) |
+| prose-and-markup | `markdown` | `host-markdown-github`; `connection-host-markdown` (`connection_string_password`) | representative (§3) |
 | prose-and-markup | `xml` | `host-xml-github` | representative (§3) |
-| prose-and-markup | `plain-text` | every type not listed above (149 of 183 fixtures) | default fixture (§3) |
+| prose-and-markup | `plain-text` | every type not listed above (351 of 391 fixtures) | default fixture (§3) |
 
 `negative-source-map` remains a near-miss negative, not a positive
 `contextual_secret` fixture — it evidences that `generic-token` does not
@@ -168,7 +176,7 @@ classes by issue #111 (§4); its earlier `plain-text`-only positive fixtures
 `contextual-positive-aws-session-token`) are unchanged.
 
 Reconciled by hand against `conformance/fixtures/synchronous-corpus.json`
-(183 fixtures) on 2026-09-10, after issue #111's fixtures landed; re-run this
+(391 fixtures) on 2026-09-12, after issue #186's fixtures landed; re-run this
 reconciliation whenever a fixture's
 `contexts` array changes. `npx vitest run conformance/schema.test.ts`
 confirms every context value used above is a member of `schema.ts`'s closed

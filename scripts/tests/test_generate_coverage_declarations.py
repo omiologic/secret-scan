@@ -315,14 +315,6 @@ class BuildDeclarationsIntegrationTests(unittest.TestCase):
         self.assertEqual(
             pending,
             {
-                # #186
-                "structural-host-context-breadth": {
-                    "private_key.host-context",
-                    "jwt.host-context",
-                    "bearer_token.host-context",
-                    "connection_string_password.host-context",
-                    "otpauth_secret.host-context",
-                },
                 # #187
                 "bearer-token-overlap": {"bearer_token.overlap"},
                 # #188
@@ -335,6 +327,45 @@ class BuildDeclarationsIntegrationTests(unittest.TestCase):
                 },
             },
         )
+
+    def test_structural_host_context_breadth_is_owned_by_one_representative(self) -> None:
+        structural_types = {
+            "private_key",
+            "jwt",
+            "bearer_token",
+            "connection_string_password",
+            "otpauth_secret",
+        }
+        structural = {
+            row["type"]: next(
+                dimension
+                for dimension in row["dimensions"]
+                if dimension["dimension"] == "host-context"
+            )
+            for row in self.report["declarations"]
+            if row["type"] in structural_types
+        }
+
+        representative = structural["connection_string_password"]
+        self.assertEqual(representative["state"], "supported")
+        self.assertTrue(representative["classLevel"])
+        self.assertTrue(
+            {
+                "connection-host-dotenv",
+                "connection-host-shell",
+                "connection-host-javascript",
+                "connection-host-log",
+                "connection-host-markdown",
+            }.issubset(representative["evidenceFixtureIds"])
+        )
+        for type_name in structural_types - {"connection_string_password"}:
+            self.assertEqual(
+                structural[type_name]["exception"],
+                {
+                    "code": "owned-elsewhere",
+                    "ownedBy": "connection_string_password:host-context",
+                },
+            )
 
     def test_authorization_credential_resolves_the_dimensions_c_f_03_closed(self) -> None:
         """Issue #105 closed `C/F-03`'s exact scope: a supported positive

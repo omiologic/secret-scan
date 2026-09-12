@@ -1,6 +1,6 @@
 {
   "offsetUnit": "utf8-byte",
-  "fixtureCount": 386,
+  "fixtureCount": 391,
   "fixtures": [
     {
       "id": "host-dotenv-github",
@@ -7369,6 +7369,116 @@
         }
       ],
       "note": "Only the password in a supported authority is selected."
+    },
+    {
+      "id": "connection-host-dotenv",
+      "detector": "connection-string",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "dotenv"
+      ],
+      "input": "DATABASE_URL=postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost/db",
+      "expected": [
+        {
+          "detector": "connection-string",
+          "type": "connection_string_password",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 32,
+          "end": 58
+        }
+      ],
+      "note": "A bare dotenv assignment supplies the structural class's structured-data-kv representative positive evidence."
+    },
+    {
+      "id": "connection-host-shell",
+      "detector": "connection-string",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "shell"
+      ],
+      "input": "export DATABASE_URL='postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost/db' # rotate before commit",
+      "expected": [
+        {
+          "detector": "connection-string",
+          "type": "connection_string_password",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 40,
+          "end": 66
+        }
+      ],
+      "note": "A quoted shell export supplies the structural class's shell-invocation representative positive evidence without extending the selected password into the quote or comment."
+    },
+    {
+      "id": "connection-host-javascript",
+      "detector": "connection-string",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "javascript"
+      ],
+      "input": "const databaseUrl = \"postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost/db\";",
+      "expected": [
+        {
+          "detector": "connection-string",
+          "type": "connection_string_password",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 40,
+          "end": 66
+        }
+      ],
+      "note": "A JavaScript string literal supplies the structural class's source-code representative positive evidence while preserving the exact password range."
+    },
+    {
+      "id": "connection-host-log",
+      "detector": "connection-string",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "log"
+      ],
+      "input": "level=warn database_url=postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost/db request_id=fixture-186",
+      "expected": [
+        {
+          "detector": "connection-string",
+          "type": "connection_string_password",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 43,
+          "end": 69
+        }
+      ],
+      "note": "A logfmt field supplies positive wire-and-log evidence and keeps adjacent fields outside the selected password range."
+    },
+    {
+      "id": "connection-host-markdown",
+      "detector": "connection-string",
+      "kind": "positive",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "markdown"
+      ],
+      "input": "`postgres://fixture:SYNTHETIC_REVOKED_DB_VALUE@localhost/db` must be rotated before reuse.",
+      "expected": [
+        {
+          "detector": "connection-string",
+          "type": "connection_string_password",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 20,
+          "end": 46
+        }
+      ],
+      "note": "An inline Markdown code span supplies the structural class's prose-and-markup representative positive evidence."
     },
     {
       "id": "connection-positive-encoded-ipv6",
