@@ -122,9 +122,10 @@ keeps partitioning out of stored fixture data.
 `AssessmentResult` is the one shape all five surfaces report through:
 `schemaVersion`, `surface`, the `profileId` it ran, either `accuracy`
 (`truePositives`, `falsePositives`, `falseNegatives`, `policyMismatches`) or
-`performance` (`initializationMs`, `processingMs`,
-`throughputBytesPerSecond`, `repetitionRuns`, `repetitionStdDevMs`,
-`peakMemoryBytes`) — or both — and a `provenance` block recording exactly
+`performance` (raw initialization, processing, and throughput samples with
+min/median/p95/max/mean/population-standard-deviation summaries, plus separate
+memory categories with baseline/maximum-observed samples or an unavailable
+reason) — or both — and a `provenance` block recording exactly
 what produced the number: `commit` (full source SHA), `artifactIdentity`
 (the exact built artifact, e.g. a package name and version), `corpusVersion`
 and `corpusHash` (which revision of this corpus ran), `os`, `cpu`, `runtime`,
@@ -178,6 +179,35 @@ not evidence.
   build failure. Every fixture is synthetic or explicitly revoked, and
   neither runner's output carries a fixture's `input` or a matched value.
 
+## Node and browser performance runners
+
+`npm run assessment:node:performance -- --profile <scale-id> --runs <2-100>` and
+`npm run assessment:browser:performance -- --profile <scale-id> --runs <2-100>`
+measure real built artifacts. Add `--json-out <path>` and `--markdown-out <path>`
+to retain inspectable raw data and summaries. The Node command accepts
+`--addon-dir`; the browser command accepts `--engine` and `--artifact-dir`.
+
+Each repetition uses a fresh process (Node) or browser context (WASM). Module
+import, profile validation, deterministic input generation, chunk partitioning,
+warmup, sink checks, aggregation, and report rendering occur outside the timers.
+Initialization times only `initialize()`; processing times only a steady-state
+whole-input operation or incremental session. Throughput is generated UTF-8
+bytes divided by processing duration.
+
+Memory is sampled immediately before and after processing. A reported maximum
+is therefore a maximum observed at sample boundaries, never a guaranteed true
+peak. Node heap, RSS, and external memory are separate, potentially overlapping
+categories and must not be summed. Browser JavaScript heap is reported only when
+the engine exposes non-standard `performance.memory.usedJSHeapSize`. The package
+intentionally exposes neither its private `WebAssembly.Memory` handle nor
+retained incremental plaintext bytes; those metrics carry unavailable reasons
+instead of motivating public instrumentation APIs or invented estimates.
+
+Before repetitions begin, each runner validates the complete profile document,
+checks its declared count, selects one known `purpose: "scale"` profile, and
+bounds repetitions to 100. The default 64 KiB profile with `--runs 2` is the
+minimal known workload and bounded real-artifact smoke measurement.
+
 ## What this directory is not (yet)
 
 This item defines the schema, the corpus, the workload profiles, and the
@@ -185,7 +215,7 @@ result contract — the common language every surface's evaluation reports
 through. The Node and browser WebAssembly runners above are the first two of
 the five per-surface runners that execute a profile, collect real `accuracy`
 or `performance` metrics, and emit a conforming `AssessmentResult`; a Rust,
-Python, and CLI runner, and every surface's `performance` (scale) runner, are
+Python, and CLI accuracy runner, plus their `performance` (scale) runners, are
 separate, larger work tracked elsewhere, on the same terms
 `conformance/README.md`'s "What this directory is not (yet)" section
 describes for the behavioral contract. This directory adds no runtime

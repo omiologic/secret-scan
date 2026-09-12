@@ -12,3 +12,4 @@ future planning and implementation but do not authorize Git or release actions.
 - [Pin OpenGrep and establish a reviewed SAST baseline](2026-09-10-pin-opengrep-and-establish-a-reviewed-sast-baseline.md)
 - [Enforce OpenGrep in CI as a required, SARIF-integrated gate](2026-09-10-enforce-opengrep-in-ci-as-a-required-gate.md)
 - [Define the cross-language evaluation protocol](2026-09-12-define-cross-language-evaluation-protocol.md)
+- [Measure JavaScript performance externally](2026-09-12-measure-javascript-performance-externally.md)

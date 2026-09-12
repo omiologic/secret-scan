@@ -2,7 +2,7 @@
   "resultCount": 6,
   "results": [
     {
-      "schemaVersion": "1",
+      "schemaVersion": "2",
       "surface": "rust-core",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -23,7 +23,7 @@
       }
     },
     {
-      "schemaVersion": "1",
+      "schemaVersion": "2",
       "surface": "python",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -44,7 +44,7 @@
       }
     },
     {
-      "schemaVersion": "1",
+      "schemaVersion": "2",
       "surface": "node",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -65,7 +65,7 @@
       }
     },
     {
-      "schemaVersion": "1",
+      "schemaVersion": "2",
       "surface": "browser-wasm",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -86,7 +86,7 @@
       }
     },
     {
-      "schemaVersion": "1",
+      "schemaVersion": "2",
       "surface": "cli",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -107,16 +107,52 @@
       }
     },
     {
-      "schemaVersion": "1",
+      "schemaVersion": "2",
       "surface": "rust-core",
       "profileId": "scale-logs-small-whole",
       "performance": {
-        "initializationMs": 0.4,
-        "processingMs": 3.1,
-        "throughputBytesPerSecond": 21140000,
-        "repetitionRuns": 20,
-        "repetitionStdDevMs": 0.2,
-        "peakMemoryBytes": 1048576
+        "initialization": {
+          "unit": "milliseconds", "samples": [0.4, 0.5], "minimum": 0.4,
+          "median": 0.45, "p95": 0.5, "maximum": 0.5, "mean": 0.45,
+          "standardDeviation": 0.05
+        },
+        "processing": {
+          "unit": "milliseconds", "samples": [3.1, 3.3], "minimum": 3.1,
+          "median": 3.2, "p95": 3.3, "maximum": 3.3, "mean": 3.2,
+          "standardDeviation": 0.1
+        },
+        "throughput": {
+          "unit": "bytes-per-second", "samples": [21140000, 19859000],
+          "minimum": 19859000, "median": 20499500, "p95": 21140000,
+          "maximum": 21140000, "mean": 20499500, "standardDeviation": 640500
+        },
+        "memory": {
+          "nodeHeap": {
+            "unit": "bytes", "samples": [], "unavailableReason": "not a Node surface",
+            "samplingLimit": "No samples were taken."
+          },
+          "nodeRss": {
+            "unit": "bytes", "samples": [], "unavailableReason": "not a Node surface",
+            "samplingLimit": "No samples were taken."
+          },
+          "nodeExternal": {
+            "unit": "bytes", "samples": [], "unavailableReason": "not a Node surface",
+            "samplingLimit": "No samples were taken."
+          },
+          "browserJsHeap": {
+            "unit": "bytes", "samples": [], "unavailableReason": "not a browser surface",
+            "samplingLimit": "No samples were taken."
+          },
+          "wasmLinearMemory": {
+            "unit": "bytes", "samples": [], "unavailableReason": "not a WASM surface",
+            "samplingLimit": "No samples were taken."
+          },
+          "streamingBuffer": {
+            "unit": "bytes", "samples": [],
+            "unavailableReason": "the public session API exposes state but not retained bytes",
+            "samplingLimit": "No internal buffer samples were available."
+          }
+        }
       },
       "provenance": {
         "commit": "0123456789abcdef0123456789abcdef01234567",

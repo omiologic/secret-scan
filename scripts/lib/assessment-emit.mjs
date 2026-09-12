@@ -61,3 +61,28 @@ export async function buildAndEmitAccuracyResult({
 
   return result;
 }
+
+export async function buildAndEmitPerformanceResult({
+  surface,
+  profileId,
+  performance,
+  provenance,
+  jsonOut,
+  markdownOut,
+}) {
+  const schema = await loadAssessmentSchema();
+  const result = {
+    schemaVersion: schema.RESULT_SCHEMA_VERSION,
+    surface,
+    profileId,
+    performance,
+    provenance,
+  };
+  schema.validateAssessmentResults([result]);
+  writeJsonResult(result, jsonOut);
+  if (markdownOut !== undefined) {
+    const report = await loadAssessmentReport();
+    writeMarkdownReport(report.renderMarkdownPerformanceReport(result), markdownOut);
+  }
+  return result;
+}

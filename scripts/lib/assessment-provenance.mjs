@@ -22,6 +22,12 @@ export const ACCURACY_CORPUS_PATH = join(
   "fixtures",
   "accuracy-corpus.json",
 );
+export const WORKLOAD_PROFILES_PATH = join(
+  REPO_ROOT,
+  "assessment",
+  "fixtures",
+  "workload-profiles.json",
+);
 
 export function gitCommit() {
   return execFileSync("git", ["rev-parse", "HEAD"], {
@@ -36,6 +42,14 @@ export function loadAccuracyCorpus() {
 
 export function accuracyCorpusHash() {
   return createHash("sha256").update(readFileSync(ACCURACY_CORPUS_PATH)).digest("hex");
+}
+
+export function loadWorkloadProfiles() {
+  return JSON.parse(readFileSync(WORKLOAD_PROFILES_PATH, "utf8"));
+}
+
+export function workloadProfilesHash() {
+  return createHash("sha256").update(readFileSync(WORKLOAD_PROFILES_PATH)).digest("hex");
 }
 
 /** `<platform>-<release>`, e.g. `darwin-24.6`, matching the contract's example. */

@@ -113,7 +113,7 @@ export const ACCURACY_MAX_INPUT_BYTES = 4096;
  * `AssessmentProvenance.corpusVersion`. A runner stamps every result it
  * emits with this constant rather than a free-form literal.
  */
-export const RESULT_SCHEMA_VERSION = "1";
+export const RESULT_SCHEMA_VERSION = "2";
 
 /** The five product surfaces this protocol defines a common contract for. */
 export type AssessmentSurface =
@@ -130,13 +130,42 @@ export interface AssessmentAccuracyMetrics {
   readonly policyMismatches: number;
 }
 
+export interface AssessmentDistribution {
+  readonly unit: "milliseconds" | "bytes-per-second";
+  readonly samples: readonly number[];
+  readonly minimum: number;
+  readonly median: number;
+  readonly p95: number;
+  readonly maximum: number;
+  readonly mean: number;
+  readonly standardDeviation: number;
+}
+
+export interface AssessmentMemorySample {
+  readonly baselineBytes: number;
+  readonly maximumObservedBytes: number;
+}
+
+export interface AssessmentMemoryMetric {
+  readonly unit: "bytes";
+  readonly samples: readonly AssessmentMemorySample[];
+  readonly unavailableReason?: string;
+  /** Explains where sampling can miss a short-lived true peak. */
+  readonly samplingLimit: string;
+}
+
 export interface AssessmentPerformanceMetrics {
-  readonly initializationMs: number;
-  readonly processingMs: number;
-  readonly throughputBytesPerSecond: number;
-  readonly repetitionRuns: number;
-  readonly repetitionStdDevMs: number;
-  readonly peakMemoryBytes: number;
+  readonly initialization: AssessmentDistribution;
+  readonly processing: AssessmentDistribution;
+  readonly throughput: AssessmentDistribution;
+  readonly memory: {
+    readonly nodeHeap: AssessmentMemoryMetric;
+    readonly nodeRss: AssessmentMemoryMetric;
+    readonly nodeExternal: AssessmentMemoryMetric;
+    readonly browserJsHeap: AssessmentMemoryMetric;
+    readonly wasmLinearMemory: AssessmentMemoryMetric;
+    readonly streamingBuffer: AssessmentMemoryMetric;
+  };
 }
 
 /**
@@ -404,8 +433,7 @@ export function validateAssessmentResults(
     const id = rawId ?? "unknown";
 
     if (
-      typeof result.schemaVersion !== "string" ||
-      result.schemaVersion.length === 0 ||
+      result.schemaVersion !== RESULT_SCHEMA_VERSION ||
       !SURFACES.includes(result.surface) ||
       rawId === undefined ||
       !CASE_ID_PATTERN.test(rawId) ||
@@ -425,20 +453,55 @@ export function validateAssessmentResults(
       result.accuracy.policyMismatches < 0
     )) invalid(id, "invalid-accuracy-metrics");
 
-    if (result.performance !== undefined && (
-      !Number.isFinite(result.performance.initializationMs) ||
-      result.performance.initializationMs < 0 ||
-      !Number.isFinite(result.performance.processingMs) ||
-      result.performance.processingMs < 0 ||
-      !Number.isFinite(result.performance.throughputBytesPerSecond) ||
-      result.performance.throughputBytesPerSecond < 0 ||
-      !Number.isSafeInteger(result.performance.repetitionRuns) ||
-      result.performance.repetitionRuns <= 0 ||
-      !Number.isFinite(result.performance.repetitionStdDevMs) ||
-      result.performance.repetitionStdDevMs < 0 ||
-      !Number.isSafeInteger(result.performance.peakMemoryBytes) ||
-      result.performance.peakMemoryBytes < 0
-    )) invalid(id, "invalid-performance-metrics");
+    if (result.performance !== undefined) {
+      const distributions = [
+        result.performance.initialization,
+        result.performance.processing,
+        result.performance.throughput,
+      ];
+      if (distributions.some((distribution) =>
+        typeof distribution !== "object" || distribution === null ||
+        !["milliseconds", "bytes-per-second"].includes(distribution.unit) ||
+        !Array.isArray(distribution.samples) || distribution.samples.length === 0 ||
+        distribution.samples.some((sample) => !Number.isFinite(sample) || sample < 0) ||
+        [distribution.minimum, distribution.median, distribution.p95,
+          distribution.maximum, distribution.mean, distribution.standardDeviation]
+          .some((summary) => !Number.isFinite(summary) || summary < 0)
+      )) invalid(id, "invalid-performance-metrics");
+      if (
+        result.performance.initialization.unit !== "milliseconds" ||
+        result.performance.processing.unit !== "milliseconds" ||
+        result.performance.throughput.unit !== "bytes-per-second" ||
+        result.performance.initialization.samples.length !==
+          result.performance.processing.samples.length ||
+        result.performance.processing.samples.length !==
+          result.performance.throughput.samples.length
+      ) invalid(id, "invalid-performance-metrics");
+
+      const memory = result.performance.memory;
+      const metrics = memory === undefined ? [] : [
+        memory.nodeHeap,
+        memory.nodeRss,
+        memory.nodeExternal,
+        memory.browserJsHeap,
+        memory.wasmLinearMemory,
+        memory.streamingBuffer,
+      ];
+      if (metrics.length !== 6 || metrics.some((metric) =>
+        typeof metric !== "object" || metric === null || metric.unit !== "bytes" ||
+        !Array.isArray(metric.samples) ||
+        metric.samples.some((sample) =>
+          !Number.isSafeInteger(sample.baselineBytes) || sample.baselineBytes < 0 ||
+          !Number.isSafeInteger(sample.maximumObservedBytes) ||
+          sample.maximumObservedBytes < sample.baselineBytes
+        ) ||
+        (metric.samples.length === 0
+          ? typeof metric.unavailableReason !== "string" || metric.unavailableReason.length === 0
+          : metric.unavailableReason !== undefined ||
+            metric.samples.length !== result.performance.processing.samples.length) ||
+        typeof metric.samplingLimit !== "string" || metric.samplingLimit.length === 0
+      )) invalid(id, "invalid-performance-metrics");
+    }
 
     const provenance = result.provenance;
     if (
