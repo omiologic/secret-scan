@@ -1,6 +1,6 @@
 {
   "offsetUnit": "utf8-byte",
-  "fixtureCount": 392,
+  "fixtureCount": 393,
   "fixtures": [
     {
       "id": "host-dotenv-github",
@@ -8466,6 +8466,28 @@
         }
       ],
       "note": "The contextual candidate yields to provider specificity."
+    },
+    {
+      "id": "contextual-overlap-nested-assignment",
+      "detector": "generic-token",
+      "kind": "overlap",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "client_secret=\"SYNTHETIC_REVOKED_OUTER_MARKER; api_key=SYNTHETIC_REVOKED_CONTEXT_OVERLAP_1234\"",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "contextual_secret",
+          "confidence": "high",
+          "specificity": "contextual",
+          "start": 55,
+          "end": 93
+        }
+      ],
+      "note": "The narrower nested contextual assignment wins over the wider contextual assignment candidate."
     },
     {
       "id": "contextual-adversarial-overlong",

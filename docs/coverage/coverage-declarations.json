@@ -2120,12 +2120,10 @@
         },
         {
           "dimension": "overlap",
-          "evidenceFixtureIds": [],
-          "exception": {
-            "backlogId": "contextual-secret-overlap",
-            "code": "pending"
-          },
-          "state": "pending"
+          "evidenceFixtureIds": [
+            "contextual-overlap-nested-assignment"
+          ],
+          "state": "supported"
         },
         {
           "dimension": "adversarial",
@@ -2184,6 +2182,7 @@
             "contextual-negative-shell-placeholder",
             "contextual-negative-token-name",
             "contextual-negative-unqualified-random-text",
+            "contextual-overlap-nested-assignment",
             "contextual-positive-assignment",
             "contextual-positive-aws-secret-access-key",
             "contextual-positive-aws-secret-access-key-quoted-colon",

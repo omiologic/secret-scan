@@ -164,6 +164,25 @@ class ResolveSharedFamilyTests(unittest.TestCase):
         rows_by_type = {
             "type_a": {
                 "type": "type_a",
+                "dimensions": [GEN.dim("adversarial", GEN.supported(["ev-1"]))],
+            },
+            "type_b": {
+                "type": "type_b",
+                "dimensions": [GEN.dim("adversarial", GEN.pending("type-b-adversarial"))],
+            },
+        }
+        GEN.resolve_shared_family(rows_by_type, ["type_a", "type_b"])
+        adversarial = rows_by_type["type_b"]["dimensions"][0]
+        self.assertEqual(adversarial["state"], "supported")
+        self.assertEqual(
+            adversarial["exception"],
+            {"code": "single-detector-family", "sharedWith": "type_a"},
+        )
+
+    def test_overlap_is_never_borrowed_between_sibling_finding_types(self) -> None:
+        rows_by_type = {
+            "type_a": {
+                "type": "type_a",
                 "dimensions": [GEN.dim("overlap", GEN.supported(["ev-1"]))],
             },
             "type_b": {
@@ -173,8 +192,7 @@ class ResolveSharedFamilyTests(unittest.TestCase):
         }
         GEN.resolve_shared_family(rows_by_type, ["type_a", "type_b"])
         overlap = rows_by_type["type_b"]["dimensions"][0]
-        self.assertEqual(overlap["state"], "supported")
-        self.assertEqual(overlap["exception"], {"code": "single-detector-family", "sharedWith": "type_a"})
+        self.assertEqual(overlap["state"], "pending")
 
     def test_non_shareable_dimension_is_never_borrowed(self) -> None:
         rows_by_type = {
@@ -197,19 +215,19 @@ class ResolveSharedFamilyTests(unittest.TestCase):
                 "type": "type_a",
                 "dimensions": [
                     GEN.dim(
-                        "overlap",
-                        GEN.supported_via("owned-elsewhere", ownedBy="somewhere-else:overlap"),
+                        "adversarial",
+                        GEN.supported_via("owned-elsewhere", ownedBy="somewhere-else:adversarial"),
                     )
                 ],
             },
             "type_b": {
                 "type": "type_b",
-                "dimensions": [GEN.dim("overlap", GEN.pending("type-b-overlap"))],
+                "dimensions": [GEN.dim("adversarial", GEN.pending("type-b-adversarial"))],
             },
         }
         GEN.resolve_shared_family(rows_by_type, ["type_a", "type_b"])
-        overlap = rows_by_type["type_b"]["dimensions"][0]
-        self.assertEqual(overlap["state"], "pending")
+        adversarial = rows_by_type["type_b"]["dimensions"][0]
+        self.assertEqual(adversarial["state"], "pending")
 
 
 class ApplyKnownExceptionsTests(unittest.TestCase):
@@ -315,8 +333,6 @@ class BuildDeclarationsIntegrationTests(unittest.TestCase):
         self.assertEqual(
             pending,
             {
-                # #188
-                "contextual-secret-overlap": {"contextual_secret.overlap"},
                 # #189
                 "authorization-credential-overlap": {"authorization_credential.overlap"},
                 # #190

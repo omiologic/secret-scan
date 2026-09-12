@@ -58,7 +58,7 @@ Coverage declarations: 35.
 | bearer_token | bearer-token | structural | supported | not-applicable | none |
 | cloudflare_api_token | cloudflare-token | provider | supported | not-applicable | none |
 | connection_string_password | connection-string | structural | supported | supported | none |
-| contextual_secret | generic-token | contextual | supported | not-applicable | overlap |
+| contextual_secret | generic-token | contextual | supported | not-applicable | none |
 | digitalocean_token | digitalocean-token | provider | supported | not-applicable | none |
 | docker_token | docker-token | provider | supported | not-applicable | none |
 | github_token | github-token | provider | supported | not-applicable | none |
@@ -108,7 +108,7 @@ Coverage declarations: 35.
 | incremental | 3 | 7 | 0 |
 | malformed | 35 | 0 | 0 |
 | near-miss-negative | 25 | 0 | 0 |
-| overlap | 23 | 0 | 2 |
+| overlap | 24 | 0 | 1 |
 | positive | 25 | 0 | 0 |
 | range | 35 | 0 | 0 |
 
@@ -128,4 +128,3 @@ None.
 
 - authorization_credential.host-context (`authorization-credential-host-context-breadth`)
 - authorization_credential.overlap (`authorization-credential-overlap`)
-- contextual_secret.overlap (`contextual-secret-overlap`)

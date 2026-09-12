@@ -546,6 +546,24 @@ mod tests {
     }
 
     #[test]
+    fn nested_assignments_emit_overlapping_contextual_candidates() {
+        let input = "client_secret=\"SYNTHETIC_REVOKED_OUTER_MARKER; api_key=SYNTHETIC_REVOKED_CONTEXT_OVERLAP_1234\"";
+        let candidates = detect(input);
+
+        assert_eq!(candidates.len(), 2);
+        assert!(
+            candidates
+                .iter()
+                .all(|candidate| candidate.type_name() == "contextual_secret")
+        );
+        assert_eq!(candidates[0].confidence(), Confidence::High);
+        assert_eq!(candidates[0].range(), ByteRange::new(15, 93).unwrap());
+        assert_eq!(candidates[1].confidence(), Confidence::High);
+        assert_eq!(candidates[1].range(), ByteRange::new(55, 93).unwrap());
+        assert!(candidates[0].range().overlaps(candidates[1].range()));
+    }
+
+    #[test]
     fn high_signal_assignment_with_bounded_entropy_is_high_confidence() {
         let input = "api_key=SYNTHETIC_REVOKED_CONTEXT_VALUE";
         let candidates = detect(input);
