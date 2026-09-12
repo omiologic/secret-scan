@@ -14,7 +14,6 @@
 
 import { describe, expect, it } from "vitest";
 
-import { SecretScanError } from "../src/errors.js";
 import { NATIVE_HANDLE } from "../src/native.js";
 import { createRedactSecretRuntime } from "../src/runtime.js";
 import { VERSION } from "../src/version.js";
@@ -189,20 +188,142 @@ describe("WebAssembly-shaped binding: policy and formatter callbacks", () => {
 });
 
 describe("WebAssembly-shaped binding: incremental sanitization", () => {
-  it("rejects with a fixed code, since bindings/wasm has no such export", async () => {
+  it("builds a real session and forwards the flat limits positionally", async () => {
     const wasm = createWasmShapedBinding();
     const runtime = createRedactSecretRuntime(wasm.load);
-
     await runtime.initialize();
 
-    expect(() =>
-      runtime.createIncrementalSanitizer({ limits: LIMITS }),
-    ).toThrowError(
+    const session = runtime.createIncrementalSanitizer({ limits: LIMITS });
+
+    expect(session.state).toBe("accepting");
+    expect(wasm.calls).toContain(
+      `createIncrementalSanitizer:${LIMITS.maxInputCodeUnits}`,
+    );
+  });
+
+  it("moves through the lifecycle and rejects an operation once it is not accepting", async () => {
+    const wasm = createWasmShapedBinding();
+    const runtime = createRedactSecretRuntime(wasm.load);
+    await runtime.initialize();
+
+    const session = runtime.createIncrementalSanitizer({ limits: LIMITS });
+    session.append("chunk");
+    session.finalize();
+
+    expect(session.state).toBe("finalized");
+    expect(() => session.append("ignored")).toThrowError(
       expect.objectContaining({
         name: "SecretScanError",
-        code: "INCREMENTAL_UNAVAILABLE",
+        code: "INVALID_STATE",
       }),
     );
+  });
+
+  it("aborting releases the session and rejects every further call", async () => {
+    const wasm = createWasmShapedBinding();
+    const runtime = createRedactSecretRuntime(wasm.load);
+    await runtime.initialize();
+
+    const session = runtime.createIncrementalSanitizer({ limits: LIMITS });
+    session.append("chunk");
+    session.abort();
+
+    expect(session.state).toBe("aborted");
+    expect(() => session.abort()).toThrowError(
+      expect.objectContaining({ code: "INVALID_STATE" }),
+    );
+    expect(() => session.finalize()).toThrowError(
+      expect.objectContaining({ code: "INVALID_STATE" }),
+    );
+  });
+
+  it("flattens the opaque, nested-range findings finalize returns", async () => {
+    const wasm = createWasmShapedBinding({
+      incrementalFindings: [sampleWasmFinding],
+    });
+    const runtime = createRedactSecretRuntime(wasm.load);
+    await runtime.initialize();
+
+    const session = runtime.createIncrementalSanitizer({ limits: LIMITS });
+    session.append("API_KEY=SYNTHETIC_REVOKED_CONTEXT_VALUE");
+    const { findings } = session.finalize();
+
+    expect(findings).toEqual([
+      {
+        id: "finding-1",
+        type: "contextual_secret",
+        detector: "generic-token",
+        confidence: "high",
+        action: "redact",
+        start: 8,
+        end: 39,
+      },
+    ]);
+    expect(Object.isFrozen(findings[0])).toBe(true);
+  });
+
+  it("gives an incremental policy callback a frozen finding with no total count", async () => {
+    const wasm = createWasmShapedBinding({
+      incrementalFindings: [sampleWasmFinding],
+    });
+    const runtime = createRedactSecretRuntime(wasm.load);
+    await runtime.initialize();
+
+    let seenFinding: unknown;
+    let seenContext: unknown;
+    const session = runtime.createIncrementalSanitizer({
+      limits: LIMITS,
+      policy: {
+        evaluate: (finding, context) => {
+          seenFinding = finding;
+          seenContext = context;
+          return "warn";
+        },
+      },
+    });
+    session.append("API_KEY=SYNTHETIC_REVOKED_CONTEXT_VALUE");
+    session.finalize();
+
+    expect(seenFinding).toEqual({
+      id: "finding-1",
+      type: "contextual_secret",
+      detector: "generic-token",
+      confidence: "high",
+      start: 8,
+      end: 39,
+    });
+    expect(Object.isFrozen(seenFinding)).toBe(true);
+    expect(seenContext).toEqual({ findingIndex: 0 });
+  });
+
+  it("gives an incremental formatter callback a frozen finding with the chosen action", async () => {
+    const wasm = createWasmShapedBinding({
+      incrementalFindings: [sampleWasmFinding],
+    });
+    const runtime = createRedactSecretRuntime(wasm.load);
+    await runtime.initialize();
+
+    let seen: unknown;
+    const session = runtime.createIncrementalSanitizer({
+      limits: LIMITS,
+      placeholderFormatter: (finding) => {
+        seen = finding;
+        return "<REDACTED>";
+      },
+    });
+    session.append("API_KEY=SYNTHETIC_REVOKED_CONTEXT_VALUE");
+    session.finalize();
+
+    expect(seen).toEqual({
+      id: "finding-1",
+      type: "contextual_secret",
+      detector: "generic-token",
+      confidence: "high",
+      action: "redact",
+      start: 8,
+      end: 39,
+    });
+    expect(Object.isFrozen(seen)).toBe(true);
   });
 
   it("does not stop initialize() from resolving", async () => {
@@ -212,6 +333,6 @@ describe("WebAssembly-shaped binding: incremental sanitization", () => {
     await expect(runtime.initialize()).resolves.toBeUndefined();
     expect(() =>
       runtime.createIncrementalSanitizer({ limits: LIMITS }),
-    ).toThrowError(SecretScanError);
+    ).not.toThrow();
   });
 });

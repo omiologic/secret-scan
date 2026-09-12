@@ -6,8 +6,8 @@
 
 | Runtime | Package / entry point | Current scope |
 | --- | --- | --- |
-| Node.js 20, 22, 24 | `@redact-secret/core` (ESM) | Whole-input; glibc Linux, macOS, Windows; x64 and arm64 |
-| Browser | `@redact-secret/core` with WebAssembly | Whole-input; Chromium, Firefox, WebKit qualification |
+| Node.js 20, 22, 24 | `@redact-secret/core` (ESM) | Whole-input and incremental; glibc Linux, macOS, Windows; x64 and arm64 |
+| Browser | `@redact-secret/core` with WebAssembly | Whole-input and incremental; Chromium, Firefox, WebKit qualification |
 | CPython 3.10+ | `redact-secret`, imported as `redact_secret` | Whole-input and incremental; see [wheel matrix](python-packaging.md) |
 | Rust 1.88+ | `redact-secret`, imported as `redact_secret` | Whole-input and incremental |
 | CLI | `redact-secret` binary | File checking/redaction and streamed standard input |

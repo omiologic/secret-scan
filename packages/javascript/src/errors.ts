@@ -7,11 +7,13 @@
  * Rust core; `NOT_INITIALIZED` and `INITIALIZATION_FAILED` are produced by the
  * binding layer, `INVALID_CHUNK` and `INVALID_UTF8` by the stream adapters,
  * `UNPAIRED_SURROGATE` by this package's own runtime-neutral input check, and
- * `INCREMENTAL_UNAVAILABLE` by any binding that does not implement
- * incremental sanitization — the browser binding always (`bindings/wasm` has
- * no such export by design) and the Node binding until `bindings/node` gains
- * one; and this package normalizes all of them into the same class so
- * `instanceof SecretScanError` holds on every runtime and every subpath.
+ * `INCREMENTAL_UNAVAILABLE` by a binding that does not export
+ * `createIncrementalSanitizer` — both `bindings/node` and `bindings/wasm`
+ * build a real incremental session today, so this is defensive: it only
+ * fires against a stale Node addon on disk that predates the export
+ * (`runtime/node.ts`'s own fallback); this package normalizes all of them
+ * into the same class so `instanceof SecretScanError` holds on every
+ * runtime and every subpath.
  *
  * `UNPAIRED_SURROGATE` resolves `B/F-10`
  * (`docs/audits/deferred-quality-backlog.md`): a JavaScript string may hold a

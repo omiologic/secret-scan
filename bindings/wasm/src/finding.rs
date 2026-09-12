@@ -96,6 +96,15 @@ impl FindingJs {
     /// against `input`.
     pub(crate) fn new(input: &str, finding: redact_secret::Finding) -> Self {
         let (start, end) = range::to_utf16_range(input, finding.range());
+        Self::from_range(finding, start, end)
+    }
+
+    /// Wraps `finding` with an already-converted UTF-16 code-unit range.
+    ///
+    /// Used by [`crate::incremental`], which never holds the whole logical
+    /// session input `range::to_utf16_range` would need: its ranges come
+    /// from the chunk-by-chunk `Utf16Index` instead.
+    pub(crate) const fn from_range(finding: redact_secret::Finding, start: u32, end: u32) -> Self {
         Self {
             inner: finding,
             range: RangeJs { start, end },

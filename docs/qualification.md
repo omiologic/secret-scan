@@ -196,11 +196,12 @@ specifier aliased to the glue being served — and drives the published
 `NOT_INITIALIZED` gate, `await initialize()`, `RANGE_UNIT` and `VERSION`, the
 whole canonical corpus, frozen findings with exactly the seven documented
 keys, `scanAndRedact` against `scan` then `redact`, a policy callback
-receiving a frozen finding with numeric offsets, and
-`createIncrementalSanitizer` rejecting with the fixed
-`INCREMENTAL_UNAVAILABLE` code the WebAssembly runtime documents. That is the
-layer no other check reaches: the package's own binding glue, running on a
-real artifact in a real engine.
+receiving a frozen finding with numeric offsets, and a real
+`createIncrementalSanitizer` session — a synthetic value split across
+chunks, including one that only closes on a later chunk, sanitized the same
+way the whole-input API would, and rejecting a post-`finalize` `append` with
+`INVALID_STATE`. That is the layer no other check reaches: the package's own
+binding glue, running on a real artifact in a real engine.
 
 ### `scripts/qualify-cli-binary.mjs`
 
@@ -252,22 +253,21 @@ a target to `node-publish-targets` without also adding its
 `packages/javascript/package.json` `optionalDependencies` entry, and its
 `runtime/node.ts` mapping (or the reverse) fails `npm run artifacts:check`.
 
-## Incremental sanitization is unavailable on the browser runtime only
+## Incremental sanitization is qualified on every JavaScript runtime
 
-`bindings/wasm` builds no streaming session, so `createIncrementalSanitizer`
-is absent from the WebAssembly artifact; `runtime/browser.ts` reports that
-with a fixed `INCREMENTAL_UNAVAILABLE` at call time rather than a load-time
-failure, so `initialize()` still succeeds on a real artifact and the whole
-synchronous surface is qualified end to end above. `bindings/node` wraps the
-core's `IncrementalSanitizer` directly, the same as `bindings/python`, so
-`createIncrementalSanitizer` opens a real session on Node; that session is
-qualified above as part of `scripts/qualify-node-addon.mjs`'s package-level
-pass.
+`bindings/wasm` builds a real, bounded `IncrementalSanitizer` session
+(`bindings/wasm/src/incremental.rs`), the same core session `bindings/node`
+and `bindings/python` wrap, with its own chunk-by-chunk UTF-16 offset
+conversion rather than the whole-input `range` module `scan`/`redact` use.
+`scripts/qualify-browser-artifact.mjs`'s package-level pass (above) exercises
+it on the real artifact in a real engine, the same way
+`scripts/qualify-node-addon.mjs`'s package-level pass exercises Node's.
 
-This is a documented runtime difference, not an outstanding gap in the
-matrix: `qualify-browser-artifact.mjs` asserts the rejection, so a browser
-artifact that later gains the surface fails the check until the contract is
-revisited.
+The `Rust wasm32 target` CI job additionally runs this crate's own
+`wasm_bindgen_test` suite for `bindings/wasm/src/incremental.rs` under Node
+(no browser needed): lifecycle misuse, a throwing policy callback, a limit
+failure, `abort`, and chunk-boundary/Unicode equivalence with the whole-input
+result, all against the compiled `wasm32-unknown-unknown` binary.
 
 ## Running it locally
 

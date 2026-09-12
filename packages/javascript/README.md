@@ -120,12 +120,14 @@ names the finding type instead (`<JWT_1>`).
 ## Incremental and stream availability
 
 The Node artifact builds a real incremental session, wrapping the same core
-`IncrementalSanitizer` the Python binding does. `createIncrementalSanitizer`
-retains unresolved text until its detection window closes, then emits
-sanitized text and findings; concatenating every `append`/`finalize` result's
-text reconstructs the whole sanitized output. Findings carry absolute UTF-16
-offsets into the logical whole-session input, so `input.slice(finding.start,
-finding.end)` selects the matched span. Do not scan chunks independently — a
+`IncrementalSanitizer` the Python binding does, and the browser (WebAssembly)
+artifact builds the same kind of session over the compiled WebAssembly
+module. `createIncrementalSanitizer` retains unresolved text until its
+detection window closes, then emits sanitized text and findings;
+concatenating every `append`/`finalize` result's text reconstructs the whole
+sanitized output. Findings carry absolute UTF-16 offsets into the logical
+whole-session input, so `input.slice(finding.start, finding.end)` selects the
+matched span, on every runtime. Do not scan chunks independently — a
 credential may cross a chunk boundary.
 
 ```ts
@@ -180,13 +182,32 @@ await pipeline(
 );
 ```
 
-The browser (WebAssembly) artifact does not build incremental sessions.
-After initialization, `createIncrementalSanitizer` and
-`createWebStreamSanitizer` fail with `INCREMENTAL_UNAVAILABLE` there; use
-bounded whole-input operations in the browser, or Node, Python, Rust, or CLI
-streaming instead. The `./web-stream` subpath's exported types are a
-contract, not evidence of runtime support: its adapter accepts a supplied
-session, but the browser artifact cannot create one.
+`@redact-secret/core/web-stream` wraps a session in a byte-to-string Web
+`TransformStream`, finalizing it when the writable side closes normally and
+aborting it on every other exit:
+
+```ts
+import { initialize } from "@redact-secret/core";
+import { createWebStreamSanitizer } from "@redact-secret/core/web-stream";
+
+await initialize();
+
+declare const source: ReadableStream<Uint8Array>;
+declare const destination: WritableStream<string>;
+
+await source
+  .pipeThrough(
+    createWebStreamSanitizer({
+      limits: {
+        maxInputCodeUnits: 32_768,
+        maxBufferedCodeUnits: 16_512,
+        maxTokenCodeUnits: 8_192,
+        maxMultilineCodeUnits: 16_384,
+      },
+    }),
+  )
+  .pipeTo(destination);
+```
 
 See the [streaming guide](https://github.com/redact-secret/redact-secret/blob/main/docs/guides/streaming.md).
 
@@ -217,9 +238,8 @@ try {
 string may contain a lone UTF-16 surrogate, which has no UTF-8
 representation, so `scan`, `redact`, `scanAndRedact`, and an incremental
 sanitizer's `append` all reject one with this fixed code before it reaches
-either binding, identically on Node.js and in the browser — and
-`INCREMENTAL_UNAVAILABLE` from the browser's WebAssembly runtime adapter
-only. Core failures are mapped to the same fixed error vocabulary.
+either binding, identically on Node.js and in the browser. Core failures are
+mapped to the same fixed error vocabulary.
 
 ## Public API
 

@@ -17,6 +17,12 @@
 //!   value, and any
 //!   failure (a thrown exception or an unexpected return value) becomes a
 //!   fixed, input-free error, never the exception's own message.
+//! - [`create_incremental_sanitizer`] builds a real, bounded
+//!   [`IncrementalSanitizer`](redact_secret::IncrementalSanitizer) session
+//!   (the private `incremental` module), the same core session
+//!   `bindings/node` and `bindings/python` wrap, with an explicit
+//!   `accepting`/`finalized`/`aborted`/`failed` lifecycle and absolute
+//!   UTF-16 ranges.
 //! - This crate's dependency graph contains only `wasm-bindgen`, `js-sys`,
 //!   and the core: nothing Node-only, so it builds and runs for
 //!   `wasm32-unknown-unknown` in any browser.
@@ -24,6 +30,7 @@
 mod callbacks;
 mod error;
 mod finding;
+mod incremental;
 mod lifecycle;
 mod metadata;
 mod range;
@@ -38,6 +45,7 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 pub use finding::{FindingJs, RangeJs};
+pub use incremental::{IncrementalResultJs, IncrementalSanitizerJs, create_incremental_sanitizer};
 pub use result::ScanAndRedactResultJs;
 
 use error::to_js_error;

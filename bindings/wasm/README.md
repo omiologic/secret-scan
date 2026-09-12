@@ -3,10 +3,20 @@
 `wasm-bindgen` build for browsers. Crate: `redact-secret-wasm`. Target:
 `wasm32-unknown-unknown`.
 
-- Exports `initialize`, `version`, `scan`, `redact`, and `scanAndRedact`, plus
-  the `Finding`, `Range`, and `ScanAndRedactResult` classes those return.
-  `scan`/`redact`/`scanAndRedact` accept an optional custom `policy`/
-  `formatter` JavaScript function; see the doc comments in `src/lib.rs`.
+- Exports `initialize`, `version`, `scan`, `redact`, `scanAndRedact`, and
+  `createIncrementalSanitizer`, plus the `Finding`, `Range`,
+  `ScanAndRedactResult`, `IncrementalSanitizer`, and `IncrementalResult`
+  classes those return. `scan`/`redact`/`scanAndRedact` accept an optional
+  custom `policy`/`formatter` JavaScript function; see the doc comments in
+  `src/lib.rs`.
+- `createIncrementalSanitizer(maxInputCodeUnits, maxBufferedCodeUnits,
+  maxTokenCodeUnits, maxMultilineCodeUnits, policy?, formatter?)` builds a
+  real, bounded `IncrementalSanitizer` session — the same core
+  `redact_secret::IncrementalSanitizer` `bindings/node` and `bindings/python`
+  wrap — with an explicit `accepting`/`finalized`/`aborted`/`failed`
+  lifecycle (`src/incremental.rs`). Every range it reports is an absolute
+  UTF-16 code-unit offset into the logical whole-session input, converted
+  chunk by chunk without ever holding the whole input as one string.
 - `initialize` is this crate's own synchronous, idempotent setup step (it
   builds and caches the built-in detector registry) — distinct from, and in
   addition to, wasm-bindgen's own generated `init()`/default export, which a

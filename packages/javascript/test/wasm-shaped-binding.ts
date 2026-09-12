@@ -18,6 +18,8 @@ import {
   createBindingFromWasmModule,
   type WasmDetectedFindingMetadata,
   type WasmFinding,
+  type WasmIncrementalResult,
+  type WasmIncrementalSanitizer,
   type WasmModule,
 } from "../src/runtime/browser.js";
 import { VERSION } from "../src/version.js";
@@ -28,6 +30,18 @@ export interface WasmShapedBindingOptions {
   readonly redacted?: string;
   readonly throwOnScan?: unknown;
   readonly throwOnDefault?: unknown;
+  /** Findings an incremental session's `finalize()` reports. */
+  readonly incrementalFindings?: readonly WasmFinding[];
+}
+
+/** Builds the fixed `INVALID_STATE` error the real artifact throws. */
+function invalidStateError(): Error {
+  const error = new Error(
+    "The incremental sanitizer is no longer accepting input.",
+  );
+  error.name = "SecretScanError";
+  Object.assign(error, { code: "INVALID_STATE" });
+  return error;
 }
 
 export interface WasmShapedBinding {
@@ -107,6 +121,48 @@ export function createWasmShapedBinding(
         });
       }
       return { text: redacted, findings };
+    },
+    createIncrementalSanitizer: (
+      maxInputCodeUnits,
+      _maxBufferedCodeUnits,
+      _maxTokenCodeUnits,
+      _maxMultilineCodeUnits,
+      policy,
+      formatter,
+    ) => {
+      calls.push(`createIncrementalSanitizer:${maxInputCodeUnits}`);
+      const incrementalFindings = options.incrementalFindings ?? [];
+      let state: WasmIncrementalSanitizer["state"] = "accepting";
+
+      function requireAccepting(): void {
+        if (state !== "accepting") throw invalidStateError();
+      }
+
+      const session: WasmIncrementalSanitizer = {
+        get state() {
+          return state;
+        },
+        append: (chunk): WasmIncrementalResult => {
+          requireAccepting();
+          calls.push(`append:${chunk.length}`);
+          return { text: chunk, findings: [] };
+        },
+        finalize: (): WasmIncrementalResult => {
+          requireAccepting();
+          state = "finalized";
+          incrementalFindings.forEach((finding, index) => {
+            policy?.(toDetectedFindingMetadata(finding), { findingIndex: index });
+            formatter?.(finding, { placeholderIndex: index + 1 });
+          });
+          return { text: "", findings: incrementalFindings };
+        },
+        abort: () => {
+          requireAccepting();
+          calls.push("abort");
+          state = "aborted";
+        },
+      };
+      return session;
     },
   };
 

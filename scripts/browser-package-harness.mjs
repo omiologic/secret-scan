@@ -193,27 +193,57 @@ export async function qualify(fixtures) {
     }
   });
 
-  // Incremental sanitization is deliberately unavailable on this runtime:
-  // `bindings/wasm` builds no streaming session, so the adapter rejects with
-  // a fixed code rather than failing initialization
-  // (`decision-define-runtime-bindings`).
-  check("createIncrementalSanitizer rejects with INCREMENTAL_UNAVAILABLE", () => {
+  // `bindings/wasm` builds a real session on the real artifact
+  // (`decision-define-runtime-bindings`): a value split across chunks,
+  // including one that only closes on the next chunk, must sanitize the
+  // same way the whole-input API does and never leave the marker in its
+  // output.
+  check("createIncrementalSanitizer opens a real session on the real artifact", () => {
+    const MARKER = "SYNTHETIC_REVOKED_BROWSER_QUALIFICATION_MARKER";
+    const session = createIncrementalSanitizer({
+      limits: {
+        maxInputCodeUnits: 1_000_000,
+        maxBufferedCodeUnits: 16_512,
+        maxTokenCodeUnits: 8_192,
+        maxMultilineCodeUnits: 16_384,
+      },
+    });
+    assertEqual(session.state, "accepting", "a fresh session's state");
+
+    let sanitized = "";
+    for (const chunk of [
+      `api_key=${MARKER.slice(0, 10)}`,
+      `${MARKER.slice(10)}\n`,
+      "tail",
+    ]) {
+      sanitized += session.append(chunk).text;
+    }
+    sanitized += session.finalize().text;
+    assertEqual(session.state, "finalized", "a finalized session's state");
+    assert(!sanitized.includes(MARKER), "the session left the marker in its output");
+    assert(sanitized.endsWith("tail"), "the session dropped trailing plaintext");
+  });
+
+  check("a session outside accepting rejects further operations with INVALID_STATE", () => {
+    const session = createIncrementalSanitizer({
+      limits: {
+        maxInputCodeUnits: 1_000_000,
+        maxBufferedCodeUnits: 16_512,
+        maxTokenCodeUnits: 8_192,
+        maxMultilineCodeUnits: 16_384,
+      },
+    });
+    session.finalize();
+
     let thrown;
     try {
-      createIncrementalSanitizer({
-        limits: {
-          maxInputCodeUnits: 1_000_000,
-          maxBufferedCodeUnits: 16_512,
-          maxTokenCodeUnits: 8_192,
-          maxMultilineCodeUnits: 16_384,
-        },
-      });
+      session.append("ignored");
     } catch (error) {
       thrown = error;
     }
-    assert(thrown !== undefined, "the browser runtime opened a session");
+    assert(thrown !== undefined, "a finalized session accepted another append");
     assert(thrown instanceof SecretScanError, "a foreign error escaped the package");
-    assertEqual(thrown.code, "INCREMENTAL_UNAVAILABLE", "incremental code");
+    assertEqual(thrown.code, "INVALID_STATE", "post-finalize append code");
   });
 
   return { ok: failures === 0, failures, checks: results };

@@ -20,10 +20,10 @@ Python, Rust, and the CLI share one deterministic Rust implementation.
 | Why did initialization or sanitization fail? | [Troubleshooting](troubleshooting.md) |
 | How do I contribute or run checks? | [Developer onboarding](onboarding.md) · [Contribution guide](../CONTRIBUTION.md) |
 
-JavaScript currently supports whole-input operations only. Rust, Python, and
-CLI standard input also support incremental sanitization. A `block` finding
-is replaced in output, but your application must enforce rejection. An empty
-finding list is not proof that input contains no secrets.
+JavaScript, Rust, Python, and CLI standard input all support incremental
+sanitization alongside whole-input operations. A `block` finding is replaced
+in output, but your application must enforce rejection. An empty finding
+list is not proof that input contains no secrets.
 
 ## Project internals and release evidence
 

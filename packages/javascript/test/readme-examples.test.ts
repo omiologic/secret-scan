@@ -75,15 +75,12 @@ describe("README examples", () => {
     expect(README).toContain("@redact-secret/core/node-stream");
   });
 
-  it("documents the browser factory as unavailable without presenting a working example", () => {
-    expect(README).toContain(
-      "The browser (WebAssembly) artifact does not build incremental sessions",
-    );
-    expect(README).toContain("INCREMENTAL_UNAVAILABLE");
-    expect(README).toContain("`createWebStreamSanitizer`");
-    expect(
-      typeScriptExamples().some((example) => example.includes("createWebStreamSanitizer(")),
-    ).toBe(false);
+  it("documents working browser incremental and stream examples", () => {
+    expect(README).toContain("builds the same kind of session");
+    for (const name of ["createIncrementalSanitizer", "createWebStreamSanitizer"]) {
+      expect(README).toContain(`\`${name}\``);
+      expect(typeScriptExamples().some((example) => example.includes(`${name}(`))).toBe(true);
+    }
     expect(README).toContain("@redact-secret/core/web-stream");
   });
 
