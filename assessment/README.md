@@ -224,9 +224,10 @@ directly; it does not duplicate detector logic.
 measures the same generated scale profiles. Whole profiles call
 `scan_and_redact`; chunked profiles call `IncrementalSanitizer` with explicit
 byte limits. The adapter records initialization, steady-state processing,
-throughput, sampled RSS, unavailable Node/browser/Wasm memory categories, and
-the unavailable retained-buffer metric with the same limitation text as the
-other public surfaces. `npm run assessment:rust:self-test` runs tiny
+throughput, sampled RSS on macOS and Linux, unavailable RSS on other operating
+systems, unavailable Node/browser/Wasm memory categories, and the unavailable
+retained-buffer metric with the same limitation text as the other public
+surfaces. `npm run assessment:rust:self-test` runs tiny
 known-answer checks for UTF-8 Unicode ranges, incremental incomplete-run
 behavior, and sanitized failure handling.
 

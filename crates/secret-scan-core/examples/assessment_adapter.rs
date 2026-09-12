@@ -93,7 +93,7 @@ struct Sample {
     initialization_ms: f64,
     processing_ms: f64,
     throughput_bytes_per_second: f64,
-    rss: MemorySample,
+    rss: Option<MemorySample>,
 }
 
 #[derive(Clone, Copy)]
@@ -177,6 +177,9 @@ fn run_accuracy(options: &Options) -> Result<(), String> {
         return Err("accuracy corpus offsetUnit is not utf8-byte".to_owned());
     }
     let fixtures = fixtures(&corpus)?;
+    if usize_field(&corpus, "fixtureCount")? != fixtures.len() {
+        return Err("accuracy corpus fixtureCount does not match fixtures".to_owned());
+    }
     let registry = DetectorRegistry::with_built_in([]).map_err(error_text)?;
     let mut totals = AccuracyTotals {
         true_positives: 0,
@@ -239,6 +242,9 @@ fn run_accuracy(options: &Options) -> Result<(), String> {
 fn run_performance(options: &Options) -> Result<(), String> {
     let document = read_json(&repo_root().join("assessment/fixtures/workload-profiles.json"))?;
     let profiles = array_field(&document, "profiles")?;
+    if usize_field(&document, "profileCount")? != profiles.len() {
+        return Err("workload profileCount does not match profiles".to_owned());
+    }
     let profile = profiles
         .iter()
         .find(|profile| string_field(profile, "id").is_ok_and(|id| id == options.profile))
@@ -266,6 +272,18 @@ fn run_performance(options: &Options) -> Result<(), String> {
         .iter()
         .map(|sample| sample.throughput_bytes_per_second)
         .collect::<Vec<_>>();
+    let rss_samples = samples
+        .iter()
+        .filter_map(|sample| sample.rss)
+        .collect::<Vec<_>>();
+    let rss = if rss_samples.len() == samples.len() {
+        available_memory(rss_samples, BOUNDARY_LIMIT)
+    } else {
+        unavailable_memory(
+            "RSS sampling is not implemented for this operating system.",
+            "No samples were available.",
+        )
+    };
     let processing = distribution(&processing_samples);
     let result = json!({
         "schemaVersion": RESULT_SCHEMA_VERSION,
@@ -277,7 +295,7 @@ fn run_performance(options: &Options) -> Result<(), String> {
             "throughput": distribution_with_unit(&throughput_samples, "bytes-per-second"),
             "memory": {
                 "nodeHeap": unavailable_memory("The Rust library does not run inside a Node.js heap.", "No samples were available."),
-                "nodeRss": available_memory(samples.iter().map(|sample| sample.rss).collect(), BOUNDARY_LIMIT),
+                "nodeRss": rss,
                 "nodeExternal": unavailable_memory("The Rust library has no Node external-memory category.", "No samples were available."),
                 "browserJsHeap": unavailable_memory("The Rust library does not run inside a browser JavaScript heap.", "No samples were available."),
                 "wasmLinearMemory": unavailable_memory("The Rust library surface does not use WebAssembly linear memory.", "No samples were available."),
@@ -465,10 +483,12 @@ fn measure_one(profile: &Profile) -> Result<Sample, String> {
         initialization_ms,
         processing_ms,
         throughput_bytes_per_second: input_bytes as f64 / (processing_ms / 1000.0),
-        rss: MemorySample {
-            baseline_bytes: baseline,
-            maximum_observed_bytes: baseline.max(after),
-        },
+        rss: baseline
+            .zip(after)
+            .map(|(baseline_bytes, after_bytes)| MemorySample {
+                baseline_bytes,
+                maximum_observed_bytes: baseline_bytes.max(after_bytes),
+            }),
     })
 }
 
@@ -581,7 +601,7 @@ fn partition_input(input: &str, chunk_profile: &str) -> Result<Vec<String>, Stri
     Ok(chunks)
 }
 
-fn current_rss_bytes() -> Result<u64, String> {
+fn current_rss_bytes() -> Result<Option<u64>, String> {
     #[cfg(target_os = "macos")]
     {
         let output = Command::new("ps")
@@ -594,23 +614,31 @@ fn current_rss_bytes() -> Result<u64, String> {
             .trim()
             .parse::<u64>()
             .map_err(|_| "failed to parse RSS sample".to_owned())?;
-        Ok(kib * 1024)
+        Ok(Some(kib * 1024))
     }
     #[cfg(target_os = "linux")]
     {
-        let statm = fs::read_to_string("/proc/self/statm")
+        let status = fs::read_to_string("/proc/self/status")
             .map_err(|error| format!("failed to sample RSS: {error}"))?;
-        let pages = statm
-            .split_whitespace()
-            .nth(1)
+        let mut fields = status
+            .lines()
+            .find(|line| line.starts_with("VmRSS:"))
+            .ok_or_else(|| "failed to parse RSS sample".to_owned())?
+            .split_whitespace();
+        let _label = fields.next();
+        let kib = fields
+            .next()
             .ok_or_else(|| "failed to parse RSS sample".to_owned())?
             .parse::<u64>()
             .map_err(|_| "failed to parse RSS sample".to_owned())?;
-        Ok(pages * 4096)
+        if fields.next() != Some("kB") {
+            return Err("failed to parse RSS sample".to_owned());
+        }
+        Ok(Some(kib * 1024))
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
-        Ok(0)
+        Ok(None)
     }
 }
 
