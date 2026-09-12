@@ -269,6 +269,23 @@ The `Rust wasm32 target` CI job additionally runs this crate's own
 failure, `abort`, and chunk-boundary/Unicode equivalence with the whole-input
 result, all against the compiled `wasm32-unknown-unknown` binary.
 
+## The stream adapters are qualified on the same real artifacts
+
+`packages/javascript/src/adapters/node-stream.ts` and `.../web-stream.ts`
+wrap the same incremental session in a Node `Transform` and a Web
+`TransformStream`; `test/adapters/*.test.ts` exercises that wrapping logic
+only against the deterministic double (`test/sanitizing-binding.ts`), because
+neither the compiled addon nor the WebAssembly artifact exists in a source
+checkout. `scripts/qualify-node-addon.mjs`'s package-level pass drives
+`NodeStreamSanitizer` over the real addon, and
+`scripts/qualify-browser-artifact.mjs`'s package-level pass drives
+`WebStreamSanitizer` over the real artifact in each engine: every UTF-8
+byte-partition point of a Unicode-bearing canonical fixture (compared against
+a whole-input pass of the same real session, not a hardcoded expectation),
+frozen absolute findings, backpressure, `destroy()`/cancellation/abort, and
+that a downstream failure or malformed/truncated UTF-8 keeps already-finalized
+output while discarding everything still retained.
+
 ## Running it locally
 
 ```bash
