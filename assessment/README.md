@@ -129,8 +129,10 @@ reason) — or both — and a `provenance` block recording exactly
 what produced the number: `commit` (full source SHA), `artifactIdentity`
 (the exact built artifact, e.g. a package name and version), `corpusVersion`
 and `corpusHash` (which revision of this corpus ran), `os`, `cpu`, `runtime`,
-and the exact `command` invoked. A result with no reproducible provenance is
-not evidence.
+and the exact `command` invoked. Schema version 3 adds `pythonHeap` and the
+non-Node `processRss` category; Node-specific, browser, Wasm, Python,
+native-process, and streaming-buffer observations remain separate and must not
+be summed. A result with no reproducible provenance is not evidence.
 
 ## Node and browser accuracy runners
 
@@ -208,6 +210,50 @@ checks its declared count, selects one known `purpose: "scale"` profile, and
 bounds repetitions to 100. The default 64 KiB profile with `--runs 2` is the
 minimal known workload and bounded real-artifact smoke measurement.
 
+## Installed Python package runner
+
+`npm run assessment:python -- --python <installed-python>` evaluates the real
+`redact-secret` distribution installed in that interpreter. The shared
+TypeScript layer still validates and scores `accuracy-corpus.json` and emits
+the common JSON, Markdown, and safe mismatch formats. The narrow
+[`../scripts/assessment-python-worker.py`](../scripts/assessment-python-worker.py)
+adapter only imports the installed distribution, calls its public API, and
+normalizes Python Unicode-code-point ranges to canonical UTF-8 byte spans. For
+every accuracy fixture it compares `scan_and_redact` with a code-point-chunked
+`IncrementalSanitizer` run before returning safe metadata. A conversion error,
+incremental disagreement, exception, or incomplete fixture count fails the
+evaluation instead of becoming a zero-finding result.
+
+`npm run assessment:python:performance -- --python <installed-python>
+--profile <scale-id> --runs <2-100>` uses the common generated profiles and
+chunk partitioner. A fresh Python process is used per repetition.
+Initialization measures importing the installed package, including loading its
+native extension. Processing measures only a warmed whole-input or incremental
+operation. Process startup, JSON transport, profile validation, generation,
+partitioning, warmup, memory sampling, aggregation, and rendering are outside
+those timers.
+
+Python memory is collected in a separate untimed pass. `pythonHeap` is
+`tracemalloc` activity after tracing starts, so it excludes the interpreter's
+pre-existing heap and native Rust allocations. `processRss` is the Unix
+`ru_maxrss` high-water mark and includes the interpreter, extension, allocator,
+and earlier process activity, so it cannot isolate Rust-only memory; it is
+unavailable where that portable facility is absent. The retained incremental
+buffer remains unavailable because the public package deliberately exposes no
+plaintext-buffer instrumentation. None of these overlapping categories may be
+summed or interpreted as a guaranteed operation-local peak.
+
+Run `<installed-python> scripts/assessment-python-worker.py self-test` for the
+real package's tiny Unicode, failure, and aborted-session known answers. The
+repository's `assessment:check` command also runs fake-host cases for Unicode
+normalization, whole/incremental disagreement, sanitized package failure, and
+incomplete evaluation handling.
+
+The first bounded installed-wheel baseline is recorded under
+[`results/python/`](./results/python/): accuracy against `accuracy-corpus`, plus
+`scale-logs-small-whole` with two runs. Its README records the exact build,
+no-index installation, and evaluation commands.
+
 ## Rust library runner
 
 `npm run assessment:rust -- --json-out <path> --markdown-out <path>
@@ -224,8 +270,8 @@ directly; it does not duplicate detector logic.
 measures the same generated scale profiles. Whole profiles call
 `scan_and_redact`; chunked profiles call `IncrementalSanitizer` with explicit
 byte limits. The adapter records initialization, steady-state processing,
-throughput, sampled RSS on macOS and Linux, unavailable RSS on other operating
-systems, unavailable Node/browser/Wasm memory categories, and the unavailable
+throughput, `processRss` on macOS and Linux, unavailable RSS on other operating
+systems, unavailable Node/browser/Wasm/Python memory categories, and the unavailable
 retained-buffer metric with the same limitation text as the other public
 surfaces. `npm run assessment:rust:self-test` runs tiny
 known-answer checks for UTF-8 Unicode ranges, incremental incomplete-run
@@ -240,11 +286,10 @@ are inspectable evidence for this surface, not a release gate.
 
 This item defines the schema, the corpus, the workload profiles, and the
 result contract — the common language every surface's evaluation reports
-through. The Node, browser WebAssembly, and Rust library runners above are
-the first three per-surface runners that execute a profile, collect real
+through. The Node, browser WebAssembly, Rust library, and installed Python
+runners above execute profiles, collect real
 `accuracy` or `performance` metrics, and emit a conforming
-`AssessmentResult`; Python and CLI accuracy runners, plus their
-`performance` (scale) runners, are separate, larger work tracked elsewhere,
+`AssessmentResult`; CLI accuracy and performance runners remain separate work,
 on the same terms
 `conformance/README.md`'s "What this directory is not (yet)" section
 describes for the behavioral contract. This directory adds no runtime

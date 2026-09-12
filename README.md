@@ -299,8 +299,11 @@ common result contract covering accuracy, initialization, processing,
 throughput, repetition, and memory metrics, with full reproducibility
 provenance. It is distinct from `conformance/` and is never a release gate —
 it measures accuracy and performance, not pass/fail behavioral conformance.
-Repository-only Node and browser runners record raw timing distributions and
-separate sampled memory categories without adding product instrumentation APIs.
+Repository-only Node, browser, Rust, and installed-Python runners record raw
+timing distributions and separate sampled memory categories without adding
+product instrumentation APIs. The Python adapter exercises whole-input and
+incremental public APIs and normalizes code-point ranges to canonical UTF-8
+byte spans before common scoring.
 
 ## Development
 

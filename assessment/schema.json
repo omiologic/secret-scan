@@ -195,7 +195,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "nodeHeap", "nodeRss", "nodeExternal", "browserJsHeap", "wasmLinearMemory", "streamingBuffer"
+        "nodeHeap", "nodeRss", "nodeExternal", "browserJsHeap", "wasmLinearMemory",
+        "pythonHeap", "processRss", "streamingBuffer"
       ],
       "properties": {
         "nodeHeap": { "$ref": "#/$defs/memoryMetric" },
@@ -203,6 +204,8 @@
         "nodeExternal": { "$ref": "#/$defs/memoryMetric" },
         "browserJsHeap": { "$ref": "#/$defs/memoryMetric" },
         "wasmLinearMemory": { "$ref": "#/$defs/memoryMetric" },
+        "pythonHeap": { "$ref": "#/$defs/memoryMetric" },
+        "processRss": { "$ref": "#/$defs/memoryMetric" },
         "streamingBuffer": { "$ref": "#/$defs/memoryMetric" }
       }
     },
@@ -233,7 +236,7 @@
         { "required": ["performance"] }
       ],
       "properties": {
-        "schemaVersion": { "const": "2" },
+        "schemaVersion": { "const": "3" },
         "surface": { "$ref": "#/$defs/surface" },
         "profileId": { "$ref": "#/$defs/caseId" },
         "accuracy": { "$ref": "#/$defs/accuracyMetrics" },

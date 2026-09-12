@@ -155,6 +155,8 @@ async function main() {
       nodeExternal: metrics.availableMemory(samples.map((sample) => sample.memory.nodeExternal), `${BOUNDARY_LIMIT} External memory can overlap RSS and must not be summed with it.`),
       browserJsHeap: unavailable("The Node process does not expose a browser JavaScript heap."),
       wasmLinearMemory: unavailable("The Node N-API surface does not use WebAssembly linear memory."),
+      pythonHeap: unavailable("The Node process does not run inside a Python allocator."),
+      processRss: unavailable("Node process RSS is reported as nodeRss; duplicating it as processRss would report one overlapping measure twice."),
       streamingBuffer: unavailable("The public incremental session exposes lifecycle state but intentionally does not expose retained plaintext buffer size."),
     },
   };

@@ -1,12 +1,12 @@
-# Accuracy assessment — rust-core
+# Accuracy assessment — python
 
 - Profile: `accuracy-corpus`
 - Schema version: `3`
-- Artifact: `redact-secret@0.1.0-beta.1`
+- Artifact: `redact-secret==0.1.0b1`
 - Commit: `404e33a7d82921bec19e21ef28692fa07d660ab5`
 - Corpus: `1` (`9c72ab77bb1ee54c6912592c2ce3de72c0c152356283d620498aac5fe08c26d9`)
-- Host: macos-25.5.0 / aarch64 / rustc-1.98.1 (48a229cea 2026-09-01)
-- Command: `cargo run -p redact-secret --example assessment_adapter -- accuracy --json-out assessment/results/rust-core/accuracy-corpus.json --markdown-out assessment/results/rust-core/accuracy-corpus.md --mismatches-out assessment/results/rust-core/accuracy-corpus-mismatches.json`
+- Host: darwin-25.5.0 / arm64 / cpython-3.14.7
+- Command: `node scripts/assessment-python-run.mjs --python .venv/bin/python --json-out assessment/results/python/accuracy-corpus.json --markdown-out assessment/results/python/accuracy-corpus.md --mismatches-out assessment/results/python/accuracy-corpus-mismatches.json`
 
 ## Accuracy metrics
 

@@ -5,6 +5,10 @@ evidence is linked from each published version.
 
 ## Unreleased
 
+- Assessment tooling now evaluates an installed Python package through both
+  whole-input and incremental APIs, normalizes code-point ranges to canonical
+  UTF-8 byte spans, and records the first correctness, timing, Python-allocation,
+  and whole-process RSS baseline with explicit sampling limits.
 - Assessment tooling now includes a Rust library runner, self-test command,
   and first checked-in correctness/performance baseline for the `rust-core`
   surface.
