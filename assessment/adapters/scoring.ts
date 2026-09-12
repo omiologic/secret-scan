@@ -1,0 +1,211 @@
+/**
+ * Pure accuracy scoring: compares one surface's real `scan()` output against
+ * `assessment/fixtures/accuracy-corpus.json`'s reviewed expectations and
+ * produces the common `AssessmentAccuracyMetrics`, plus safe, plaintext-free
+ * mismatch diagnostics keyed by fixture id.
+ *
+ * This is the one place "what counts as a match" is defined; every surface's
+ * runner (`scripts/assessment-run.mjs` for Node, the bundled in-page harness
+ * for the browser WebAssembly artifact) calls into it rather than each
+ * reimplementing comparison rules that could quietly drift apart. It has no
+ * side effects and never receives a fixture's `input` beyond what it needs to
+ * convert offsets, so a diagnostic it returns can be printed or serialized
+ * as-is without a further redaction pass.
+ */
+
+import type {
+  AssessmentAccuracyMetrics,
+  AssessmentFixture,
+  AssessmentPolicyOutcome,
+} from "../schema.js";
+
+/**
+ * One real finding a surface's public `scan()` reported, already in UTF-16
+ * code units (every JavaScript binding's contract) with the policy's chosen
+ * `action` attached, on the same terms as `@redact-secret/core`'s
+ * `SecretFinding`.
+ */
+export interface ActualFinding {
+  readonly detector: string;
+  readonly type: string;
+  readonly start: number;
+  readonly end: number;
+  readonly action: AssessmentPolicyOutcome;
+}
+
+export type AccuracyMismatchKind = "missing" | "extra" | "policy-mismatch";
+
+/**
+ * One safe mismatch: a fixture id and detector/type/range/policy metadata
+ * only, on the same closed terms as `AssessmentExpectation` — never the
+ * fixture's `input` or a matched value.
+ */
+export interface AccuracyMismatch {
+  readonly fixtureId: string;
+  readonly kind: AccuracyMismatchKind;
+  readonly detector: string;
+  readonly type: string;
+  readonly expectedRange?: readonly [number, number];
+  readonly actualRange?: readonly [number, number];
+  readonly expectedPolicy?: AssessmentPolicyOutcome;
+  readonly actualPolicy?: AssessmentPolicyOutcome;
+}
+
+export interface FixtureScoreResult {
+  readonly metrics: AssessmentAccuracyMetrics;
+  readonly mismatches: readonly AccuracyMismatch[];
+}
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+/**
+ * Converts a canonical UTF-8 byte offset into `input` to a UTF-16 code-unit
+ * offset, independent of the artifact under evaluation — the same
+ * independent-reference-conversion rule
+ * `scripts/qualify-node-addon.mjs`/`scripts/browser-harness.mjs` follow, so a
+ * scoring bug here cannot be validated against its own conversion.
+ */
+export function byteOffsetToUtf16CodeUnit(input: string, byteOffset: number): number {
+  return decoder.decode(encoder.encode(input).slice(0, byteOffset)).length;
+}
+
+function matchKey(detector: string, type: string, start: number, end: number): string {
+  return `${detector} ${type} ${start} ${end}`;
+}
+
+/**
+ * Scores one fixture's actual findings against its reviewed expectations.
+ *
+ * A match requires the same detector, type, and UTF-16 range; confidence is
+ * not part of the match key because the contract carries no separate
+ * confidence-mismatch metric, and a wrong confidence that actually matters
+ * already surfaces as a policy mismatch (the default policy conditions on
+ * confidence). A matched pair whose `action` disagrees with the fixture's
+ * `policyOutcome` counts as a policy mismatch in addition to the detection
+ * match; every other actual or expected entry becomes a false positive or
+ * false negative — a wrong-range finding needs no special handling because it
+ * simply fails to match on both sides at once. Each expected entry can be
+ * claimed by at most one actual finding, so a duplicate actual finding for an
+ * already-matched span counts as an extra (false positive) rather than a
+ * second true positive.
+ */
+export function scoreFixture(
+  fixture: AssessmentFixture,
+  actual: readonly ActualFinding[],
+): FixtureScoreResult {
+  const expectedByKey = new Map(
+    fixture.expected.map((item) => [
+      matchKey(
+        item.detector,
+        item.type,
+        byteOffsetToUtf16CodeUnit(fixture.input, item.start),
+        byteOffsetToUtf16CodeUnit(fixture.input, item.end),
+      ),
+      item,
+    ]),
+  );
+  const consumedKeys = new Set<string>();
+  const mismatches: AccuracyMismatch[] = [];
+  let truePositives = 0;
+  let falsePositives = 0;
+  let policyMismatches = 0;
+
+  for (const finding of actual) {
+    const key = matchKey(finding.detector, finding.type, finding.start, finding.end);
+    const expected = expectedByKey.get(key);
+    if (expected === undefined || consumedKeys.has(key)) {
+      falsePositives += 1;
+      mismatches.push({
+        fixtureId: fixture.id,
+        kind: "extra",
+        detector: finding.detector,
+        type: finding.type,
+        actualRange: [finding.start, finding.end],
+      });
+      continue;
+    }
+    consumedKeys.add(key);
+    truePositives += 1;
+    if (finding.action !== expected.policyOutcome) {
+      policyMismatches += 1;
+      mismatches.push({
+        fixtureId: fixture.id,
+        kind: "policy-mismatch",
+        detector: expected.detector,
+        type: expected.type,
+        expectedRange: [expected.start, expected.end],
+        actualRange: [finding.start, finding.end],
+        expectedPolicy: expected.policyOutcome,
+        actualPolicy: finding.action,
+      });
+    }
+  }
+
+  let falseNegatives = 0;
+  for (const [key, expected] of expectedByKey) {
+    if (consumedKeys.has(key)) continue;
+    falseNegatives += 1;
+    mismatches.push({
+      fixtureId: fixture.id,
+      kind: "missing",
+      detector: expected.detector,
+      type: expected.type,
+      expectedRange: [expected.start, expected.end],
+      expectedPolicy: expected.policyOutcome,
+    });
+  }
+
+  return {
+    metrics: { truePositives, falsePositives, falseNegatives, policyMismatches },
+    mismatches,
+  };
+}
+
+/** Sums per-fixture metrics into one corpus-wide `AssessmentAccuracyMetrics`. */
+export function aggregateAccuracyMetrics(
+  results: readonly FixtureScoreResult[],
+): AssessmentAccuracyMetrics {
+  const total = { truePositives: 0, falsePositives: 0, falseNegatives: 0, policyMismatches: 0 };
+  for (const { metrics } of results) {
+    total.truePositives += metrics.truePositives;
+    total.falsePositives += metrics.falsePositives;
+    total.falseNegatives += metrics.falseNegatives;
+    total.policyMismatches += metrics.policyMismatches;
+  }
+  return total;
+}
+
+export interface AccuracyRunResult {
+  readonly metrics: AssessmentAccuracyMetrics;
+  readonly mismatches: readonly AccuracyMismatch[];
+  readonly fixturesEvaluated: number;
+}
+
+/**
+ * Runs every fixture's `input` through `scan` and scores the result — the
+ * one corpus-iteration path every surface's runner shares, whether `scan`
+ * calls a real installed Node addon directly or, bundled into a page and
+ * driven by a browser engine, the real WebAssembly artifact.
+ *
+ * A `scan` rejection or throw propagates out of this function rather than
+ * being caught and turned into a zero-finding result: an evaluation that
+ * could not finish is not the same thing as one that finished and found
+ * nothing, and this is the one place that distinction is enforced for every
+ * surface (`assessment/README.md`).
+ */
+export async function runAccuracyFixtures(
+  fixtures: readonly AssessmentFixture[],
+  scan: (input: string) => readonly ActualFinding[] | Promise<readonly ActualFinding[]>,
+): Promise<AccuracyRunResult> {
+  const perFixture: FixtureScoreResult[] = [];
+  for (const fixture of fixtures) {
+    const actual = await scan(fixture.input);
+    perFixture.push(scoreFixture(fixture, actual));
+  }
+  return {
+    metrics: aggregateAccuracyMetrics(perFixture),
+    mismatches: perFixture.flatMap((entry) => entry.mismatches),
+    fixturesEvaluated: perFixture.length,
+  };
+}

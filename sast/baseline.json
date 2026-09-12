@@ -210,44 +210,44 @@
       "rationale": "Recovery tooling reads only the fixed https://pypi.org registry authority; the project/version path is derived from the original approved source after its run and inventory identity checks. It sends no credentials, has a bounded timeout, and verifies exact filenames and SHA-256 hashes before accepting an existing publication. This is intentional release-time registry verification, not a runtime core network operation or an attacker-selected URL authority.",
       "line": 47
     },
-    "9ab5caf3b6eaf6d1": {
+    "a6ead658861ef47d": {
       "classification": "false_positive",
-      "line": 266,
+      "line": 274,
       "path": "assessment/schema.ts",
       "rationale": "The matched pattern is one of this file's two module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/profile/result identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "6260edecb777cfa1": {
+    "4202a5067b1e6dbc": {
       "classification": "false_positive",
-      "line": 300,
+      "line": 308,
       "path": "assessment/schema.ts",
       "rationale": "The matched pattern is one of this file's two module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/profile/result identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "69b939ca3176b11c": {
+    "bd5a5d2d6e39d697": {
       "classification": "false_positive",
-      "line": 301,
+      "line": 309,
       "path": "assessment/schema.ts",
       "rationale": "The matched pattern is one of this file's two module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/profile/result identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "32133a3e21599f79": {
+    "6803ede8aa0a2a1a": {
       "classification": "false_positive",
-      "line": 341,
+      "line": 349,
       "path": "assessment/schema.ts",
       "rationale": "The matched pattern is one of this file's two module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/profile/result identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "b57071073ea9d586": {
+    "923cc290babf7e68": {
       "classification": "false_positive",
-      "line": 357,
+      "line": 365,
       "path": "assessment/schema.ts",
       "rationale": "The matched pattern is one of this file's two module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/profile/result identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
     },
-    "5a3cc9d62e827e3d": {
+    "179616cea1155f98": {
       "classification": "false_positive",
-      "line": 403,
+      "line": 411,
       "path": "assessment/schema.ts",
       "rationale": "The matched pattern is one of this file's two module-level constant regexes (CASE_ID_PATTERN, IDENTIFIER_PATTERN), each a linear-time character-class repetition with no nested or overlapping quantifiers -- the rule's generic backtracking heuristic cannot see that '-' / '.' / '_' separators are disjoint from the surrounding [a-z0-9] class, so there is no ambiguous split point for the engine to backtrack over. Inputs are also schema-validated fixture/profile/result identifiers, not attacker-controlled request data.",
       "rule_id": "sast.rules.javascript.lang.security.audit.detect-redos"
