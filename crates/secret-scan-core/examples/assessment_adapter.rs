@@ -24,7 +24,7 @@ use redact_secret::{
 };
 use serde_json::{Value, json};
 
-const RESULT_SCHEMA_VERSION: &str = "2";
+const RESULT_SCHEMA_VERSION: &str = "3";
 const DEFAULT_PROFILE: &str = "scale-logs-small-whole";
 const BOUNDARY_LIMIT: &str = "Sampled immediately before and after processing; short-lived peaks between those boundaries may be missed, so maxima are observed samples, not guaranteed true peaks.";
 const GENERATOR_ALGORITHM: &str = "assessment-filler-density-v1";
@@ -295,10 +295,12 @@ fn run_performance(options: &Options) -> Result<(), String> {
             "throughput": distribution_with_unit(&throughput_samples, "bytes-per-second"),
             "memory": {
                 "nodeHeap": unavailable_memory("The Rust library does not run inside a Node.js heap.", "No samples were available."),
-                "nodeRss": rss,
+                "nodeRss": unavailable_memory("The Rust library does not run inside a Node.js process.", "No samples were available."),
                 "nodeExternal": unavailable_memory("The Rust library has no Node external-memory category.", "No samples were available."),
                 "browserJsHeap": unavailable_memory("The Rust library does not run inside a browser JavaScript heap.", "No samples were available."),
                 "wasmLinearMemory": unavailable_memory("The Rust library surface does not use WebAssembly linear memory.", "No samples were available."),
+                "pythonHeap": unavailable_memory("The Rust library does not run inside a Python allocator.", "No samples were available."),
+                "processRss": rss,
                 "streamingBuffer": unavailable_memory("The public incremental session exposes lifecycle state but intentionally does not expose retained plaintext buffer size.", "No samples were available."),
             },
         },

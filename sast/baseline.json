@@ -210,9 +210,9 @@
       "rationale": "The assessment adapter reads `env::args().skip(1)`, explicitly discarding argv[0] before parsing its own fixed command options. The arguments select local assessment modes and output paths only; they are not used for authentication, authorization, or shell execution, so the argv[0] spoofing concern this generic rule targets does not apply.",
       "rule_id": "sast.rules.rust.lang.security.args"
     },
-    "5883476e89c8eb24": {
+    "29ebc0560937d8b7": {
       "classification": "false_positive",
-      "line": 710,
+      "line": 712,
       "path": "crates/secret-scan-core/examples/assessment_adapter.rs",
       "rationale": "This call also uses `env::args().skip(1)` only to reconstruct the adapter invocation in assessment provenance. The resulting string is written to JSON/Markdown reports as inert reproducibility metadata and is never executed, parsed as a shell command, or used for a security decision.",
       "rule_id": "sast.rules.rust.lang.security.args"

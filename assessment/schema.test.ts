@@ -223,7 +223,7 @@ describe("validateAssessmentWorkloadProfiles (issue #192)", () => {
  * mutate one field of at a time. */
 function baseResult(): AssessmentResult {
   return {
-    schemaVersion: "2",
+    schemaVersion: "3",
     surface: "rust-core",
     profileId: "schema-test-scale",
     performance: {
@@ -258,6 +258,14 @@ function baseResult(): AssessmentResult {
         },
         wasmLinearMemory: {
           unit: "bytes", samples: [], unavailableReason: "not exposed",
+          samplingLimit: "no samples",
+        },
+        pythonHeap: {
+          unit: "bytes", samples: [], unavailableReason: "not this surface",
+          samplingLimit: "no samples",
+        },
+        processRss: {
+          unit: "bytes", samples: [], unavailableReason: "not this surface",
           samplingLimit: "no samples",
         },
         streamingBuffer: {

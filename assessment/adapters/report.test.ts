@@ -108,6 +108,8 @@ test("performance report labels sampled maxima and keeps memory categories separ
         nodeExternal: unavailable,
         browserJsHeap: unavailable,
         wasmLinearMemory: unavailable,
+        pythonHeap: unavailable,
+        processRss: unavailable,
         streamingBuffer: unavailable,
       },
     },

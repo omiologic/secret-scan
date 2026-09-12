@@ -2,7 +2,7 @@
   "resultCount": 6,
   "results": [
     {
-      "schemaVersion": "2",
+      "schemaVersion": "3",
       "surface": "rust-core",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -23,7 +23,7 @@
       }
     },
     {
-      "schemaVersion": "2",
+      "schemaVersion": "3",
       "surface": "python",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -44,7 +44,7 @@
       }
     },
     {
-      "schemaVersion": "2",
+      "schemaVersion": "3",
       "surface": "node",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -65,7 +65,7 @@
       }
     },
     {
-      "schemaVersion": "2",
+      "schemaVersion": "3",
       "surface": "browser-wasm",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -86,7 +86,7 @@
       }
     },
     {
-      "schemaVersion": "2",
+      "schemaVersion": "3",
       "surface": "cli",
       "profileId": "accuracy-logs-minimal",
       "accuracy": {
@@ -107,7 +107,7 @@
       }
     },
     {
-      "schemaVersion": "2",
+      "schemaVersion": "3",
       "surface": "rust-core",
       "profileId": "scale-logs-small-whole",
       "performance": {
@@ -145,6 +145,14 @@
           },
           "wasmLinearMemory": {
             "unit": "bytes", "samples": [], "unavailableReason": "not a WASM surface",
+            "samplingLimit": "No samples were taken."
+          },
+          "pythonHeap": {
+            "unit": "bytes", "samples": [], "unavailableReason": "not a Python surface",
+            "samplingLimit": "No samples were taken."
+          },
+          "processRss": {
+            "unit": "bytes", "samples": [], "unavailableReason": "not measured in this example",
             "samplingLimit": "No samples were taken."
           },
           "streamingBuffer": {

@@ -1,16 +1,16 @@
 {
   "performance": {
     "initialization": {
-      "maximum": 0.208209,
-      "mean": 0.108771,
-      "median": 0.108771,
-      "minimum": 0.009333000000000001,
-      "p95": 0.208209,
+      "maximum": 0.2615,
+      "mean": 0.1439375,
+      "median": 0.1439375,
+      "minimum": 0.026375,
+      "p95": 0.2615,
       "samples": [
-        0.208209,
-        0.009333000000000001
+        0.2615,
+        0.026375
       ],
-      "standardDeviation": 0.099438,
+      "standardDeviation": 0.11756250000000001,
       "unit": "milliseconds"
     },
     "memory": {
@@ -33,17 +33,29 @@
         "unit": "bytes"
       },
       "nodeRss": {
+        "samples": [],
+        "samplingLimit": "No samples were available.",
+        "unavailableReason": "The Rust library does not run inside a Node.js process.",
+        "unit": "bytes"
+      },
+      "processRss": {
         "samples": [
           {
             "baselineBytes": 3325952,
             "maximumObservedBytes": 3358720
           },
           {
-            "baselineBytes": 3391488,
-            "maximumObservedBytes": 3391488
+            "baselineBytes": 3964928,
+            "maximumObservedBytes": 3964928
           }
         ],
         "samplingLimit": "Sampled immediately before and after processing; short-lived peaks between those boundaries may be missed, so maxima are observed samples, not guaranteed true peaks.",
+        "unit": "bytes"
+      },
+      "pythonHeap": {
+        "samples": [],
+        "samplingLimit": "No samples were available.",
+        "unavailableReason": "The Rust library does not run inside a Python allocator.",
         "unit": "bytes"
       },
       "streamingBuffer": {
@@ -60,29 +72,29 @@
       }
     },
     "processing": {
-      "maximum": 89.83429199999999,
-      "mean": 89.777125,
-      "median": 89.777125,
-      "minimum": 89.719958,
-      "p95": 89.83429199999999,
+      "maximum": 97.667334,
+      "mean": 96.316125,
+      "median": 96.316125,
+      "minimum": 94.964916,
+      "p95": 97.667334,
       "samples": [
-        89.83429199999999,
-        89.719958
+        97.667334,
+        94.964916
       ],
-      "standardDeviation": 0.05716699999999264,
+      "standardDeviation": 1.3512089999999972,
       "unit": "milliseconds"
     },
     "throughput": {
-      "maximum": 730651.2559892192,
-      "mean": 730186.2983497564,
-      "median": 730186.2983497564,
-      "minimum": 729721.3407102936,
-      "p95": 730651.2559892192,
+      "maximum": 690297.0355915441,
+      "mean": 680746.9073248648,
+      "median": 680746.9073248648,
+      "minimum": 671196.7790581854,
+      "p95": 690297.0355915441,
       "samples": [
-        729721.3407102936,
-        730651.2559892192
+        671196.7790581854,
+        690297.0355915441
       ],
-      "standardDeviation": 464.9576394627802,
+      "standardDeviation": 9550.128266679356,
       "unit": "bytes-per-second"
     }
   },
@@ -90,13 +102,13 @@
   "provenance": {
     "artifactIdentity": "redact-secret@0.1.0-beta.1",
     "command": "cargo run -p redact-secret --example assessment_adapter -- performance --profile scale-logs-small-whole --runs 2 --json-out assessment/results/rust-core/scale-logs-small-whole.json --markdown-out assessment/results/rust-core/scale-logs-small-whole.md",
-    "commit": "3f6bd022952f59cac260fb177313752ca1428650",
+    "commit": "404e33a7d82921bec19e21ef28692fa07d660ab5",
     "corpusHash": "b4db2cd22b4c008c9d63789df8ca2e21e697a21a84699466ea5f96c89d8e2806",
     "corpusVersion": "1",
     "cpu": "aarch64",
     "os": "macos-25.5.0",
     "runtime": "rustc-1.98.1 (48a229cea 2026-09-01)"
   },
-  "schemaVersion": "2",
+  "schemaVersion": "3",
   "surface": "rust-core"
 }

@@ -139,6 +139,8 @@ async function main() {
       nodeExternal: unavailable("Browser pages do not expose Node external memory."),
       browserJsHeap: heapSamples.length === samples.length ? metrics.availableMemory(heapSamples, `${BOUNDARY_LIMIT} performance.memory is non-standard, engine-dependent, and may be coarsened.`) : unavailable("This engine does not expose performance.memory.usedJSHeapSize."),
       wasmLinearMemory: unavailable("The package intentionally keeps its WebAssembly.Memory handle private; the test harness cannot read linear-memory size without adding product instrumentation."),
+      pythonHeap: unavailable("The browser surface does not run inside a Python allocator."),
+      processRss: unavailable("Browser pages do not expose whole-process RSS through a standard API."),
       streamingBuffer: unavailable("The public incremental session exposes lifecycle state but intentionally does not expose retained plaintext buffer size."),
     },
   };

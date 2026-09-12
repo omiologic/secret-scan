@@ -113,7 +113,7 @@ export const ACCURACY_MAX_INPUT_BYTES = 4096;
  * `AssessmentProvenance.corpusVersion`. A runner stamps every result it
  * emits with this constant rather than a free-form literal.
  */
-export const RESULT_SCHEMA_VERSION = "2";
+export const RESULT_SCHEMA_VERSION = "3";
 
 /** The five product surfaces this protocol defines a common contract for. */
 export type AssessmentSurface =
@@ -457,9 +457,11 @@ export function validateAssessmentResults(
         memory.nodeExternal,
         memory.browserJsHeap,
         memory.wasmLinearMemory,
+        memory.pythonHeap,
+        memory.processRss,
         memory.streamingBuffer,
       ];
-      if (metrics.length !== 6 || metrics.some((metric) =>
+      if (metrics.length !== 8 || metrics.some((metric) =>
         typeof metric !== "object" || metric === null || metric.unit !== "bytes" ||
         !Array.isArray(metric.samples) ||
         metric.samples.some((sample) =>
@@ -531,5 +533,9 @@ export interface AssessmentMemoryMetrics {
   readonly nodeExternal: AssessmentMemoryMetric;
   readonly browserJsHeap: AssessmentMemoryMetric;
   readonly wasmLinearMemory: AssessmentMemoryMetric;
+  /** Python allocations observed by an external assessment runner. */
+  readonly pythonHeap: AssessmentMemoryMetric;
+  /** Whole-process resident memory for non-Node native host processes. */
+  readonly processRss: AssessmentMemoryMetric;
   readonly streamingBuffer: AssessmentMemoryMetric;
 }
