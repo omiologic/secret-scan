@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/redact-secret/redact-secret/assessment/schema.json",
+  "title": "Cross-language evaluation protocol schema",
+  "description": "Language-neutral schema for decision-define-cross-language-evaluation-protocol: the synthetic assessment corpus, its workload profiles, and the common result contract. Expected ranges (`fixtures[].expected[].start`/`end`) are UTF-8 byte offsets, on the same terms as conformance/schema.json. Structural constraints this document cannot express (no overlapping expectations, ranges within input bounds, accuracy/scale profile size and chunking rules, at-least-one-metrics-kind) are enforced by the accompanying validator (assessment/schema.ts) and MUST be checked in addition to this schema.",
+  "oneOf": [
+    { "$ref": "#/$defs/accuracyCorpusDocument" },
+    { "$ref": "#/$defs/workloadProfileDocument" },
+    { "$ref": "#/$defs/resultContractDocument" }
+  ],
+  "$defs": {
+    "caseId": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*([._-][a-z0-9]+)*$"
+    },
+    "category": {
+      "enum": ["logs", "code", "chat", "negative-text"]
+    },
+    "confidence": {
+      "enum": ["high", "medium", "low"]
+    },
+    "specificity": {
+      "enum": ["private-key", "provider", "structural", "contextual", "entropy"]
+    },
+    "policyOutcome": {
+      "enum": ["block", "redact", "warn", "allow"]
+    },
+    "surface": {
+      "enum": ["rust-core", "python", "node", "browser-wasm", "cli"]
+    },
+    "chunkProfile": {
+      "enum": ["whole", "fixed-1024", "fixed-4096", "fixed-65536", "utf16-boundary"]
+    },
+    "expectation": {
+      "type": "object",
+      "description": "Deliberately closed: no field here may carry matched plaintext.",
+      "additionalProperties": false,
+      "required": [
+        "detector", "type", "confidence", "specificity", "start", "end",
+        "policyOutcome"
+      ],
+      "properties": {
+        "detector": { "$ref": "#/$defs/identifier" },
+        "type": { "$ref": "#/$defs/identifier" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "specificity": { "$ref": "#/$defs/specificity" },
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "UTF-8 byte offset, inclusive."
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "UTF-8 byte offset, exclusive."
+        },
+        "policyOutcome": { "$ref": "#/$defs/policyOutcome" }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "unicode", "input", "expected", "note"],
+      "properties": {
+        "id": { "$ref": "#/$defs/caseId" },
+        "category": { "$ref": "#/$defs/category" },
+        "unicode": { "type": "boolean" },
+        "input": {
+          "type": "string",
+          "description": "Synthetic input only. Never an active or reported credential."
+        },
+        "expected": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expectation" }
+        },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "accuracyCorpusDocument": {
+      "type": "object",
+      "required": ["offsetUnit", "fixtureCount", "fixtures"],
+      "additionalProperties": false,
+      "properties": {
+        "offsetUnit": { "const": "utf8-byte" },
+        "fixtureCount": { "type": "integer", "minimum": 0 },
+        "fixtures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fixture" }
+        }
+      }
+    },
+    "workloadProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "purpose", "category", "targetInputBytes",
+        "targetDensityPerKiB", "chunkProfile", "unicodeMix",
+        "generatorAlgorithm", "note"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/caseId" },
+        "purpose": { "enum": ["accuracy", "scale"] },
+        "category": { "$ref": "#/$defs/category" },
+        "targetInputBytes": { "type": "integer", "exclusiveMinimum": 0 },
+        "targetDensityPerKiB": { "type": "number", "minimum": 0 },
+        "chunkProfile": { "$ref": "#/$defs/chunkProfile" },
+        "unicodeMix": { "type": "boolean" },
+        "generatorAlgorithm": { "$ref": "#/$defs/identifier" },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "workloadProfileDocument": {
+      "type": "object",
+      "required": ["profileCount", "profiles"],
+      "additionalProperties": false,
+      "properties": {
+        "profileCount": { "type": "integer", "minimum": 0 },
+        "profiles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workloadProfile" }
+        }
+      }
+    },
+    "accuracyMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "truePositives", "falsePositives", "falseNegatives", "policyMismatches"
+      ],
+      "properties": {
+        "truePositives": { "type": "integer", "minimum": 0 },
+        "falsePositives": { "type": "integer", "minimum": 0 },
+        "falseNegatives": { "type": "integer", "minimum": 0 },
+        "policyMismatches": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "performanceMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "initializationMs", "processingMs", "throughputBytesPerSecond",
+        "repetitionRuns", "repetitionStdDevMs", "peakMemoryBytes"
+      ],
+      "properties": {
+        "initializationMs": { "type": "number", "minimum": 0 },
+        "processingMs": { "type": "number", "minimum": 0 },
+        "throughputBytesPerSecond": { "type": "number", "minimum": 0 },
+        "repetitionRuns": { "type": "integer", "exclusiveMinimum": 0 },
+        "repetitionStdDevMs": { "type": "number", "minimum": 0 },
+        "peakMemoryBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit", "artifactIdentity", "corpusVersion", "corpusHash", "os",
+        "cpu", "runtime", "command"
+      ],
+      "properties": {
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "artifactIdentity": { "type": "string", "minLength": 1 },
+        "corpusVersion": { "type": "string", "minLength": 1 },
+        "corpusHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "os": { "type": "string", "minLength": 1 },
+        "cpu": { "type": "string", "minLength": 1 },
+        "runtime": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "surface", "profileId", "provenance"],
+      "anyOf": [
+        { "required": ["accuracy"] },
+        { "required": ["performance"] }
+      ],
+      "properties": {
+        "schemaVersion": { "type": "string", "minLength": 1 },
+        "surface": { "$ref": "#/$defs/surface" },
+        "profileId": { "$ref": "#/$defs/caseId" },
+        "accuracy": { "$ref": "#/$defs/accuracyMetrics" },
+        "performance": { "$ref": "#/$defs/performanceMetrics" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "resultContractDocument": {
+      "type": "object",
+      "required": ["resultCount", "results"],
+      "additionalProperties": false,
+      "properties": {
+        "resultCount": { "type": "integer", "minimum": 0 },
+        "results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/result" }
+        }
+      }
+    }
+  }
+}
