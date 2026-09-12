@@ -3,6 +3,14 @@
 This file records the released product contract and notable changes. Release
 evidence is linked from each published version.
 
+## Unreleased
+
+- Node.js and browser packages now expose working bounded incremental
+  sanitization plus Node `Transform` and Web `TransformStream` adapters.
+  Candidate qualification installs packed packages outside the checkout,
+  exercises those public APIs on Node.js 20, 22, and 24 and in Chromium,
+  Firefox, and WebKit, and records revision- and digest-bound results.
+
 ## 0.1.0-beta.1 — 2026-09-11
 
 [Publication evidence](docs/releases/0.1.0-beta.1/README.md).

@@ -107,7 +107,8 @@ pull request does not trigger it.
 | `node-addon` | Builds the addon for each triple and qualifies it on Node 20, 22, and 24 |
 | `browser` | Builds the WebAssembly artifact and qualifies it, and the package on top of it, in each engine |
 | `cli` | Builds the CLI for each triple and qualifies the binary |
-| `package-consumer` | Packs the package and its native dependencies, installs the tarballs into a clean directory outside the checkout, and initializes both runtimes |
+| `package-consumer-node` | Installs packed candidate packages in a clean directory and exercises public scan, incremental, and Node stream APIs on Node.js 20, 22, and 24 |
+| `package-consumer-browser` | Installs the same candidates and exercises public scan, incremental, and Web stream APIs in Chromium, Firefox, and WebKit |
 | `inventory` | Requires the whole declared matrix and records what was built |
 
 Because `rust` and `python` are called workflows rather than copies, their
@@ -230,6 +231,15 @@ then writes `artifact-inventory.json` and a job summary carrying:
 - every artifact file with its family, target, size, and SHA-256, plus the
   file-by-file contents of the npm package and the public Rust crate.
 
+Each installed JavaScript matrix row also uploads a JSON qualification record.
+The inventory requires one record for every declared Node major and browser
+engine, and records it alongside the built artifacts. Each record carries the
+source revision; the exact packed wrapper, native, and WebAssembly package
+names and SHA-256 identities; the install and public-API commands; runtime
+version; and pass/fail results for initialization, scan, incremental, and
+stream behavior. The inventory rejects a missing runtime row, mismatched
+revision, incomplete artifact identity, or non-passing result.
+
 ## The musl addon has a qualification path, not a publication path
 
 `node-addon-targets` builds and qualifies eight addons, but `npm ships glibc
@@ -299,6 +309,12 @@ npm run addon:qualify -- --target <triple>
 npm run wasm:build
 npx playwright install --with-deps chromium firefox webkit
 npm run browser:qualify                 # or --engine chromium
+
+# Clean installed-candidate checks (repeat across the declared matrices).
+node scripts/qualify-package-consumer.mjs --lane node \
+  --wasm-dir dist/wasm-web --report installed-javascript-node-22.json
+node scripts/qualify-package-consumer.mjs --lane browser --engine chromium \
+  --wasm-dir dist/wasm-web --report installed-javascript-browser-chromium.json
 
 cargo build --release --locked -p redact-secret-cli
 npm run cli:qualify -- --binary target/release/redact-secret

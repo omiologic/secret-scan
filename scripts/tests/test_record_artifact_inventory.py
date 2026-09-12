@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import sys
 import tempfile
@@ -20,7 +21,53 @@ MATRIX = {
     "node-addon-targets": ["aarch64-apple-darwin", "x86_64-unknown-linux-musl"],
     "cli-release-targets": ["aarch64-apple-darwin", "x86_64-pc-windows-msvc"],
     "python-wheel-targets": ["aarch64-apple-darwin"],
+    "node-support-majors": [20, 22],
+    "browser-engines": ["chromium", "webkit"],
 }
+
+SOURCE_COMMIT = "a" * 40
+PRODUCT_VERSION = "0.1.0-beta.1"
+
+
+def installed_report(lane: str, target: str) -> dict:
+    return {
+        "schemaVersion": 1,
+        "sourceCommit": SOURCE_COMMIT,
+        "published": False,
+        "lane": lane,
+        "runtime": {
+            "name": "node" if lane == "node" else target,
+            "version": f"v{target}.0.0" if lane == "node" else "1.0",
+        },
+        "productVersion": PRODUCT_VERSION,
+        "commands": ["npm install --no-audit --no-fund", "public API qualification"],
+        "results": {
+            "initialize": "passed",
+            "scan": "passed",
+            "incremental": "passed",
+            "stream": "passed",
+        },
+        "packageArtifacts": [
+            {
+                "name": "@redact-secret/core",
+                "version": PRODUCT_VERSION,
+                "file": "core.tgz",
+                "sha256": "1" * 64,
+            },
+            {
+                "name": "@redact-secret/node-test",
+                "version": PRODUCT_VERSION,
+                "file": "node.tgz",
+                "sha256": "2" * 64,
+            },
+            {
+                "name": "@redact-secret/wasm",
+                "version": PRODUCT_VERSION,
+                "file": "wasm.tgz",
+                "sha256": "3" * 64,
+            },
+        ],
+    }
 
 
 class Artifacts:
@@ -43,6 +90,14 @@ class Artifacts:
             "python-wheel-aarch64-apple-darwin": ["package-cp310-abi3-macosx.whl"],
             "python-sdist": ["package-0.1.0.tar.gz"],
             "wasm-web": ["redact_secret_wasm.js", "redact_secret_wasm_bg.wasm"],
+            "installed-javascript-node-20": ["installed-javascript-node-20.json"],
+            "installed-javascript-node-22": ["installed-javascript-node-22.json"],
+            "installed-javascript-browser-chromium": [
+                "installed-javascript-browser-chromium.json"
+            ],
+            "installed-javascript-browser-webkit": [
+                "installed-javascript-browser-webkit.json"
+            ],
         }
 
     def build(self) -> Path:
@@ -50,7 +105,17 @@ class Artifacts:
             directory = self.root / artifact
             directory.mkdir(parents=True, exist_ok=True)
             for name in names:
-                (directory / name).write_bytes(name.encode("utf-8"))
+                path = directory / name
+                if artifact.startswith("installed-javascript-"):
+                    if artifact.startswith("installed-javascript-node-"):
+                        lane = "node"
+                        target = artifact.removeprefix("installed-javascript-node-")
+                    else:
+                        lane = "browser"
+                        target = artifact.removeprefix("installed-javascript-browser-")
+                    path.write_text(json.dumps(installed_report(lane, target)), encoding="utf-8")
+                else:
+                    path.write_bytes(name.encode("utf-8"))
         return self.root
 
 
@@ -64,6 +129,17 @@ class InventoryTests(unittest.TestCase):
 
     def errors(self, configure=None) -> list[str]:
         return RECORD.require_matrix(MATRIX, self.collect(configure))
+
+    def qualification_errors(self, configure=None) -> list[str]:
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = Artifacts(Path(directory))
+            if configure is not None:
+                configure(artifacts)
+            root = artifacts.build()
+            results, errors = RECORD.collect_installed_javascript_qualification(root)
+            return errors + RECORD.require_installed_javascript_qualification(
+                MATRIX, results, SOURCE_COMMIT, PRODUCT_VERSION
+            )
 
     def test_a_complete_matrix_passes(self) -> None:
         self.assertEqual(self.errors(), [])
@@ -130,6 +206,37 @@ class InventoryTests(unittest.TestCase):
 
         self.assertEqual(
             self.errors(configure), ["unrecognized artifact(s): something-else"]
+        )
+
+    def test_installed_javascript_qualification_covers_declared_runtimes(self) -> None:
+        self.assertEqual(self.qualification_errors(), [])
+
+    def test_missing_installed_node_major_fails(self) -> None:
+        def configure(artifacts: Artifacts) -> None:
+            del artifacts.files["installed-javascript-node-22"]
+
+        self.assertEqual(
+            self.qualification_errors(configure),
+            ["installed JavaScript node: no qualification for 22"],
+        )
+
+    def test_failed_installed_stream_result_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Artifacts(Path(directory)).build()
+            path = (
+                root
+                / "installed-javascript-browser-webkit"
+                / "installed-javascript-browser-webkit.json"
+            )
+            report = json.loads(path.read_text(encoding="utf-8"))
+            report["results"]["stream"] = "failed"
+            path.write_text(json.dumps(report), encoding="utf-8")
+            results, errors = RECORD.collect_installed_javascript_qualification(root)
+            errors += RECORD.require_installed_javascript_qualification(
+                MATRIX, results, SOURCE_COMMIT, PRODUCT_VERSION
+            )
+        self.assertEqual(
+            errors, ["installed JavaScript browser webkit: stream did not pass"]
         )
 
     def test_an_addon_without_a_compiled_library_fails(self) -> None:

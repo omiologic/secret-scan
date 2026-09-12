@@ -310,6 +310,15 @@ def check_browser_engines(root: Path, policy: dict, workflow: str) -> list[str]:
         label="browser", declared=declared, workflow=workflow,
         job_name="browser", key="engine",
     )
+    errors.extend(
+        check_job_matrix(
+            label="installed browser package",
+            declared=declared,
+            workflow=workflow,
+            job_name="package-consumer-browser",
+            key="engine",
+        )
+    )
     qualifier = read_text(root, BROWSER_QUALIFIER)
     if qualifier is None:
         errors.append(f"{BROWSER_QUALIFIER.as_posix()}: missing")
@@ -355,6 +364,15 @@ def check_node_support(root: Path, policy: dict, workflow: str) -> list[str]:
             declared_strings,
             musl.group(1).split() if musl else [],
             WORKFLOW.as_posix(),
+        )
+    )
+    errors.extend(
+        check_job_matrix(
+            label="installed Node package",
+            declared=declared_strings,
+            workflow=workflow,
+            job_name="package-consumer-node",
+            key="node-version",
         )
     )
 

@@ -47,11 +47,13 @@ class Repository:
         self.qualifier_cli_targets = list(CLI_TARGETS)
         self.engines = list(ENGINES)
         self.workflow_engines = list(ENGINES)
+        self.consumer_engines = list(ENGINES)
         self.qualifier_engines = list(ENGINES)
         self.majors = list(MAJORS)
         self.ci_majors = list(MAJORS)
         self.smoke_majors = list(MAJORS)
         self.musl_majors = list(MAJORS)
+        self.consumer_majors = list(MAJORS)
         self.engines_node = ">=20"
         self.qualification_permissions = "    permissions:\n      contents: read\n"
         self.checkout = (
@@ -173,6 +175,12 @@ class Repository:
             for target in self.workflow_cli_targets
         )
         engines = "".join(f"          - {engine}\n" for engine in self.workflow_engines)
+        consumer_engines = "".join(
+            f"          - {engine}\n" for engine in self.consumer_engines
+        )
+        consumer_majors = "".join(
+            f"          - {major}\n" for major in self.consumer_majors
+        )
         smoke = "".join(
             f"      - name: Qualify the addon on Node {major}\n"
             f"        run: node scripts/qualify-node-addon.mjs\n"
@@ -204,6 +212,18 @@ class Repository:
             "    permissions:\n      contents: read\n"
             "    strategy:\n      matrix:\n        include:\n"
             f"{cli}"
+            "    steps:\n"
+            f"      - uses: {self.checkout}\n"
+            "  package-consumer-node:\n    runs-on: ubuntu-latest\n"
+            "    permissions:\n      contents: read\n"
+            "    strategy:\n      matrix:\n        node-version:\n"
+            f"{consumer_majors}"
+            "    steps:\n"
+            f"      - uses: {self.checkout}\n"
+            "  package-consumer-browser:\n    runs-on: ubuntu-latest\n"
+            "    permissions:\n      contents: read\n"
+            "    strategy:\n      matrix:\n        engine:\n"
+            f"{consumer_engines}"
             "    steps:\n"
             f"      - uses: {self.checkout}\n"
         )
@@ -426,8 +446,17 @@ class MatrixTests(unittest.TestCase):
         def configure(repository: Repository) -> None:
             repository.engines.append("firefox")
             repository.workflow_engines.append("firefox")
+            repository.consumer_engines.append("firefox")
 
         self.assertOneError(configure, "ENGINES omits firefox")
+
+    def test_an_engine_the_installed_package_does_not_exercise_fails(self) -> None:
+        def configure(repository: Repository) -> None:
+            repository.consumer_engines.pop()
+
+        self.assertOneError(
+            configure, "job 'package-consumer-browser''s engine matrix omits webkit"
+        )
 
     # --- Node.js support -------------------------------------------------
 
@@ -448,6 +477,15 @@ class MatrixTests(unittest.TestCase):
             repository.musl_majors.pop()
 
         self.assertOneError(configure, "the musl smoke-test majors omits 22")
+
+    def test_a_major_the_installed_package_does_not_exercise_fails(self) -> None:
+        def configure(repository: Repository) -> None:
+            repository.consumer_majors.pop()
+
+        self.assertOneError(
+            configure,
+            "job 'package-consumer-node''s node-version matrix omits 22",
+        )
 
     # `engines.node` itself is `check-rust-workspace.py`'s rule: it derives
     # the exact majors from `ci.yml` and requires every lockstep manifest to
@@ -500,7 +538,7 @@ class MatrixTests(unittest.TestCase):
             repository.checkout = "actions/checkout@v6"
 
         errors = self.validate(configure)
-        self.assertEqual(len(errors), 4, errors)
+        self.assertEqual(len(errors), 6, errors)
         for error in errors:
             self.assertIn("is not pinned to a commit SHA", error)
 

@@ -3,7 +3,8 @@
  * Issue #141, "registry-backed clean install" criterion: installs the real,
  * published `@redact-secret/core` from the npm registry -- no local
  * tarball, no `overrides` -- into a clean directory outside this repository,
- * and awaits `initialize()` and a correct `scan()` on the requested runtime.
+ * and exercises initialization, scan, incremental sanitization, and the
+ * runtime's stream adapter on the requested runtime.
  *
  * This runs only after `publish`, `publish-native-dependencies`, and
  * `publish-wasm-dependency` have all succeeded (`.github/workflows/release.yml`'s

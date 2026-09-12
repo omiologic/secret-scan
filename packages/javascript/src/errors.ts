@@ -6,14 +6,9 @@
  * message (`decision-define-runtime-bindings`). Sixteen codes come from the
  * Rust core; `NOT_INITIALIZED` and `INITIALIZATION_FAILED` are produced by the
  * binding layer, `INVALID_CHUNK` and `INVALID_UTF8` by the stream adapters,
- * `UNPAIRED_SURROGATE` by this package's own runtime-neutral input check, and
- * `INCREMENTAL_UNAVAILABLE` by a binding that does not export
- * `createIncrementalSanitizer` — both `bindings/node` and `bindings/wasm`
- * build a real incremental session today, so this is defensive: it only
- * fires against a stale Node addon on disk that predates the export
- * (`runtime/node.ts`'s own fallback); this package normalizes all of them
- * into the same class so `instanceof SecretScanError` holds on every
- * runtime and every subpath.
+ * `UNPAIRED_SURROGATE` by this package's own runtime-neutral input check. The
+ * package normalizes all of them into the same class so
+ * `instanceof SecretScanError` holds on every runtime and every subpath.
  *
  * `UNPAIRED_SURROGATE` resolves `B/F-10`
  * (`docs/audits/deferred-quality-backlog.md`): a JavaScript string may hold a
@@ -48,8 +43,7 @@ export type SecretScanErrorCode =
   | "INITIALIZATION_FAILED"
   | "INVALID_CHUNK"
   | "INVALID_UTF8"
-  | "UNPAIRED_SURROGATE"
-  | "INCREMENTAL_UNAVAILABLE";
+  | "UNPAIRED_SURROGATE";
 
 /** The fixed message for every code, mirroring the core's own strings. */
 const ERROR_MESSAGES: Readonly<Record<SecretScanErrorCode, string>> = {
@@ -75,8 +69,6 @@ const ERROR_MESSAGES: Readonly<Record<SecretScanErrorCode, string>> = {
   INVALID_CHUNK: "Stream sanitizer input must contain bytes.",
   INVALID_UTF8: "Stream sanitizer input is not valid UTF-8.",
   UNPAIRED_SURROGATE: "Secret scan input contains an unpaired UTF-16 surrogate.",
-  INCREMENTAL_UNAVAILABLE:
-    "Incremental sanitization is not available on this runtime.",
 };
 
 const ERROR_CODES = new Set<string>(Object.keys(ERROR_MESSAGES));
