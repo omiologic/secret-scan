@@ -223,16 +223,48 @@ describe("validateAssessmentWorkloadProfiles (issue #192)", () => {
  * mutate one field of at a time. */
 function baseResult(): AssessmentResult {
   return {
-    schemaVersion: "1",
+    schemaVersion: "2",
     surface: "rust-core",
     profileId: "schema-test-scale",
     performance: {
-      initializationMs: 1,
-      processingMs: 1,
-      throughputBytesPerSecond: 1000,
-      repetitionRuns: 5,
-      repetitionStdDevMs: 0.1,
-      peakMemoryBytes: 1024,
+      initialization: {
+        unit: "milliseconds", samples: [1], minimum: 1, median: 1, p95: 1,
+        maximum: 1, mean: 1, standardDeviation: 0,
+      },
+      processing: {
+        unit: "milliseconds", samples: [2], minimum: 2, median: 2, p95: 2,
+        maximum: 2, mean: 2, standardDeviation: 0,
+      },
+      throughput: {
+        unit: "bytes-per-second", samples: [1000], minimum: 1000, median: 1000,
+        p95: 1000, maximum: 1000, mean: 1000, standardDeviation: 0,
+      },
+      memory: {
+        nodeHeap: {
+          unit: "bytes", samples: [{ baselineBytes: 1024, maximumObservedBytes: 2048 }],
+          samplingLimit: "sampled at operation boundaries",
+        },
+        nodeRss: {
+          unit: "bytes", samples: [], unavailableReason: "not this surface",
+          samplingLimit: "no samples",
+        },
+        nodeExternal: {
+          unit: "bytes", samples: [], unavailableReason: "not this surface",
+          samplingLimit: "no samples",
+        },
+        browserJsHeap: {
+          unit: "bytes", samples: [], unavailableReason: "not this surface",
+          samplingLimit: "no samples",
+        },
+        wasmLinearMemory: {
+          unit: "bytes", samples: [], unavailableReason: "not exposed",
+          samplingLimit: "no samples",
+        },
+        streamingBuffer: {
+          unit: "bytes", samples: [], unavailableReason: "not exposed",
+          samplingLimit: "no samples",
+        },
+      },
     },
     provenance: {
       commit: "0123456789abcdef0123456789abcdef01234567",
@@ -272,11 +304,60 @@ describe("validateAssessmentResults (issue #192)", () => {
     const result = baseResult();
     const tampered: AssessmentResult = {
       ...result,
-      performance: { ...result.performance!, peakMemoryBytes: -1 },
+      performance: {
+        ...result.performance!,
+        processing: { ...result.performance!.processing, samples: [-1] },
+      },
     };
     expect(() => validateAssessmentResults([tampered])).toThrow(
       /invalid-performance-metrics/,
     );
+  });
+
+  test("rejects inconsistent units and repetition counts", () => {
+    const result = baseResult();
+    expect(() => validateAssessmentResults([{
+      ...result,
+      performance: {
+        ...result.performance!,
+        throughput: {
+          ...result.performance!.throughput,
+          unit: "milliseconds",
+          samples: [1000, 1001],
+        },
+      },
+    }])).toThrow(/invalid-performance-metrics/);
+  });
+
+  test("rejects unavailable memory without a reason and sampled maxima below baseline", () => {
+    const result = baseResult();
+    const noReason = {
+      ...result,
+      performance: {
+        ...result.performance!,
+        memory: {
+          ...result.performance!.memory,
+          nodeRss: { unit: "bytes" as const, samples: [], samplingLimit: "none" },
+        },
+      },
+    };
+    expect(() => validateAssessmentResults([noReason])).toThrow(/invalid-performance-metrics/);
+
+    const descending = {
+      ...result,
+      performance: {
+        ...result.performance!,
+        memory: {
+          ...result.performance!.memory,
+          nodeHeap: {
+            unit: "bytes" as const,
+            samples: [{ baselineBytes: 20, maximumObservedBytes: 19 }],
+            samplingLimit: "boundary",
+          },
+        },
+      },
+    };
+    expect(() => validateAssessmentResults([descending])).toThrow(/invalid-performance-metrics/);
   });
 });
 

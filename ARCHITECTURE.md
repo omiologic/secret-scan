@@ -462,3 +462,4 @@ The accepted records governing this architecture are:
 - [Release bindings in lockstep](./docs/decisions/2026-09-09-release-bindings-in-lockstep.md)
 - [Ship the first release's full artifact set](./docs/decisions/2026-09-10-ship-first-release-artifact-set.md)
 - [Define the cross-language evaluation protocol](./docs/decisions/2026-09-12-define-cross-language-evaluation-protocol.md)
+- [Measure JavaScript performance externally](./docs/decisions/2026-09-12-measure-javascript-performance-externally.md)

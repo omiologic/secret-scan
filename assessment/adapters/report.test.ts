@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { RESULT_SCHEMA_VERSION, type AssessmentResult } from "../schema.js";
-import { renderMarkdownReport } from "./report.js";
+import { renderMarkdownPerformanceReport, renderMarkdownReport } from "./report.js";
 import type { AccuracyMismatch } from "./scoring.js";
 
 function baseResult(overrides: Partial<AssessmentResult> = {}): AssessmentResult {
@@ -85,4 +85,34 @@ describe("renderMarkdownReport", () => {
     // Never a matched value: the corpus's only synthetic secret shape.
     expect(markdown).not.toContain("ghp_ASSESSMENTSYNTHETIC");
   });
+});
+
+test("performance report labels sampled maxima and keeps memory categories separate", () => {
+  const distribution = {
+    unit: "milliseconds" as const, samples: [1, 2], minimum: 1, median: 1.5,
+    p95: 2, maximum: 2, mean: 1.5, standardDeviation: 0.5,
+  };
+  const unavailable = {
+    unit: "bytes" as const, samples: [], unavailableReason: "not exposed",
+    samplingLimit: "no samples",
+  };
+  const markdown = renderMarkdownPerformanceReport(baseResult({
+    accuracy: undefined,
+    performance: {
+      initialization: distribution,
+      processing: distribution,
+      throughput: { ...distribution, unit: "bytes-per-second" },
+      memory: {
+        nodeHeap: { unit: "bytes", samples: [{ baselineBytes: 10, maximumObservedBytes: 12 }], samplingLimit: "boundary samples" },
+        nodeRss: unavailable,
+        nodeExternal: unavailable,
+        browserJsHeap: unavailable,
+        wasmLinearMemory: unavailable,
+        streamingBuffer: unavailable,
+      },
+    },
+  }));
+  expect(markdown).toContain("Raw samples are preserved");
+  expect(markdown).toContain("must not be summed");
+  expect(markdown).toContain("not guaranteed true peaks");
 });

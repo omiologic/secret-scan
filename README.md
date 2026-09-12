@@ -299,6 +299,8 @@ common result contract covering accuracy, initialization, processing,
 throughput, repetition, and memory metrics, with full reproducibility
 provenance. It is distinct from `conformance/` and is never a release gate —
 it measures accuracy and performance, not pass/fail behavioral conformance.
+Repository-only Node and browser runners record raw timing distributions and
+separate sampled memory categories without adding product instrumentation APIs.
 
 ## Development
 

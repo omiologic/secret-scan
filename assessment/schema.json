@@ -142,17 +142,68 @@
     "performanceMetrics": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["initialization", "processing", "throughput", "memory"],
+      "properties": {
+        "initialization": { "$ref": "#/$defs/measurementDistribution" },
+        "processing": { "$ref": "#/$defs/measurementDistribution" },
+        "throughput": { "$ref": "#/$defs/measurementDistribution" },
+        "memory": { "$ref": "#/$defs/memoryMetrics" }
+      }
+    },
+    "measurementDistribution": {
+      "type": "object",
+      "additionalProperties": false,
       "required": [
-        "initializationMs", "processingMs", "throughputBytesPerSecond",
-        "repetitionRuns", "repetitionStdDevMs", "peakMemoryBytes"
+        "unit", "samples", "minimum", "median", "p95", "maximum", "mean",
+        "standardDeviation"
       ],
       "properties": {
-        "initializationMs": { "type": "number", "minimum": 0 },
-        "processingMs": { "type": "number", "minimum": 0 },
-        "throughputBytesPerSecond": { "type": "number", "minimum": 0 },
-        "repetitionRuns": { "type": "integer", "exclusiveMinimum": 0 },
-        "repetitionStdDevMs": { "type": "number", "minimum": 0 },
-        "peakMemoryBytes": { "type": "integer", "minimum": 0 }
+        "unit": { "enum": ["milliseconds", "bytes-per-second"] },
+        "samples": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "number", "minimum": 0 }
+        },
+        "minimum": { "type": "number", "minimum": 0 },
+        "median": { "type": "number", "minimum": 0 },
+        "p95": { "type": "number", "minimum": 0 },
+        "maximum": { "type": "number", "minimum": 0 },
+        "mean": { "type": "number", "minimum": 0 },
+        "standardDeviation": { "type": "number", "minimum": 0 }
+      }
+    },
+    "memorySample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baselineBytes", "maximumObservedBytes"],
+      "properties": {
+        "baselineBytes": { "type": "integer", "minimum": 0 },
+        "maximumObservedBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "memoryMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "samples", "samplingLimit"],
+      "properties": {
+        "unit": { "const": "bytes" },
+        "samples": { "type": "array", "items": { "$ref": "#/$defs/memorySample" } },
+        "unavailableReason": { "type": "string", "minLength": 1 },
+        "samplingLimit": { "type": "string", "minLength": 1 }
+      }
+    },
+    "memoryMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodeHeap", "nodeRss", "nodeExternal", "browserJsHeap", "wasmLinearMemory", "streamingBuffer"
+      ],
+      "properties": {
+        "nodeHeap": { "$ref": "#/$defs/memoryMetric" },
+        "nodeRss": { "$ref": "#/$defs/memoryMetric" },
+        "nodeExternal": { "$ref": "#/$defs/memoryMetric" },
+        "browserJsHeap": { "$ref": "#/$defs/memoryMetric" },
+        "wasmLinearMemory": { "$ref": "#/$defs/memoryMetric" },
+        "streamingBuffer": { "$ref": "#/$defs/memoryMetric" }
       }
     },
     "provenance": {
@@ -182,7 +233,7 @@
         { "required": ["performance"] }
       ],
       "properties": {
-        "schemaVersion": { "type": "string", "minLength": 1 },
+        "schemaVersion": { "const": "2" },
         "surface": { "$ref": "#/$defs/surface" },
         "profileId": { "$ref": "#/$defs/caseId" },
         "accuracy": { "$ref": "#/$defs/accuracyMetrics" },

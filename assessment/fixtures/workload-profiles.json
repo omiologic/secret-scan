@@ -120,7 +120,7 @@
       "chunkProfile": "utf16-boundary",
       "unicodeMix": true,
       "generatorAlgorithm": "assessment-filler-density-v1",
-      "note": "64 KiB non-ASCII log-shaped input, partitioned by the runner at every UTF-16 code-unit boundary."
+      "note": "64 KiB non-ASCII log-shaped input, partitioned at every valid UTF-16 character boundary without splitting surrogate pairs."
     }
   ]
 }
