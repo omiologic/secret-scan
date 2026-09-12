@@ -68,7 +68,7 @@ pub(crate) fn built_in_detectors() -> Vec<Box<dyn Detector>> {
 mod tests {
     use super::*;
     use crate::is_identifier;
-    use crate::types::{Candidate, DetectorContext, Specificity};
+    use crate::types::{Candidate, Confidence, DetectorContext, Specificity};
 
     #[test]
     fn built_in_ids_are_valid_and_unique() {
@@ -114,6 +114,31 @@ mod tests {
                 "generic-token",
             ]
         );
+    }
+
+    #[test]
+    fn bearer_and_contextual_detectors_emit_competing_candidates() {
+        let input = "auth = \"Bearer SYNTHETIC_REVOKED_BEARER_OVERLAP_1234\"";
+        let context = DetectorContext::new(input.len());
+        let bearer = bearer_token::bearer_token_detector()
+            .detect(input, &context)
+            .unwrap();
+        let contextual = generic_token::generic_token_detector()
+            .detect(input, &context)
+            .unwrap();
+
+        assert_eq!(bearer.len(), 1);
+        assert_eq!(contextual.len(), 1);
+        assert_eq!(bearer[0].type_name(), "bearer_token");
+        assert_eq!(bearer[0].confidence(), Confidence::High);
+        assert_eq!(bearer[0].specificity(), Some(Specificity::Structural));
+        assert_eq!(bearer[0].range().start(), 15);
+        assert_eq!(bearer[0].range().end(), 52);
+        assert_eq!(contextual[0].type_name(), "contextual_secret");
+        assert_eq!(contextual[0].specificity(), Some(Specificity::Contextual));
+        assert_eq!(contextual[0].range().start(), 8);
+        assert_eq!(contextual[0].range().end(), 52);
+        assert!(bearer[0].range().overlaps(contextual[0].range()));
     }
 
     #[test]

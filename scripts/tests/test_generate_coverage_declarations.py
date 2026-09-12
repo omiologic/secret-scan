@@ -315,8 +315,6 @@ class BuildDeclarationsIntegrationTests(unittest.TestCase):
         self.assertEqual(
             pending,
             {
-                # #187
-                "bearer-token-overlap": {"bearer_token.overlap"},
                 # #188
                 "contextual-secret-overlap": {"contextual_secret.overlap"},
                 # #189
