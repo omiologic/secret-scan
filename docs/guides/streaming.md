@@ -8,7 +8,7 @@
 | Python | `IncrementalSanitizer` |
 | CLI | Standard input |
 | JavaScript Node artifact | `createIncrementalSanitizer` |
-| JavaScript browser (WebAssembly) artifact | Unavailable; factories return `INCREMENTAL_UNAVAILABLE` |
+| JavaScript browser (WebAssembly) artifact | `createIncrementalSanitizer` |
 
 A secret may cross any chunk boundary. Scanning each chunk independently can
 leak it. A session retains unresolved text until its detection window closes,

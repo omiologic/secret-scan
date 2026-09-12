@@ -2,7 +2,7 @@
  * Qualifies a built N-API addon on the architecture it targets
  * (`decision-define-runtime-bindings`).
  *
- * Four passes, in order:
+ * Five passes, in order:
  *
  * 1. **Inspect** — the addon directory must hold the generated loader, its
  *    type declarations, and exactly one compiled `.node` file, and that file
@@ -18,6 +18,14 @@
  * 4. **Integrate** — the published JavaScript package's public API driven
  *    against the same addon, resolved the way an installed consumer resolves
  *    it, so the package's own binding glue is covered end to end.
+ * 5. **Stream** — the Node `Transform` stream adapter
+ *    (`packages/javascript/src/adapters/node-stream.ts`) driven over the same
+ *    real addon: every UTF-8 byte-partition point of a Unicode-bearing
+ *    fixture, backpressure, `destroy()`, a downstream pipeline failure, and
+ *    malformed UTF-8. `test/adapters/node-stream.test.ts` exercises this same
+ *    surface only against the deterministic double
+ *    (`test/sanitizing-binding.ts`), because the real addon is not present in
+ *    a source checkout.
  *
  * Every corpus input is synthetic or explicitly revoked, and no diagnostic
  * printed here carries an input, a matched value, or a placeholder. Usage:
@@ -26,6 +34,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { once } from "node:events";
 import {
   existsSync,
   mkdirSync,
@@ -37,6 +46,8 @@ import {
 } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
+import { Readable, Writable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
@@ -288,8 +299,8 @@ async function linkAddon() {
  * glue, on a real artifact. `bindings/node` builds a real incremental
  * session (`decision-define-runtime-bindings`), so `initialize()` succeeds
  * and both the synchronous surface and `createIncrementalSanitizer` are
- * exercised here; only the browser's WebAssembly artifact still reports
- * `INCREMENTAL_UNAVAILABLE` (`qualify-browser-artifact.mjs`).
+ * exercised here; `qualify-browser-artifact.mjs` exercises the same session
+ * on the browser's WebAssembly artifact.
  *
  * The single-fixture assertion goes through `qualify-runtime-fixture.mjs`,
  * so this script embeds no fixture input of its own beyond a fixed synthetic
@@ -373,6 +384,211 @@ async function integrateWithPackage() {
   }
 }
 
+/**
+ * Drives the Node `Transform` stream adapter over the real addon.
+ *
+ * `fixture` is one canonical, single-finding corpus entry: real enough that
+ * an actual detector must decide it, synthetic enough to publish. It is
+ * wrapped in astral-plane padding on its own lines so byte-partitioning also
+ * exercises a decoder split mid-character without disturbing the fixture's
+ * own line-start context.
+ *
+ * Every expectation is self-consistent — computed from one whole-input pass
+ * of the same real session (`oracle`) rather than a hardcoded string — so
+ * this does not encode the addon's redaction format a second time.
+ */
+async function qualifyNodeStreamAdapter(fixture) {
+  const entry = join(JS_PACKAGE_DIR, "dist", "adapters", "node-stream.js");
+  assert(
+    existsSync(entry),
+    `${entry}: missing; build the package with \`npm run js:build\``,
+  );
+
+  const link = await linkAddon();
+  try {
+    const { createIncrementalSanitizer, initialize } = await import(
+      pathToFileURL(join(JS_PACKAGE_DIR, "dist", "index.js")).href
+    );
+    const { NodeStreamSanitizer } = await import(pathToFileURL(entry).href);
+    await initialize();
+
+    const FULL = fixture.input;
+    const FINALIZED = `${FULL}\n`;
+    // Deliberately short of a complete match: this construct can never close
+    // in these checks, so it stays retained/undecided the whole time.
+    const UNRESOLVED = FULL.slice(0, -5);
+
+    function openStreamSession() {
+      return createIncrementalSanitizer({ limits: GENEROUS_LIMITS });
+    }
+
+    function oracle(text) {
+      const session = openStreamSession();
+      const appended = session.append(text);
+      const finalized = session.finalize();
+      return appended.text + finalized.text;
+    }
+
+    async function sanitize(chunks) {
+      const transform = new NodeStreamSanitizer(openStreamSession());
+      const output = [];
+      for await (const chunk of Readable.from(chunks).pipe(transform)) {
+        output.push(chunk);
+      }
+      return {
+        text: Buffer.concat(output).toString("utf8"),
+        findings: transform.findings,
+      };
+    }
+
+    const wrapped = `🔑 lead\n${FINALIZED}🔒 tail`;
+    const encoded = Buffer.from(wrapped, "utf8");
+    const expected = oracle(wrapped);
+    assert(expected !== wrapped, "the real addon left a known secret unredacted");
+
+    const diverged = [];
+    for (let boundary = 0; boundary <= encoded.length; boundary += 1) {
+      const { text } = await sanitize([
+        encoded.subarray(0, boundary),
+        encoded.subarray(boundary),
+      ]);
+      if (text !== expected) diverged.push(boundary);
+    }
+    assert(
+      diverged.length === 0,
+      `${diverged.length} byte boundary(ies) diverged from the whole-input result: ${diverged
+        .slice(0, 5)
+        .join(", ")}`,
+    );
+
+    const finalizedOracle = oracle(FINALIZED);
+
+    {
+      const { findings } = await sanitize([encoded]);
+      assert(
+        Object.isFrozen(findings),
+        "the real addon returned a mutable findings array through the stream adapter",
+      );
+      assert(findings.length > 0, "expected at least one finding from the wrapped fixture");
+      assert(
+        Object.isFrozen(findings[0]),
+        "the real addon returned a mutable finding through the stream adapter",
+      );
+    }
+
+    {
+      const transform = new NodeStreamSanitizer(openStreamSession());
+      const output = [];
+      transform.on("data", (chunk) => output.push(chunk));
+      transform.write(Buffer.from(FINALIZED + UNRESOLVED));
+      transform.end(Uint8Array.of(0xc3, 0x28));
+      const [error] = await once(transform, "error");
+      assertEqual(error?.code, "INVALID_UTF8", "malformed UTF-8 error code");
+      const flushed = Buffer.concat(output).toString("utf8");
+      assertEqual(
+        flushed,
+        finalizedOracle,
+        "output flushed before malformed UTF-8 diverged from the oracle",
+      );
+      assert(
+        !flushed.includes(UNRESOLVED),
+        "malformed UTF-8 leaked retained plaintext",
+      );
+    }
+
+    {
+      const session = openStreamSession();
+      const transform = new NodeStreamSanitizer(session);
+      const output = [];
+      transform.on("data", (chunk) => output.push(chunk));
+      transform.write(Buffer.from(UNRESOLVED));
+      transform.destroy();
+      await once(transform, "close");
+      assert(
+        Buffer.concat(output).length === 0,
+        "destroy() flushed retained plaintext",
+      );
+      assertEqual(
+        transform.findings,
+        [],
+        "destroy() reported a finding that was never finalized",
+      );
+      assertEqual(session.state, "aborted", "destroy() did not abort the real addon's session");
+    }
+
+    {
+      const transform = new NodeStreamSanitizer(openStreamSession());
+      const written = [];
+      let stalled = false;
+      for (let index = 0; index < 512 && !stalled; index += 1) {
+        const chunk = Buffer.from(`line-${index}-${"x".repeat(1_000)}\n`);
+        written.push(chunk);
+        if (!transform.write(chunk)) stalled = true;
+      }
+      assert(stalled, "512 large writes never produced backpressure");
+      const output = [];
+      const drained = once(transform, "drain");
+      transform.on("data", (chunk) => output.push(chunk));
+      await drained;
+      const ended = once(transform, "end");
+      transform.end();
+      await ended;
+      assert(
+        Buffer.concat(output).equals(Buffer.concat(written)),
+        "output diverged from input after backpressure drained",
+      );
+    }
+
+    {
+      const session = openStreamSession();
+      const transform = new NodeStreamSanitizer(session);
+      const output = [];
+      let supplied = false;
+      // Never signals end: the only way this pipeline settles is the
+      // downstream failure below, not `transform` reaching `_flush` on its
+      // own. `Readable.from([...])` would end the source right after the one
+      // chunk and let `_flush` run to completion first, which finalizes the
+      // session before the downstream failure has a chance to abort it.
+      const source = new Readable({
+        read() {
+          if (supplied) return;
+          supplied = true;
+          this.push(Buffer.from(FINALIZED + UNRESOLVED));
+        },
+      });
+      const downstreamError = new Error("Synthetic downstream failure.");
+      const sink = new Writable({
+        write(chunk, _encoding, callback) {
+          output.push(chunk);
+          callback(downstreamError);
+        },
+      });
+      let rejected;
+      try {
+        await pipeline(source, transform, sink);
+      } catch (error) {
+        rejected = error;
+      }
+      assert(
+        rejected === downstreamError,
+        "pipeline() did not propagate the downstream failure",
+      );
+      assertEqual(
+        Buffer.concat(output).toString("utf8"),
+        finalizedOracle,
+        "finalized output was not preserved on downstream failure",
+      );
+      assertEqual(
+        session.state,
+        "aborted",
+        "downstream failure did not abort the real addon's session",
+      );
+    }
+  } finally {
+    rmSync(link, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   const options = parseArguments(process.argv.slice(2));
   const fixtures = loadSynchronousCorpus();
@@ -389,6 +605,18 @@ async function main() {
   await reportAsync(
     "the JavaScript package's public API runs on the real addon",
     integrateWithPackage,
+  );
+
+  const streamFixture = fixtures.find(
+    (fixture) => fixture.id === CANONICAL_FIXTURE_ID,
+  );
+  assert(
+    streamFixture !== undefined,
+    `no ${CANONICAL_FIXTURE_ID} fixture in the synchronous corpus`,
+  );
+  await reportAsync(
+    "the Node stream adapter runs on the real addon",
+    () => qualifyNodeStreamAdapter(streamFixture),
   );
 
   if (failures.length > 0) {

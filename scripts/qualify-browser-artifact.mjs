@@ -12,7 +12,9 @@
  * conversion, redaction, and the sanitized error contract
  * (`decision-govern-cross-language-conformance`).
  * `scripts/browser-package-harness.mjs`, bundled the way a consumer bundles
- * it, drives the published `@redact-secret/core` public API on top of the
+ * it, drives the published `@redact-secret/core` public API — including the
+ * Web `TransformStream` adapter's byte-partition, Unicode, malformed-input,
+ * backpressure, cancellation, and error-propagation behavior — on top of the
  * same artifact.
  *
  * Chromium, Firefox, and WebKit are the supported engines, declared in
@@ -48,6 +50,14 @@ const REPO_ROOT = resolve(SCRIPTS_DIR, "..");
 const FIXTURES_DIR = join(REPO_ROOT, "conformance", "fixtures");
 const DEFAULT_ARTIFACT_DIR = join(REPO_ROOT, "bindings", "wasm", "pkg");
 const PACKAGE_ENTRY = join(REPO_ROOT, "packages", "javascript", "dist", "index.js");
+const PACKAGE_WEB_STREAM_ENTRY = join(
+  REPO_ROOT,
+  "packages",
+  "javascript",
+  "dist",
+  "adapters",
+  "web-stream.js",
+);
 
 /** The engines this artifact is qualified in, in the order they run. */
 const ENGINES = ["chromium", "firefox", "webkit"];
@@ -173,6 +183,7 @@ async function bundlePackageHarness(artifactDir, outFile) {
     conditions: ["browser", "import"],
     alias: {
       "@redact-secret/core": PACKAGE_ENTRY,
+      "@redact-secret/core/web-stream": PACKAGE_WEB_STREAM_ENTRY,
       "@redact-secret/wasm": join(artifactDir, "redact_secret_wasm.js"),
     },
     logLevel: "silent",
@@ -183,8 +194,10 @@ async function bundlePackageHarness(artifactDir, outFile) {
 }
 
 async function stageServeDirectory(artifactDir) {
-  if (!existsSync(PACKAGE_ENTRY)) {
-    fail(`${PACKAGE_ENTRY}: missing; build the package with \`npm run js:build\``);
+  for (const entry of [PACKAGE_ENTRY, PACKAGE_WEB_STREAM_ENTRY]) {
+    if (!existsSync(entry)) {
+      fail(`${entry}: missing; build the package with \`npm run js:build\``);
+    }
   }
   const directory = mkdtempSync(join(tmpdir(), "redact-secret-browser-"));
   for (const name of ARTIFACT_FILES) {

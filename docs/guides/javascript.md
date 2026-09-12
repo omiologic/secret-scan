@@ -57,13 +57,13 @@ body, and scan again at the authoritative server boundary.
 ## Current limitations
 
 Node support is 20, 22, and 24 on the six published non-musl targets. Retain npm
-optional dependencies so the matching native addon can be installed. The Node
-artifact supports `createIncrementalSanitizer` and `createNodeStreamSanitizer`;
-the browser (WebAssembly) artifact rejects both incremental and stream
-factories with `INCREMENTAL_UNAVAILABLE`. In the browser, buffer only within
-an application-defined bound and scan once; do not scan independent chunks.
-JavaScript strings containing an unpaired surrogate fail with
-`UNPAIRED_SURROGATE` before reaching the binding.
+optional dependencies so the matching native addon can be installed. Both the
+Node artifact and the browser (WebAssembly) artifact support
+`createIncrementalSanitizer` and their respective stream factories
+(`createNodeStreamSanitizer`, `createWebStreamSanitizer`); do not scan
+independent chunks — a credential may cross a chunk boundary, which is why
+this API exists instead. JavaScript strings containing an unpaired surrogate
+fail with `UNPAIRED_SURROGATE` before reaching the binding.
 
 See [API concepts](../reference/api-contract.md), [streaming](streaming.md),
 [troubleshooting](../troubleshooting.md), and the

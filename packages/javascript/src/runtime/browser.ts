@@ -12,11 +12,13 @@
  * binding's own idempotent `initialize()` that builds the detector registry.
  * Wrapping both is exactly this adapter's job.
  *
- * `bindings/wasm` does not export a `createIncrementalSanitizer` (see its
- * `README.md`): incremental sanitization is deliberately unavailable on this
- * runtime, so this adapter's `createIncrementalSanitizer` always rejects with
- * the fixed `INCREMENTAL_UNAVAILABLE` code. `./web-stream` rejects the same
- * way, through this same binding, and `initialize()` itself still resolves.
+ * `bindings/wasm` exports a real `createIncrementalSanitizer`
+ * (`decision-define-runtime-bindings`): it builds a bounded
+ * `IncrementalSanitizer` session, wrapping the same core session
+ * `bindings/node` and `bindings/python` wrap, with an explicit
+ * `accepting`/`finalized`/`aborted`/`failed` lifecycle and absolute UTF-16
+ * ranges converted chunk by chunk. `./web-stream` reaches it through this
+ * same binding.
  */
 
 import { SecretScanError } from "../errors.js";
@@ -26,9 +28,15 @@ import {
   type NativeDetectedFinding,
   type NativeFinding,
   type NativeFormatterCallback,
+  type NativeIncrementalPolicyCallback,
+  type NativeIncrementalResult,
   type NativePolicyCallback,
 } from "../native.js";
-import type { PlaceholderContext, PolicyContext } from "../types.js";
+import type {
+  IncrementalSanitizerState,
+  PlaceholderContext,
+  PolicyContext,
+} from "../types.js";
 
 /** One opaque finding handle, as `scan`/`redact`/`scanAndRedact` return it. */
 export interface WasmFinding {
@@ -73,6 +81,30 @@ type WasmFormatterCallback = (
   context: PlaceholderContext,
 ) => string;
 
+/** The position information an incremental policy callback receives. */
+export interface WasmIncrementalPolicyContext {
+  readonly findingIndex: number;
+}
+
+type WasmIncrementalPolicyCallback = (
+  finding: WasmDetectedFindingMetadata,
+  context: WasmIncrementalPolicyContext,
+) => string;
+
+/** The result of one incremental `append`/`finalize` call. */
+export interface WasmIncrementalResult {
+  readonly text: string;
+  readonly findings: readonly WasmFinding[];
+}
+
+/** The `IncrementalSanitizer` class `createIncrementalSanitizer` returns. */
+export interface WasmIncrementalSanitizer {
+  readonly state: string;
+  append(chunk: string): WasmIncrementalResult;
+  finalize(): WasmIncrementalResult;
+  abort(): void;
+}
+
 export interface WasmModule {
   default(): Promise<unknown>;
   version(): string;
@@ -88,6 +120,14 @@ export interface WasmModule {
     policy?: WasmPolicyCallback,
     formatter?: WasmFormatterCallback,
   ): { readonly text: string; readonly findings: readonly WasmFinding[] };
+  createIncrementalSanitizer(
+    maxInputCodeUnits: number,
+    maxBufferedCodeUnits: number,
+    maxTokenCodeUnits: number,
+    maxMultilineCodeUnits: number,
+    policy?: WasmIncrementalPolicyCallback,
+    formatter?: WasmFormatterCallback,
+  ): WasmIncrementalSanitizer;
 }
 
 /**
@@ -167,6 +207,23 @@ function toWasmFormatterCallback(
     formatter(toNativeFormatterMetadata(finding), context);
 }
 
+function toWasmIncrementalPolicyCallback(
+  policy: NativeIncrementalPolicyCallback | undefined,
+): WasmIncrementalPolicyCallback | undefined {
+  if (policy === undefined) return undefined;
+  return (finding, context) =>
+    policy(toNativeDetectedFinding(finding), context);
+}
+
+function toNativeIncrementalResult(
+  result: WasmIncrementalResult,
+): NativeIncrementalResult {
+  return {
+    text: result.text,
+    findings: result.findings.map(toNativeFinding),
+  };
+}
+
 /**
  * Loads the WebAssembly artifact published in lockstep with this package.
  *
@@ -185,6 +242,7 @@ async function loadWasmModule(): Promise<WasmModule> {
     "scan",
     "redact",
     "scanAndRedact",
+    "createIncrementalSanitizer",
   ] as const) {
     if (typeof module[name] !== "function") {
       throw new SecretScanError("INITIALIZATION_FAILED");
@@ -198,9 +256,9 @@ async function loadWasmModule(): Promise<WasmModule> {
  * module.
  *
  * Exported so a test double can exercise this exact normalization — the
- * nested-metadata flattening above and the fixed `INCREMENTAL_UNAVAILABLE`
- * rejection below — against a fake module shaped like the real artifact,
- * without loading the artifact itself.
+ * nested-metadata flattening above and the incremental session wiring below
+ * — against a fake module shaped like the real artifact, without loading the
+ * artifact itself.
  */
 export function createBindingFromWasmModule(wasm: WasmModule): NativeBinding {
   return {
@@ -227,8 +285,25 @@ export function createBindingFromWasmModule(wasm: WasmModule): NativeBinding {
         findings: result.findings.map(toNativeFinding),
       };
     },
-    createIncrementalSanitizer: () => {
-      throw new SecretScanError("INCREMENTAL_UNAVAILABLE");
+    createIncrementalSanitizer: (options) => {
+      const session = wasm.createIncrementalSanitizer(
+        options.limits.maxInputCodeUnits,
+        options.limits.maxBufferedCodeUnits,
+        options.limits.maxTokenCodeUnits,
+        options.limits.maxMultilineCodeUnits,
+        toWasmIncrementalPolicyCallback(options.policy),
+        toWasmFormatterCallback(options.formatter),
+      );
+      return {
+        get state() {
+          return session.state as IncrementalSanitizerState;
+        },
+        append: (chunk) => toNativeIncrementalResult(session.append(chunk)),
+        finalize: () => toNativeIncrementalResult(session.finalize()),
+        abort: () => {
+          session.abort();
+        },
+      };
     },
   };
 }
