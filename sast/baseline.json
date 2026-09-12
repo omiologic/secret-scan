@@ -254,8 +254,20 @@
     }
   },
   "known_errors": {
-    "1b76cee2b5f3a8ce": {
-      "line": 241,
+    "10938bb15c6b6995": {
+      "line": 248,
+      "path": ".github/workflows/artifact-qualification.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "791a668f832c836e": {
+      "line": 445,
+      "path": ".github/workflows/artifact-qualification.yml",
+      "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
+      "type": "PartialParsing"
+    },
+    "99b6c44a60be2369": {
+      "line": 508,
       "path": ".github/workflows/artifact-qualification.yml",
       "rationale": "The `sast.rules.yaml.github-actions.security.curl-eval` rule's `metavariable-pattern` sub-check re-parses a `run:` step's shell snippet as Bash; when the snippet contains a GitHub Actions `${{ ... }}` expression, that substring is not valid Bash and the sub-parser reports a partial-parsing error. This is an upstream rule/tool limitation against GitHub Actions expression syntax, not a defect in the workflow file -- the rule's other (successfully parsed) matches in the same file are unaffected.",
       "type": "PartialParsing"
