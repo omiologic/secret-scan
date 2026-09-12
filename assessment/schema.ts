@@ -130,43 +130,14 @@ export interface AssessmentAccuracyMetrics {
   readonly policyMismatches: number;
 }
 
-export interface AssessmentDistribution {
-  readonly unit: "milliseconds" | "bytes-per-second";
-  readonly samples: readonly number[];
-  readonly minimum: number;
-  readonly median: number;
-  readonly p95: number;
-  readonly maximum: number;
-  readonly mean: number;
-  readonly standardDeviation: number;
-}
-
-export interface AssessmentMemorySample {
-  readonly baselineBytes: number;
-  readonly maximumObservedBytes: number;
-}
-
-export interface AssessmentMemoryMetric {
-  readonly unit: "bytes";
-  readonly samples: readonly AssessmentMemorySample[];
-  readonly unavailableReason?: string;
-  /** Explains where sampling can miss a short-lived true peak. */
-  readonly samplingLimit: string;
-}
-
 export interface AssessmentPerformanceMetrics {
   readonly initialization: AssessmentDistribution;
   readonly processing: AssessmentDistribution;
   readonly throughput: AssessmentDistribution;
-  readonly memory: {
-    readonly nodeHeap: AssessmentMemoryMetric;
-    readonly nodeRss: AssessmentMemoryMetric;
-    readonly nodeExternal: AssessmentMemoryMetric;
-    readonly browserJsHeap: AssessmentMemoryMetric;
-    readonly wasmLinearMemory: AssessmentMemoryMetric;
-    readonly streamingBuffer: AssessmentMemoryMetric;
-  };
+  readonly memory: AssessmentMemoryMetrics;
 }
+/** Detailed raw-sample shapes are declared after the validators below. */
+
 
 /**
  * Everything needed to reproduce and place one result: the exact revision,
@@ -433,7 +404,8 @@ export function validateAssessmentResults(
     const id = rawId ?? "unknown";
 
     if (
-      result.schemaVersion !== RESULT_SCHEMA_VERSION ||
+      result.schemaVersion !==
+        RESULT_SCHEMA_VERSION ||
       !SURFACES.includes(result.surface) ||
       rawId === undefined ||
       !CASE_ID_PATTERN.test(rawId) ||
@@ -527,4 +499,37 @@ export function validateAssessmentResults(
   }
 
   return value;
+}
+
+export interface AssessmentDistribution {
+  readonly unit: "milliseconds" | "bytes-per-second";
+  readonly samples: readonly number[];
+  readonly minimum: number;
+  readonly median: number;
+  readonly p95: number;
+  readonly maximum: number;
+  readonly mean: number;
+  readonly standardDeviation: number;
+}
+
+export interface AssessmentMemorySample {
+  readonly baselineBytes: number;
+  readonly maximumObservedBytes: number;
+}
+
+export interface AssessmentMemoryMetric {
+  readonly unit: "bytes";
+  readonly samples: readonly AssessmentMemorySample[];
+  readonly unavailableReason?: string;
+  /** Explains where sampling can miss a short-lived true peak. */
+  readonly samplingLimit: string;
+}
+
+export interface AssessmentMemoryMetrics {
+  readonly nodeHeap: AssessmentMemoryMetric;
+  readonly nodeRss: AssessmentMemoryMetric;
+  readonly nodeExternal: AssessmentMemoryMetric;
+  readonly browserJsHeap: AssessmentMemoryMetric;
+  readonly wasmLinearMemory: AssessmentMemoryMetric;
+  readonly streamingBuffer: AssessmentMemoryMetric;
 }

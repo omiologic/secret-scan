@@ -4,6 +4,30 @@ import type {
   AssessmentMemorySample,
 } from "../schema.js";
 
+/** Partition generated input identically for Node and browser measurements. */
+export function partitionInput(input: string, chunkProfile: string): readonly string[] {
+  if (chunkProfile === "whole") return [input];
+  if (chunkProfile === "utf16-boundary") return [...input];
+
+  const maximumBytes = Number(chunkProfile.slice("fixed-".length));
+  const encoder = new TextEncoder();
+  const chunks: string[] = [];
+  let chunk = "";
+  let bytes = 0;
+  for (const scalar of input) {
+    const scalarBytes = encoder.encode(scalar).length;
+    if (chunk.length > 0 && bytes + scalarBytes > maximumBytes) {
+      chunks.push(chunk);
+      chunk = "";
+      bytes = 0;
+    }
+    chunk += scalar;
+    bytes += scalarBytes;
+  }
+  if (chunk.length > 0) chunks.push(chunk);
+  return chunks;
+}
+
 export function measureOperation<T>(
   now: () => number,
   operation: () => T,

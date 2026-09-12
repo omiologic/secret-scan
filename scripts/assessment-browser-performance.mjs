@@ -17,7 +17,7 @@ const PACKAGE_ENTRY = join(REPO_ROOT, "packages", "javascript", "dist", "index.j
 const DEFAULT_ARTIFACT_DIR = join(REPO_ROOT, "bindings", "wasm", "pkg");
 const WASM_PACKAGE_JSON = join(REPO_ROOT, "bindings", "wasm", "npm", "package.json");
 const ENGINES = ["chromium", "firefox", "webkit"];
-const CONTENT_TYPES = { ".html": "text/html", ".js": "text/javascript", ".wasm": "application/wasm" };
+const CONTENT_TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".wasm": "application/wasm" };
 const BOUNDARY_LIMIT = "Sampled immediately before and after processing; short-lived peaks between those boundaries may be missed, so maxima are observed samples, not guaranteed true peaks.";
 
 function fail(message) { console.error(message); process.exit(1); }
@@ -40,6 +40,10 @@ function parseArguments(argv) {
   return options;
 }
 
+function renderPage() {
+  return "<script type=\"module\" src=\"./run.js\"></script>";
+}
+
 async function stage(artifactDir, profile) {
   if (!existsSync(PACKAGE_ENTRY)) fail(`${PACKAGE_ENTRY}: missing; run \`npm run js:build\` first`);
   const directory = mkdtempSync(join(tmpdir(), "redact-secret-performance-"));
@@ -55,7 +59,15 @@ async function stage(artifactDir, profile) {
     alias: { "@redact-secret/core": PACKAGE_ENTRY, "@redact-secret/wasm": join(artifactDir, "redact_secret_wasm.js") },
     logLevel: "silent",
   });
-  writeFileSync(join(directory, "index.html"), `<script type="module">import {measure} from './harness.js';const profile=${JSON.stringify(profile)};try{globalThis.__result={ok:true,sample:await measure(profile)}}catch(error){globalThis.__result={ok:false,error:String(error)}}</script>`);
+  writeFileSync(join(directory, "index.html"), renderPage());
+  writeFileSync(join(directory, "profile.json"), JSON.stringify(profile));
+  writeFileSync(
+    join(directory, "run.js"),
+    "import { measure } from './harness.js';\n" +
+      "const profile = await (await fetch('./profile.json')).json();\n" +
+      "try { globalThis.__result = { ok: true, sample: await measure(profile) }; }\n" +
+      "catch (error) { globalThis.__result = { ok: false, error: String(error) }; }\n",
+  );
   return directory;
 }
 
@@ -86,23 +98,32 @@ async function main() {
   let playwright;
   try { playwright = await import("playwright"); } catch { fail("playwright is not installed; run `npm ci`"); }
   const directory = await stage(options.artifactDir, profile);
-  const { server, origin } = await serve(directory);
-  const browser = await playwright[options.engine].launch();
-  const browserVersion = browser.version();
+  let server;
+  let browser;
+  let browserVersion;
   const samples = [];
   try {
+    const served = await serve(directory);
+    server = served.server;
+    browser = await playwright[options.engine].launch();
+    browserVersion = browser.version();
     for (let run = 0; run < options.runs; run += 1) {
       const context = await browser.newContext();
-      const page = await context.newPage();
-      await page.goto(origin);
-      await page.waitForFunction(() => globalThis.__result !== undefined);
-      const outcome = await page.evaluate(() => globalThis.__result);
-      await context.close();
-      if (!outcome.ok) fail(`browser performance sample failed: ${outcome.error}`);
-      samples.push(outcome.sample);
+      try {
+        const page = await context.newPage();
+        await page.goto(served.origin);
+        await page.waitForFunction(() => globalThis.__result !== undefined);
+        const outcome = await page.evaluate(() => globalThis.__result);
+        if (!outcome.ok) throw new Error("browser performance sample failed");
+        samples.push(outcome.sample);
+      } finally {
+        await context.close();
+      }
     }
   } finally {
-    await browser.close(); server.close(); rmSync(directory, { recursive: true, force: true });
+    if (browser !== undefined) await browser.close();
+    if (server !== undefined) await new Promise((resolve) => server.close(resolve));
+    rmSync(directory, { recursive: true, force: true });
   }
 
   const metrics = await loadTsModule(join(REPO_ROOT, "assessment", "adapters", "performance.ts"));

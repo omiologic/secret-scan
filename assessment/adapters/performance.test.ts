@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  availableMemory, measureAsyncOperation, measureOperation, summarizeDistribution,
+  availableMemory, measureAsyncOperation, measureOperation, partitionInput, summarizeDistribution,
   unavailableMemory,
 } from "./performance.js";
 
@@ -37,6 +37,16 @@ describe("performance aggregation (issue #194)", () => {
       unavailableReason: "not exposed",
       samplingLimit: "no samples",
     });
+  });
+
+  test("partitions input consistently at the configured boundaries", () => {
+    const input = "A🔑BC";
+    expect(partitionInput(input, "whole")).toEqual([input]);
+    expect(partitionInput(input, "utf16-boundary")).toEqual(["A", "🔑", "B", "C"]);
+
+    const chunks = partitionInput(input, "fixed-4");
+    expect(chunks.join("")).toBe(input);
+    expect(chunks.every((chunk) => new TextEncoder().encode(chunk).length <= 4)).toBe(true);
   });
 
   test("places only the requested operation inside sync and async timing boundaries", async () => {

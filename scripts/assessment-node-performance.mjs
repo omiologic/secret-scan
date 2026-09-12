@@ -49,45 +49,20 @@ async function linkAddon(addonDir) {
   if (specifier === undefined) fail(`no Node addon package is mapped for ${process.platform}/${process.arch}`);
   const scope = join(REPO_ROOT, "packages", "javascript", "node_modules", "@redact-secret");
   const link = join(scope, specifier.split("/")[1]);
+  if (existsSync(link)) return undefined;
   mkdirSync(scope, { recursive: true });
-  rmSync(link, { recursive: true, force: true });
   symlinkSync(addonDir, link, "junction");
   return link;
 }
 
-function splitAtUtf8Boundaries(input, maximumBytes) {
-  const chunks = [];
-  let chunk = "";
-  let bytes = 0;
-  for (const scalar of input) {
-    const scalarBytes = Buffer.byteLength(scalar);
-    if (chunk.length > 0 && bytes + scalarBytes > maximumBytes) {
-      chunks.push(chunk);
-      chunk = "";
-      bytes = 0;
-    }
-    chunk += scalar;
-    bytes += scalarBytes;
-  }
-  if (chunk.length > 0) chunks.push(chunk);
-  return chunks;
-}
-
-function chunksFor(input, chunkProfile) {
-  if (chunkProfile === "whole") return [input];
-  if (chunkProfile === "utf16-boundary") return [...input];
-  const bytes = Number(chunkProfile.slice("fixed-".length));
-  return splitAtUtf8Boundaries(input, bytes);
-}
-
-function processInput(api, input, chunks, chunkProfile) {
+function processInput(api, input, chunks, chunkProfile, inputLimit) {
   if (chunkProfile === "whole") {
     const result = api.scanAndRedact(input);
     return result.text.length + result.findings.length;
   }
   const session = api.createIncrementalSanitizer({
     limits: {
-      maxInputCodeUnits: input.length + 1,
+      maxInputCodeUnits: inputLimit,
       maxBufferedCodeUnits: 32_896,
       maxTokenCodeUnits: 8_192,
       maxMultilineCodeUnits: 32_768,
@@ -117,8 +92,9 @@ async function measureOne(profile) {
   const generate = await loadTsModule(join(REPO_ROOT, "assessment", "generate.ts"));
   const metrics = await loadTsModule(join(REPO_ROOT, "assessment", "adapters", "performance.ts"));
   const input = generate.generateWorkloadInput(profile);
-  const chunks = chunksFor(input, profile.chunkProfile);
+  const chunks = metrics.partitionInput(input, profile.chunkProfile);
   const inputBytes = Buffer.byteLength(input);
+  const inputLimit = inputBytes + 1;
   const api = await import(pathToFileURL(ENTRY).href);
 
   const initialization = await metrics.measureAsyncOperation(
@@ -126,18 +102,19 @@ async function measureOne(profile) {
     () => api.initialize(),
   );
 
-  processInput(api, input, chunks, profile.chunkProfile);
+  processInput(api, input, chunks, profile.chunkProfile, inputLimit);
   const baseline = process.memoryUsage();
   const processing = metrics.measureOperation(
     () => performance.now(),
-    () => processInput(api, input, chunks, profile.chunkProfile),
+    () => processInput(api, input, chunks, profile.chunkProfile, inputLimit),
   );
   const after = process.memoryUsage();
   if (!Number.isSafeInteger(processing.value)) fail("processing did not complete");
+  if (processing.elapsedMs <= 0) fail("processing duration was not positive");
   return {
     initializationMs: initialization.elapsedMs,
     processingMs: processing.elapsedMs,
-    throughputBytesPerSecond: processing.elapsedMs === 0 ? 0 : inputBytes / (processing.elapsedMs / 1000),
+    throughputBytesPerSecond: inputBytes / (processing.elapsedMs / 1000),
     memory: {
       nodeHeap: { baselineBytes: baseline.heapUsed, maximumObservedBytes: Math.max(baseline.heapUsed, after.heapUsed) },
       nodeRss: { baselineBytes: baseline.rss, maximumObservedBytes: Math.max(baseline.rss, after.rss) },
@@ -164,7 +141,7 @@ async function main() {
       samples.push(JSON.parse(output));
     }
   } finally {
-    rmSync(addonLink, { recursive: true, force: true });
+    if (addonLink !== undefined) rmSync(addonLink, { recursive: true, force: true });
   }
   const metrics = await loadTsModule(join(REPO_ROOT, "assessment", "adapters", "performance.ts"));
   const unavailable = (reason) => metrics.unavailableMemory(reason, "No samples were available.");
