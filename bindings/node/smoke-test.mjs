@@ -7,6 +7,7 @@
 
 import assert from "node:assert/strict";
 import {
+  createIncrementalSanitizer,
   initialize,
   redact,
   scan,
@@ -17,6 +18,13 @@ import {
 const SYNTHETIC_TOKEN =
   "Authorization: Bearer sk-syntheticRevokedExampleToken00000000000000000000";
 const ASTRAL_PREFIXED = `\u{1F511} ${SYNTHETIC_TOKEN}`;
+
+const INCREMENTAL_LIMITS = {
+  maxInputCodeUnits: 32_768,
+  maxBufferedCodeUnits: 16_512,
+  maxTokenCodeUnits: 8_192,
+  maxMultilineCodeUnits: 16_384,
+};
 
 function check(name, fn) {
   try {
@@ -144,6 +152,136 @@ check("malformed findings passed to redact are rejected as input-free errors", (
 check("version reports the shared product version", () => {
   assert.equal(typeof version(), "string");
   assert.ok(version().length > 0);
+});
+
+// Incremental sessions: append/finalize/abort against the real addon.
+
+check("a value split across chunks, including an astral character, matches the whole-input result", () => {
+  const session = createIncrementalSanitizer({ limits: INCREMENTAL_LIMITS });
+  let text = "";
+  for (const chunk of ["\u{1F511} api_key=SYN", "THETIC_REVOKED_MARKER\n", "tail"]) {
+    text += session.append(chunk).text;
+  }
+  text += session.finalize().text;
+  assert.equal(session.state, "finalized");
+  assert.equal(text, "\u{1F511} api_key=<SECRET_1>\ntail");
+  assert.equal(text.includes("SYNTHETIC_REVOKED_MARKER"), false);
+});
+
+check("abort discards retained plaintext and rejects every later operation", () => {
+  const session = createIncrementalSanitizer({ limits: INCREMENTAL_LIMITS });
+  session.append("api_key=SYNTHETIC_REVOKED_ABORT_MARKER");
+  session.abort();
+  assert.equal(session.state, "aborted");
+  assert.throws(
+    () => session.append("more"),
+    (error) => {
+      assert.equal(error.code, "INVALID_STATE");
+      return true;
+    },
+  );
+});
+
+check("a second finalize is rejected rather than re-emitted", () => {
+  const session = createIncrementalSanitizer({ limits: INCREMENTAL_LIMITS });
+  session.finalize();
+  assert.throws(
+    () => session.finalize(),
+    (error) => {
+      assert.equal(error.code, "INVALID_STATE");
+      return true;
+    },
+  );
+});
+
+check("an open construct one code unit past the token cap fails safely with no output", () => {
+  const session = createIncrementalSanitizer({
+    limits: { ...INCREMENTAL_LIMITS, maxTokenCodeUnits: 32 },
+  });
+  assert.throws(
+    () => session.append("x".repeat(33)),
+    (error) => {
+      assert.equal(error.code, "TOKEN_LIMIT_EXCEEDED");
+      return true;
+    },
+  );
+  assert.equal(session.state, "failed");
+});
+
+check("an open construct exactly at the token cap is accepted, not rejected", () => {
+  const session = createIncrementalSanitizer({
+    limits: {
+      maxInputCodeUnits: 512,
+      maxBufferedCodeUnits: 192,
+      maxTokenCodeUnits: 32,
+      maxMultilineCodeUnits: 64,
+    },
+  });
+  session.append("x".repeat(32));
+  const result = session.finalize();
+  assert.equal(result.text, "x".repeat(32));
+  assert.equal(result.findings.length, 0);
+});
+
+check("a custom incremental policy controls the action with UTF-16 offsets", () => {
+  const calls = [];
+  const session = createIncrementalSanitizer({
+    limits: INCREMENTAL_LIMITS,
+    policy: (finding, context) => {
+      calls.push({ finding, context });
+      return "warn";
+    },
+  });
+  const appended = session.append("api_key=SYNTHETIC_REVOKED_POLICY_MARKER\n");
+  const result = session.finalize();
+  const findings = [...appended.findings, ...result.findings];
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].context.findingIndex, 0);
+  assert.equal(calls[0].finding.start, "api_key=".length);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].action, "warn");
+});
+
+check("a custom incremental formatter controls the placeholder text", () => {
+  const session = createIncrementalSanitizer({
+    limits: INCREMENTAL_LIMITS,
+    formatter: (_finding, context) => `[[REMOVED_${context.placeholderIndex}]]`,
+  });
+  const appended = session.append("api_key=SYNTHETIC_REVOKED_FORMATTER_MARKER\n");
+  const text = appended.text + session.finalize().text;
+  assert.equal(text.includes("[[REMOVED_1]]"), true);
+  assert.equal(text.includes("SYNTHETIC_REVOKED_FORMATTER_MARKER"), false);
+});
+
+check("a throwing incremental policy surfaces POLICY_FAILURE and discards retained text", () => {
+  const session = createIncrementalSanitizer({
+    limits: INCREMENTAL_LIMITS,
+    policy: () => {
+      throw new Error("boom");
+    },
+  });
+  assert.throws(
+    () => session.append("api_key=SYNTHETIC_REVOKED_POLICY_THROW_MARKER\n"),
+    (error) => {
+      assert.equal(error.code, "POLICY_FAILURE");
+      assert.equal(error.message.includes(SYNTHETIC_TOKEN), false);
+      return true;
+    },
+  );
+  assert.equal(session.state, "failed");
+});
+
+check("invalid limits are rejected with INVALID_LIMITS before a session is created", () => {
+  assert.throws(
+    () =>
+      createIncrementalSanitizer({
+        limits: { ...INCREMENTAL_LIMITS, maxInputCodeUnits: 0 },
+      }),
+    (error) => {
+      assert.equal(error.code, "INVALID_LIMITS");
+      return true;
+    },
+  );
 });
 
 if (process.exitCode) {

@@ -8,7 +8,7 @@ decided_at: 2026-09-10
 
 # Ship the first release's full artifact set
 
-## Current application — 2026-09-11 (#144)
+## Current application — 2026-09-12 (#181)
 
 The full four-surface commitment remains accepted. The
 [naming contract](2026-09-10-adopt-redact-secret-naming-contract.md) and completed
@@ -32,9 +32,10 @@ including the private root, are enforced in lockstep.
 Node support is 20/22/24; npm and CLI target Linux glibc, macOS, and Windows
 on x64/arm64. Two additional musl addons are qualified but not shipped on npm.
 Python ships eight CPython 3.10+ abi3 wheel targets including musllinux;
-browsers are qualified on Chromium, Firefox, and WebKit. JavaScript incremental
-factories report `INCREMENTAL_UNAVAILABLE`; Rust, Python, and CLI stdin support
-incremental sanitization. The [qualification declaration](../qualification.md)
+browsers are qualified on Chromium, Firefox, and WebKit. Rust, Python, CLI
+stdin, and the Node artifact support incremental sanitization; only the
+browser's WebAssembly artifact's `createIncrementalSanitizer` still reports
+`INCREMENTAL_UNAVAILABLE`. The [qualification declaration](../qualification.md)
 owns the exact target lists. This update records the implemented contract;
 the original decision-time body follows unchanged. It authorizes no release.
 

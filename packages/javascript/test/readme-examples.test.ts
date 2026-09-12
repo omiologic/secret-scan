@@ -66,18 +66,24 @@ describe("README examples", () => {
     }
   });
 
-  it("documents unavailable factories without presenting working stream examples", () => {
-    expect(README).toContain("Node and WebAssembly artifacts do not build incremental sessions");
-    expect(README).toContain("INCREMENTAL_UNAVAILABLE");
-    for (const name of [
-      "createIncrementalSanitizer",
-      "createNodeStreamSanitizer",
-      "createWebStreamSanitizer",
-    ]) {
+  it("documents working Node incremental examples", () => {
+    expect(README).toContain("The Node artifact builds a real incremental session");
+    for (const name of ["createIncrementalSanitizer", "createNodeStreamSanitizer"]) {
       expect(README).toContain(`\`${name}\``);
-      expect(typeScriptExamples().some((example) => example.includes(`${name}(`))).toBe(false);
+      expect(typeScriptExamples().some((example) => example.includes(`${name}(`))).toBe(true);
     }
     expect(README).toContain("@redact-secret/core/node-stream");
+  });
+
+  it("documents the browser factory as unavailable without presenting a working example", () => {
+    expect(README).toContain(
+      "The browser (WebAssembly) artifact does not build incremental sessions",
+    );
+    expect(README).toContain("INCREMENTAL_UNAVAILABLE");
+    expect(README).toContain("`createWebStreamSanitizer`");
+    expect(
+      typeScriptExamples().some((example) => example.includes("createWebStreamSanitizer(")),
+    ).toBe(false);
     expect(README).toContain("@redact-secret/core/web-stream");
   });
 

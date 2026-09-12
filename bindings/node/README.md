@@ -3,7 +3,8 @@
 N-API native addon (`napi-rs`) for Node.js. Crate: `redact-secret-node`.
 
 - Owns Node-specific loading, buffer handling, and UTF-16 range conversion.
-- Exports `version`, `initialize`, `scan`, `redact`, and `scanAndRedact`.
+- Exports `version`, `initialize`, `scan`, `redact`, `scanAndRedact`, and
+  `createIncrementalSanitizer`.
 - This directory's own `package.json` is `private` and only carries the
   `napi` build configuration; it is never published itself. `npm/` holds one
   tiny publication package per `node-publish-targets` platform triple
@@ -14,8 +15,9 @@ N-API native addon (`napi-rs`) for Node.js. Crate: `redact-secret-node`.
   `packages/javascript` depends on the six publication packages through
   `optionalDependencies`, and npm's `os`/`cpu`/`libc` fields skip the ones
   that do not match a given install.
-- Does not yet export `createIncrementalSanitizer` over the core's
-  `IncrementalSanitizer`, unlike `bindings/python`. `packages/javascript`'s
-  Node adapter (`src/runtime/node.ts`) treats this the way it treats
-  `bindings/wasm`'s documented non-support: `INCREMENTAL_UNAVAILABLE` at call
-  time, not a load-time failure.
+- `createIncrementalSanitizer` wraps the core's `IncrementalSanitizer` the
+  same way `bindings/python` does: mandatory limits, an explicit
+  `accepting`/`finalized`/`aborted`/`failed` lifecycle, and absolute UTF-16
+  offsets converted from the core's UTF-8 byte offsets without retaining the
+  input (`src/incremental.rs`). Only `bindings/wasm` still reports
+  `INCREMENTAL_UNAVAILABLE` at call time.
