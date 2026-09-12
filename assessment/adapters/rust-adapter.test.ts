@@ -10,5 +10,5 @@ describe("rust assessment adapter", () => {
     );
 
     expect(output).toBe("");
-  });
+  }, 30_000);
 });

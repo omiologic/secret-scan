@@ -141,7 +141,7 @@ fn parse_arguments(args: impl Iterator<Item = String>) -> Result<Options, String
                     .map_err(|_| "--runs must be an integer from 2 through 100".to_owned())?;
             }
             "--json-out" => {
-                options.json_out = Some(PathBuf::from(required_value(&argument, &mut args)?))
+                options.json_out = Some(PathBuf::from(required_value(&argument, &mut args)?));
             }
             "--markdown-out" => {
                 options.markdown_out = Some(PathBuf::from(required_value(&argument, &mut args)?));
