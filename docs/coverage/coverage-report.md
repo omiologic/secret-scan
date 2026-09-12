@@ -55,7 +55,7 @@ Coverage declarations: 35.
 | anthropic_api_key | anthropic-token | provider | supported | not-applicable | none |
 | authorization_credential | generic-token | contextual | supported | supported | host-context, overlap |
 | aws_access_key_id | aws-access-key | provider | supported | not-applicable | none |
-| bearer_token | bearer-token | structural | supported | not-applicable | overlap |
+| bearer_token | bearer-token | structural | supported | not-applicable | none |
 | cloudflare_api_token | cloudflare-token | provider | supported | not-applicable | none |
 | connection_string_password | connection-string | structural | supported | supported | none |
 | contextual_secret | generic-token | contextual | supported | not-applicable | overlap |
@@ -108,7 +108,7 @@ Coverage declarations: 35.
 | incremental | 3 | 7 | 0 |
 | malformed | 35 | 0 | 0 |
 | near-miss-negative | 25 | 0 | 0 |
-| overlap | 22 | 0 | 3 |
+| overlap | 23 | 0 | 2 |
 | positive | 25 | 0 | 0 |
 | range | 35 | 0 | 0 |
 
@@ -128,5 +128,4 @@ None.
 
 - authorization_credential.host-context (`authorization-credential-host-context-breadth`)
 - authorization_credential.overlap (`authorization-credential-overlap`)
-- bearer_token.overlap (`bearer-token-overlap`)
 - contextual_secret.overlap (`contextual-secret-overlap`)

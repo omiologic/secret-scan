@@ -662,7 +662,7 @@
     {
       "detector": "bearer-token",
       "evidence": {
-        "fixtureCount": 5,
+        "fixtureCount": 6,
         "hostContextsExercised": [
           "plain-text"
         ],

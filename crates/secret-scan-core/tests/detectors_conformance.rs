@@ -7,7 +7,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use redact_secret::{
-    Action, ByteRange, Confidence, DefaultPolicy, DetectorRegistry, run_detector_pipeline, scan,
+    Action, ByteRange, Confidence, DefaultPolicy, DetectorRegistry, default_placeholder_formatter,
+    run_detector_pipeline, scan, scan_and_redact,
 };
 
 fn range(start: usize, end: usize) -> ByteRange {
@@ -50,6 +51,33 @@ fn contextual_candidate_yields_to_a_higher_specificity_provider_candidate() {
     assert_eq!(findings[0].detector(), "openai-token");
     assert_eq!(findings[0].type_name(), "openai_api_key");
     assert_eq!(findings[0].range(), provider_range);
+}
+
+/// fixture: bearer-overlap-contextual-assignment
+///
+/// The Bearer detector's structural candidate wins over the wider contextual
+/// assignment candidate, and the default policy redacts exactly the winning
+/// token range.
+#[test]
+fn bearer_candidate_wins_contextual_overlap_and_redacts() {
+    let input = "auth = \"Bearer SYNTHETIC_REVOKED_BEARER_OVERLAP_1234\"";
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+
+    let result = scan_and_redact(
+        input,
+        &registry,
+        &DefaultPolicy,
+        &default_placeholder_formatter,
+    )
+    .unwrap();
+
+    assert_eq!(result.findings().len(), 1);
+    assert_eq!(result.findings()[0].detector(), "bearer-token");
+    assert_eq!(result.findings()[0].type_name(), "bearer_token");
+    assert_eq!(result.findings()[0].confidence(), Confidence::High);
+    assert_eq!(result.findings()[0].range(), range(15, 52));
+    assert_eq!(result.findings()[0].action(), Action::Redact);
+    assert_eq!(result.text(), "auth = \"Bearer <SECRET_1>\"");
 }
 
 /// fixture: jwt-positive-structured, bearer-positive-scheme,

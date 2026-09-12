@@ -1,6 +1,6 @@
 {
   "offsetUnit": "utf8-byte",
-  "fixtureCount": 391,
+  "fixtureCount": 392,
   "fixtures": [
     {
       "id": "host-dotenv-github",
@@ -7275,6 +7275,28 @@
         }
       ],
       "note": "An explicit Bearer scheme is supported."
+    },
+    {
+      "id": "bearer-overlap-contextual-assignment",
+      "detector": "bearer-token",
+      "kind": "overlap",
+      "support": "supported",
+      "tier": "contextual",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "auth = \"Bearer SYNTHETIC_REVOKED_BEARER_OVERLAP_1234\"",
+      "expected": [
+        {
+          "detector": "bearer-token",
+          "type": "bearer_token",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 15,
+          "end": 52
+        }
+      ],
+      "note": "The structural Bearer candidate wins over the wider contextual auth assignment candidate."
     },
     {
       "id": "bearer-negative-identifier",

@@ -1747,12 +1747,10 @@
         },
         {
           "dimension": "overlap",
-          "evidenceFixtureIds": [],
-          "exception": {
-            "backlogId": "bearer-token-overlap",
-            "code": "pending"
-          },
-          "state": "pending"
+          "evidenceFixtureIds": [
+            "bearer-overlap-contextual-assignment"
+          ],
+          "state": "supported"
         },
         {
           "dimension": "adversarial",
