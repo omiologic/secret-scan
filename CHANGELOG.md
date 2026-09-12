@@ -5,6 +5,9 @@ evidence is linked from each published version.
 
 ## Unreleased
 
+- Assessment tooling now includes a Rust library runner, self-test command,
+  and first checked-in correctness/performance baseline for the `rust-core`
+  surface.
 - Node.js and browser packages now expose working bounded incremental
   sanitization plus Node `Transform` and Web `TransformStream` adapters.
   Candidate qualification installs packed packages outside the checkout,

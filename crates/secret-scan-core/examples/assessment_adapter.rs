@@ -206,7 +206,7 @@ fn run_accuracy(options: &Options) -> Result<(), String> {
             "policyMismatches": totals.policy_mismatches,
         },
         "provenance": provenance(
-            &corpus["corpusVersion"].to_string(),
+            &string_or_number(&corpus["corpusVersion"])?,
             &sha256_file(&repo_root().join("assessment/fixtures/accuracy-corpus.json"))?,
             &invoked_command(),
         ),
@@ -939,6 +939,16 @@ fn array_field<'a>(value: &'a Value, key: &str) -> Result<&'a Vec<Value>, String
     value[key]
         .as_array()
         .ok_or_else(|| format!("{key}: expected array"))
+}
+
+fn string_or_number(value: &Value) -> Result<String, String> {
+    if let Some(text) = value.as_str() {
+        return Ok(text.to_owned());
+    }
+    value
+        .as_u64()
+        .map(|number| number.to_string())
+        .ok_or_else(|| "corpusVersion: expected string or safe integer".to_owned())
 }
 
 fn write_json(result: &Value, path: Option<&Path>) -> Result<(), String> {
