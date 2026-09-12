@@ -11,3 +11,4 @@ future planning and implementation but do not authorize Git or release actions.
 - [Adopt the Redact Secret naming contract](2026-09-10-adopt-redact-secret-naming-contract.md)
 - [Pin OpenGrep and establish a reviewed SAST baseline](2026-09-10-pin-opengrep-and-establish-a-reviewed-sast-baseline.md)
 - [Enforce OpenGrep in CI as a required, SARIF-integrated gate](2026-09-10-enforce-opengrep-in-ci-as-a-required-gate.md)
+- [Define the cross-language evaluation protocol](2026-09-12-define-cross-language-evaluation-protocol.md)

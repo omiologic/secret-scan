@@ -109,6 +109,7 @@ The binding and package layout is:
 | `bindings/python` | PyO3 extension and Python-facing package surface | PyPI `redact-secret`, imported as `redact_secret` |
 | `packages/javascript` | One typed API with runtime-specific loading | `@redact-secret/core` |
 | `conformance` | Language-neutral behavioral fixtures and schema | Repository contract, not a package |
+| `assessment` | Language-neutral evaluation protocol: assessment corpus, workload profiles, result contract | Repository protocol, not a package, not a release gate |
 
 Detailed workspace dependency, lint, unsafe-code, MSRV, public-API,
 package-content, and registry-name policies live in
@@ -311,6 +312,34 @@ the applicable shared contract in one repository CI graph. Binding-local smoke,
 lifecycle, callback, packaging, and host-integration tests supplement the shared
 corpus; they do not replace or fork it.
 
+## Cross-language evaluation
+
+The top-level [`assessment/`](./assessment/README.md) directory defines the
+cross-language evaluation protocol
+(`decision-define-cross-language-evaluation-protocol`): a synthetic assessment
+corpus, named workload profiles, and a common result contract every surface
+reports through. It is distinct from `conformance/` and is never a release
+gate — it measures accuracy and performance, not pass/fail behavioral
+conformance.
+
+The protocol covers:
+
+- reviewed accuracy fixtures across logs, code, chat, and negative text,
+  including Unicode and astral-boundary cases, each with UTF-8 byte ranges
+  and a policy-aware outcome;
+- workload profiles that separate accuracy measurement (small, whole-input,
+  never chunked) from scale measurement (larger, with a declared chunk
+  profile and target finding density), each reproduced deterministically
+  from its own fields rather than committed as generated data; and
+- a common result contract covering accuracy, initialization, processing,
+  throughput, repetition, and memory metrics, with full reproducibility
+  provenance (commit, artifact identity, corpus version and hash, OS, CPU,
+  runtime, and exact command).
+
+Building the five per-surface runners that execute a profile and emit a real
+result is separate, larger work tracked elsewhere; see
+[assessment/README.md](./assessment/README.md#what-this-directory-is-not-yet).
+
 ## Public API and extension boundary
 
 Every public surface returns sanitized text and finding metadata equivalent to:
@@ -428,3 +457,4 @@ The accepted records governing this architecture are:
 - [Govern cross-language conformance](./docs/decisions/2026-09-09-govern-cross-language-conformance.md)
 - [Release bindings in lockstep](./docs/decisions/2026-09-09-release-bindings-in-lockstep.md)
 - [Ship the first release's full artifact set](./docs/decisions/2026-09-10-ship-first-release-artifact-set.md)
+- [Define the cross-language evaluation protocol](./docs/decisions/2026-09-12-define-cross-language-evaluation-protocol.md)

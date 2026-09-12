@@ -1,0 +1,126 @@
+{
+  "profileCount": 11,
+  "profiles": [
+    {
+      "id": "accuracy-logs-minimal",
+      "purpose": "accuracy",
+      "category": "logs",
+      "targetInputBytes": 512,
+      "targetDensityPerKiB": 2,
+      "chunkProfile": "whole",
+      "unicodeMix": false,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "Minimal log-shaped accuracy input; kept below ACCURACY_MAX_INPUT_BYTES and out of timing."
+    },
+    {
+      "id": "accuracy-logs-unicode-minimal",
+      "purpose": "accuracy",
+      "category": "logs",
+      "targetInputBytes": 1024,
+      "targetDensityPerKiB": 2,
+      "chunkProfile": "whole",
+      "unicodeMix": true,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "Minimal log-shaped accuracy input with a non-ASCII filler mix."
+    },
+    {
+      "id": "accuracy-code-minimal",
+      "purpose": "accuracy",
+      "category": "code",
+      "targetInputBytes": 512,
+      "targetDensityPerKiB": 2,
+      "chunkProfile": "whole",
+      "unicodeMix": false,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "Minimal code-shaped accuracy input."
+    },
+    {
+      "id": "accuracy-chat-minimal",
+      "purpose": "accuracy",
+      "category": "chat",
+      "targetInputBytes": 512,
+      "targetDensityPerKiB": 1,
+      "chunkProfile": "whole",
+      "unicodeMix": false,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "Minimal chat-shaped accuracy input."
+    },
+    {
+      "id": "accuracy-negative-text-minimal",
+      "purpose": "accuracy",
+      "category": "negative-text",
+      "targetInputBytes": 512,
+      "targetDensityPerKiB": 0,
+      "chunkProfile": "whole",
+      "unicodeMix": false,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "Pure negative baseline with no injected secrets, for measuring false-positive rate."
+    },
+    {
+      "id": "scale-logs-small-whole",
+      "purpose": "scale",
+      "category": "logs",
+      "targetInputBytes": 65536,
+      "targetDensityPerKiB": 4,
+      "chunkProfile": "whole",
+      "unicodeMix": false,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "64 KiB log-shaped input fed as a single whole-input call."
+    },
+    {
+      "id": "scale-logs-medium-fixed4096",
+      "purpose": "scale",
+      "category": "logs",
+      "targetInputBytes": 262144,
+      "targetDensityPerKiB": 4,
+      "chunkProfile": "fixed-4096",
+      "unicodeMix": false,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "256 KiB log-shaped input, partitioned into fixed 4096-byte chunks by the runner."
+    },
+    {
+      "id": "scale-code-medium-fixed1024",
+      "purpose": "scale",
+      "category": "code",
+      "targetInputBytes": 131072,
+      "targetDensityPerKiB": 2,
+      "chunkProfile": "fixed-1024",
+      "unicodeMix": false,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "128 KiB code-shaped input, partitioned into fixed 1024-byte chunks by the runner."
+    },
+    {
+      "id": "scale-chat-large-fixed65536",
+      "purpose": "scale",
+      "category": "chat",
+      "targetInputBytes": 1048576,
+      "targetDensityPerKiB": 1,
+      "chunkProfile": "fixed-65536",
+      "unicodeMix": false,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "1 MiB chat-shaped input, partitioned into fixed 65536-byte chunks by the runner."
+    },
+    {
+      "id": "scale-negative-text-large-whole",
+      "purpose": "scale",
+      "category": "negative-text",
+      "targetInputBytes": 1048576,
+      "targetDensityPerKiB": 0,
+      "chunkProfile": "whole",
+      "unicodeMix": false,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "1 MiB pure negative input with no injected secrets; a throughput baseline uncontaminated by detection cost variance."
+    },
+    {
+      "id": "scale-logs-unicode-utf16boundary",
+      "purpose": "scale",
+      "category": "logs",
+      "targetInputBytes": 65536,
+      "targetDensityPerKiB": 4,
+      "chunkProfile": "utf16-boundary",
+      "unicodeMix": true,
+      "generatorAlgorithm": "assessment-filler-density-v1",
+      "note": "64 KiB non-ASCII log-shaped input, partitioned by the runner at every UTF-16 code-unit boundary."
+    }
+  ]
+}
