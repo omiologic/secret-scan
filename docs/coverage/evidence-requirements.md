@@ -207,9 +207,10 @@ Applying §4's matrix and §5's exception codes to the current baseline
   [`host-context-classes.md`](./host-context-classes.md) §4-5), which is
   what §3's type-level rule requires for the `contextual` class.
   `authorization_credential` has direct positive, boundary, near-miss,
-  malformed, and range evidence. Its overlap and type-level host-context
-  dimensions remain pending under their own backlog IDs rather than borrowing
-  `contextual_secret` evidence.
+  malformed, range, and overlap evidence. Its overlap evidence is a dedicated
+  competing-candidate fixture rather than evidence borrowed from
+  `contextual_secret`; only its type-level host-context dimension remains
+  pending under its own backlog ID.
 
 ### `consumers` rows (9, the `binding-edge` class)
 
@@ -231,6 +232,7 @@ own structural check), so none needs a `pending` exception either.
 under this model using evidence the corpus already has, a `no-concept` or
 `owned-elsewhere` exemption already implied by its own declared shape, or an
 honestly-labeled `pending` gap with an owning backlog item or a newly-named
-one (`contextual_secret`'s host-context breadth). Nothing here required
+one. The only remaining pending dimension is
+`authorization_credential.host-context`, owned by issue #190. Nothing here required
 inventing a fixture, a context, or a scheme that does not already exist in
 the corpus or the baseline.**

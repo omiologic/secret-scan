@@ -333,8 +333,6 @@ class BuildDeclarationsIntegrationTests(unittest.TestCase):
         self.assertEqual(
             pending,
             {
-                # #189
-                "authorization-credential-overlap": {"authorization_credential.overlap"},
                 # #190
                 "authorization-credential-host-context-breadth": {
                     "authorization_credential.host-context"
@@ -398,6 +396,17 @@ class BuildDeclarationsIntegrationTests(unittest.TestCase):
         self.assertEqual(by_dimension["near-miss-negative"]["state"], "supported")
         self.assertEqual(by_dimension["host-context"]["state"], "pending")
         self.assertNotEqual(by_dimension["host-context"]["exception"]["backlogId"], "C/F-03")
+
+    def test_authorization_credential_overlap_is_supported_by_its_own_fixture(self) -> None:
+        auth = next(
+            row for row in self.report["declarations"] if row["type"] == "authorization_credential"
+        )
+        overlap = next(d for d in auth["dimensions"] if d["dimension"] == "overlap")
+        self.assertEqual(overlap["state"], "supported")
+        self.assertIn(
+            "authorization-overlap-contextual-assignment",
+            overlap["evidenceFixtureIds"],
+        )
 
     def test_committed_coverage_declarations_is_up_to_date(self) -> None:
         """A built-in capability (detector, finding type, corpus evidence)

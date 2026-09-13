@@ -53,7 +53,7 @@ Coverage declarations: 35.
 | Type | Detector | Behavior class | State | Scheme states | Pending dimensions |
 | --- | --- | --- | --- | --- | --- |
 | anthropic_api_key | anthropic-token | provider | supported | not-applicable | none |
-| authorization_credential | generic-token | contextual | supported | supported | host-context, overlap |
+| authorization_credential | generic-token | contextual | supported | supported | host-context |
 | aws_access_key_id | aws-access-key | provider | supported | not-applicable | none |
 | bearer_token | bearer-token | structural | supported | not-applicable | none |
 | cloudflare_api_token | cloudflare-token | provider | supported | not-applicable | none |
@@ -108,7 +108,7 @@ Coverage declarations: 35.
 | incremental | 3 | 7 | 0 |
 | malformed | 35 | 0 | 0 |
 | near-miss-negative | 25 | 0 | 0 |
-| overlap | 24 | 0 | 1 |
+| overlap | 25 | 0 | 0 |
 | positive | 25 | 0 | 0 |
 | range | 35 | 0 | 0 |
 
@@ -127,4 +127,3 @@ None.
 ### Pending evidence dimensions
 
 - authorization_credential.host-context (`authorization-credential-host-context-breadth`)
-- authorization_credential.overlap (`authorization-credential-overlap`)

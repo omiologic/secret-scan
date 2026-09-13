@@ -83,6 +83,33 @@ fn narrower_contextual_candidate_wins_and_redacts() {
     );
 }
 
+/// fixture: authorization-overlap-contextual-assignment
+///
+/// The structural Token authorization candidate wins over the nested
+/// contextual assignment candidate, and the default policy redacts the whole
+/// authorization value selected by overlap resolution.
+#[test]
+fn authorization_candidate_wins_contextual_overlap_and_redacts() {
+    let input = "Authorization: Token api_key=SYNTHETIC_REVOKED_AUTHORIZATION_OVERLAP_1234";
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+
+    let result = scan_and_redact(
+        input,
+        &registry,
+        &DefaultPolicy,
+        &default_placeholder_formatter,
+    )
+    .unwrap();
+
+    assert_eq!(result.findings().len(), 1);
+    assert_eq!(result.findings()[0].detector(), "generic-token");
+    assert_eq!(result.findings()[0].type_name(), "authorization_credential");
+    assert_eq!(result.findings()[0].confidence(), Confidence::High);
+    assert_eq!(result.findings()[0].range(), range(21, 73));
+    assert_eq!(result.findings()[0].action(), Action::Redact);
+    assert_eq!(result.text(), "Authorization: Token <SECRET_1>");
+}
+
 /// fixture: bearer-overlap-contextual-assignment
 ///
 /// The Bearer detector's structural candidate wins over the wider contextual
