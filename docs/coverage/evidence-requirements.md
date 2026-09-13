@@ -142,7 +142,7 @@ exception *bounded*: a reviewer checks the code applies, not an essay.
 |---|---|---|
 | `no-concept` | The dimension's underlying concept does not exist for this row. | `private_key`'s `schemes: null` — private keys have no accepted-URI-scheme concept, so the scheme dimension is `not-applicable`, not unresolved. |
 | `owned-elsewhere` | The dimension is required by the matrix but is evidenced once, by a different class, and re-deriving it here would duplicate evidence without adding assurance. | `incremental`'s `positive` cell: the finding being partitioned was already positive-evidenced by its owning `provider`/`structural`/`contextual` row; requiring a second, independent positive fixture here would be Cartesian-product busywork the matrix deliberately excludes. |
-| `single-detector-family` | Two declared types share one detector, so evidence gathered under one type's fixtures (adversarial caps, malformed survival) already covers the other. | `contextual_secret` and `authorization_credential` both share `generic-token`'s fixtures for `adversarial`, `overlap`, and `malformed` — a gap in one of those dimensions for `authorization_credential` specifically would show up as a gap in the shared detector fixtures, not as a silently-inherited pass. |
+| `single-detector-family` | Two declared types share one detector, so evidence gathered under one type's fixtures (adversarial caps, malformed survival) already covers the other. | `contextual_secret` and `authorization_credential` may share `generic-token` evidence for `adversarial` and `malformed`. Overlap is type-specific because the evidence must pin which finding type wins; it cannot be borrowed from a sibling type. |
 | `pending` | The dimension is genuinely required, currently unmet, and tracked with an owning backlog item — an honest gap, not an invented pass. | `authorization_credential`'s `positive` and `boundary` cells: tracked as `C/F-03` in [`docs/audits/deferred-quality-backlog.md`](../audits/deferred-quality-backlog.md), which already states the exact missing evidence (one supported positive fixture per scheme, one boundary fixture at `MIN_AUTHORIZATION_VALUE_LENGTH`). |
 
 A row or cell with no applicable code from this table is not exempt — it
@@ -196,21 +196,20 @@ Applying §4's matrix and §5's exception codes to the current baseline
   `connection_string_password`'s per-scheme ledger now shows full coverage
   rather than partial.
 - **2 contextual rows** (`contextual_secret`, `authorization_credential`,
-  both on `generic-token`): both inherit `overlap`, `malformed`, and
-  `adversarial` evidence from `generic-token`'s shared fixtures
-  (`single-detector-family`). `contextual_secret` has `positive`,
-  `near-miss negative`, `boundary`, and (since issue #111) `host-context`
-  evidence and resolves `supported` on every dimension the `contextual`
+  both on `generic-token`): `single-detector-family` is limited to shared
+  detector robustness such as `malformed` and `adversarial`; overlap evidence
+  must resolve independently for each finding type. `contextual_secret` has
+  direct `positive`, `near-miss negative`, `boundary`, `overlap`, and (since
+  issue #111) `host-context` evidence and resolves `supported` on every dimension the `contextual`
   behavior class requires — its own positive fixtures now reach all five
   representative classes (`structured-data-kv`, `shell-invocation`,
   `source-code`, `wire-and-log`, `prose-and-markup`; see
   [`host-context-classes.md`](./host-context-classes.md) §4-5), which is
   what §3's type-level rule requires for the `contextual` class.
-  `authorization_credential` is missing `positive`, `boundary`, and both
-  scheme rows (`basic`, `token`) outright — this is the one row the current
-  baseline already reports as `unresolved`, and the model resolves it the
-  same way, citing the existing `pending` rationale (`C/F-03`) rather than
-  inventing evidence to force a `supported` state.
+  `authorization_credential` has direct positive, boundary, near-miss,
+  malformed, and range evidence. Its overlap and type-level host-context
+  dimensions remain pending under their own backlog IDs rather than borrowing
+  `contextual_secret` evidence.
 
 ### `consumers` rows (9, the `binding-edge` class)
 

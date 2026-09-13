@@ -328,13 +328,13 @@ def build_type_row(
 
 #  evidence-requirements.md §5's own example limits `single-detector-family`
 #  reuse to behavioral-robustness dimensions a shared detector demonstrates
-#  regardless of which type triggered it (adversarial caps, overlap
-#  precedence, malformed-input survival). `positive`, `near-miss-negative`,
-#  `boundary`, and `host-context` are type-identity claims -- "this type has
-#  a real match" -- that a sibling's evidence cannot stand in for without
+#  regardless of which type triggered it (adversarial caps and malformed-input
+#  survival). `positive`, `near-miss-negative`, `boundary`, `overlap`, and
+#  `host-context` are type-identity claims -- including which type wins a
+#  candidate conflict -- that a sibling's evidence cannot stand in for without
 #  inventing a supported state the corpus does not back (see
 #  `apply_known_exceptions` for how those instead resolve honestly).
-SHAREABLE_DIMENSIONS = {"overlap", "malformed", "adversarial"}
+SHAREABLE_DIMENSIONS = {"malformed", "adversarial"}
 
 
 def resolve_shared_family(rows_by_type: dict[str, dict], type_names: list[str]) -> None:

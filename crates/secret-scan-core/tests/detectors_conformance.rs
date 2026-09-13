@@ -53,6 +53,36 @@ fn contextual_candidate_yields_to_a_higher_specificity_provider_candidate() {
     assert_eq!(findings[0].range(), provider_range);
 }
 
+/// fixture: contextual-overlap-nested-assignment
+///
+/// Two contextual assignment candidates overlap. The narrower inner value
+/// wins the span-width tie breaker and the default policy redacts that exact
+/// range.
+#[test]
+fn narrower_contextual_candidate_wins_and_redacts() {
+    let input = "client_secret=\"SYNTHETIC_REVOKED_OUTER_MARKER; api_key=SYNTHETIC_REVOKED_CONTEXT_OVERLAP_1234\"";
+    let registry = DetectorRegistry::with_built_in([]).unwrap();
+
+    let result = scan_and_redact(
+        input,
+        &registry,
+        &DefaultPolicy,
+        &default_placeholder_formatter,
+    )
+    .unwrap();
+
+    assert_eq!(result.findings().len(), 1);
+    assert_eq!(result.findings()[0].detector(), "generic-token");
+    assert_eq!(result.findings()[0].type_name(), "contextual_secret");
+    assert_eq!(result.findings()[0].confidence(), Confidence::High);
+    assert_eq!(result.findings()[0].range(), range(55, 93));
+    assert_eq!(result.findings()[0].action(), Action::Redact);
+    assert_eq!(
+        result.text(),
+        "client_secret=\"SYNTHETIC_REVOKED_OUTER_MARKER; api_key=<SECRET_1>\""
+    );
+}
+
 /// fixture: bearer-overlap-contextual-assignment
 ///
 /// The Bearer detector's structural candidate wins over the wider contextual
