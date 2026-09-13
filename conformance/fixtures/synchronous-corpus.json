@@ -1,6 +1,6 @@
 {
   "offsetUnit": "utf8-byte",
-  "fixtureCount": 393,
+  "fixtureCount": 394,
   "fixtures": [
     {
       "id": "host-dotenv-github",
@@ -8292,6 +8292,28 @@
         }
       ],
       "note": "An explicit Token authorization scheme is supported at the minimum accepted value length."
+    },
+    {
+      "id": "authorization-overlap-contextual-assignment",
+      "detector": "generic-token",
+      "kind": "overlap",
+      "support": "supported",
+      "tier": "canonical",
+      "contexts": [
+        "plain-text"
+      ],
+      "input": "Authorization: Token api_key=SYNTHETIC_REVOKED_AUTHORIZATION_OVERLAP_1234",
+      "expected": [
+        {
+          "detector": "generic-token",
+          "type": "authorization_credential",
+          "confidence": "high",
+          "specificity": "structural",
+          "start": 21,
+          "end": 73
+        }
+      ],
+      "note": "The structural Token authorization candidate wins over the nested contextual assignment candidate."
     },
     {
       "id": "authorization-boundary-short",

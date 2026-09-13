@@ -45,12 +45,13 @@ sufficient coverage evidence.
   tracked as
   [`docs/audits/detection-assurance-residual-evidence-backlog.md`](../audits/detection-assurance-residual-evidence-backlog.md).
   Issue [#136](https://github.com/redact-secret/redact-secret/issues/136)
-  closed the historical tracking artifact; current exit work is owned by
+  closed the historical tracking artifact; its exit work was split across
   [#186](https://github.com/redact-secret/redact-secret/issues/186),
   [#187](https://github.com/redact-secret/redact-secret/issues/187),
   [#188](https://github.com/redact-secret/redact-secret/issues/188),
   [#189](https://github.com/redact-secret/redact-secret/issues/189), and
-  [#190](https://github.com/redact-secret/redact-secret/issues/190).
+  [#190](https://github.com/redact-secret/redact-secret/issues/190); only #190
+  remains pending.
 
 Tests: `python3 -B -m unittest discover -s scripts/tests -p 'test_generate_coverage_inventory.py'`.
 

@@ -2227,12 +2227,10 @@
         },
         {
           "dimension": "overlap",
-          "evidenceFixtureIds": [],
-          "exception": {
-            "backlogId": "authorization-credential-overlap",
-            "code": "pending"
-          },
-          "state": "pending"
+          "evidenceFixtureIds": [
+            "authorization-overlap-contextual-assignment"
+          ],
+          "state": "supported"
         },
         {
           "dimension": "adversarial",

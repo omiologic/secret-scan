@@ -687,6 +687,23 @@ mod tests {
     }
 
     #[test]
+    fn token_authorization_and_nested_assignment_emit_overlapping_candidates() {
+        let input = "Authorization: Token api_key=SYNTHETIC_REVOKED_AUTHORIZATION_OVERLAP_1234";
+        let candidates = detect(input);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].type_name(), "contextual_secret");
+        assert_eq!(candidates[0].confidence(), Confidence::High);
+        assert_eq!(candidates[0].specificity(), Some(Specificity::Contextual));
+        assert_eq!(candidates[0].range(), ByteRange::new(29, 73).unwrap());
+        assert_eq!(candidates[1].type_name(), "authorization_credential");
+        assert_eq!(candidates[1].confidence(), Confidence::High);
+        assert_eq!(candidates[1].specificity(), Some(Specificity::Structural));
+        assert_eq!(candidates[1].range(), ByteRange::new(21, 73).unwrap());
+        assert!(candidates[0].range().overlaps(candidates[1].range()));
+    }
+
+    #[test]
     fn authorization_value_at_the_minimum_accepted_length_is_medium_confidence() {
         let input = "Authorization: Token TOKENVALUE12";
         let candidates = detect(input);
